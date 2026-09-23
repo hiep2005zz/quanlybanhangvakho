@@ -1,0 +1,39 @@
+# backend/app/api/deps.py
+from typing import Optional
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from app.core.security import decode_access_token
+from app.models.user import USERS_DB, UserInDB
+from app.schemas.auth import UserResponse
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> UserResponse:
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Yêu cầu xác thực. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    username: str = payload.get("sub", "")
+    user: Optional[UserInDB] = USERS_DB.get(username)
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Người dùng không tồn tại hoặc đã bị khóa.",
+        )
+    
+    return UserResponse(
+        username=user.username,
+        full_name=user.full_name,
+        role=user.role
+    )
