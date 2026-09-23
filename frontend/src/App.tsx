@@ -2,12 +2,10 @@ import { FormEvent, useState } from 'react';
 import { requestPasswordReset, resetPassword } from './services/auth';
 import './app.css';
 
-type Step = 'email' | 'reset';
-
 function App() {
-  const [step, setStep] = useState<Step>('email');
+  const resetToken = new URLSearchParams(window.location.search).get('token') ?? '';
+  const [step, setStep] = useState<'email' | 'reset'>(resetToken ? 'reset' : 'email');
   const [email, setEmail] = useState('');
-  const [token, setToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -21,7 +19,6 @@ function App() {
     try {
       const response = await requestPasswordReset(email);
       setMessage(response.message);
-      setStep('reset');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Không thể gửi yêu cầu.');
     } finally {
@@ -35,9 +32,8 @@ function App() {
     setMessage('');
     setIsSubmitting(true);
     try {
-      const response = await resetPassword(token, newPassword);
+      const response = await resetPassword(resetToken, newPassword);
       setMessage(response.message);
-      setToken('');
       setNewPassword('');
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : 'Không thể đặt lại mật khẩu.');
@@ -71,15 +67,6 @@ function App() {
           </form>
         ) : (
           <form onSubmit={handleReset}>
-            <label htmlFor="token">Mã đặt lại mật khẩu</label>
-            <input
-              id="token"
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              placeholder="Dán mã trong email"
-              autoComplete="one-time-code"
-              required
-            />
             <label htmlFor="new-password">Mật khẩu mới</label>
             <input
               id="new-password"
@@ -93,7 +80,15 @@ function App() {
             <button type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Đang cập nhật...' : 'Đặt lại mật khẩu'}
             </button>
-            <button type="button" className="secondary" onClick={() => setStep('email')}>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => {
+                window.history.replaceState({}, '', window.location.pathname);
+                setStep('email');
+                setMessage('');
+              }}
+            >
               Gửi lại yêu cầu
             </button>
           </form>
