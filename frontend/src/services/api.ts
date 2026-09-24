@@ -104,22 +104,49 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
   if (currentToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${currentToken}`);
   }
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   try {
     const response = await fetch(input, { ...init, headers });
 
     if (response.status === 401) {
-      notifySessionExpired('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
-      throw new Error('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
+      let errorDetail = 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.';
+      try {
+        const cloned = response.clone();
+        const data = await cloned.json();
+        if (typeof data?.detail === 'string') {
+          errorDetail = data.detail;
+        } else if (data?.detail && typeof data.detail.message === 'string') {
+          errorDetail = data.detail.message;
+        }
+      } catch {
+        // ignore
+      }
+
+      notifySessionExpired(errorDetail);
+      throw new Error(errorDetail);
     }
 
     return response;
   } catch (err: any) {
-    if (err?.message === 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.') {
-      throw err;
-    }
-    // Network errors (e.g. flaky mobile connection)
     throw err;
+  }
+}
+
+/**
+ * Validate token with server (/auth/me):
+ * If token is revoked on server (401), authenticatedFetch intercepts it and kicks session.
+ */
+export async function validateSessionApi(token?: string): Promise<boolean> {
+  try {
+    const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, {
+      method: 'GET',
+    }, token);
+    return response.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -192,6 +219,15 @@ export async function logoutApi(token: string): Promise<void> {
     console.warn('Network error while logging out on server:', e);
   } finally {
     clearClientSession();
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel('auth_channel');
+        channel.postMessage({ type: 'LOGOUT', timestamp: Date.now() });
+        channel.close();
+      }
+    } catch {
+      // ignore
+    }
   }
 }
 
@@ -228,12 +264,22 @@ export async function changePasswordApi(
 ): Promise<ChangePasswordResult> {
   const response = await authenticatedFetch(`${API_BASE_URL}/auth/change-password`, {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(payload),
   }, token);
 
   const data = await response.json();
   if (!response.ok) {
-    const errorMsg = data?.detail?.message || data?.detail || 'Đổi mật khẩu thất bại. Vui lòng thử lại.';
+    let errorMsg = 'Đổi mật khẩu thất bại. Vui lòng thử lại.';
+    if (typeof data?.detail === 'string') {
+      errorMsg = data.detail;
+    } else if (Array.isArray(data?.detail) && data.detail.length > 0) {
+      errorMsg = data.detail[0]?.msg || errorMsg;
+    } else if (typeof data?.detail === 'object' && data.detail?.message) {
+      errorMsg = data.detail.message;
+    }
     throw new Error(errorMsg);
   }
 

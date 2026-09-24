@@ -57,11 +57,13 @@ function App() {
   });
 
   const [sessionExpiredMsg, setSessionExpiredMsg] = useState<string | null>(() => {
+    const stored = localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    if (stored) return stored;
     const params = new URLSearchParams(window.location.search);
     if (params.get('expired') === 'true') {
       return 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.';
     }
-    return localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    return null;
   });
 
   // Xử lý sự kiện hết hạn phiên
@@ -183,6 +185,10 @@ function App() {
         user={currentUser}
         token={authToken}
         onLogout={handleLogout}
+        onTokenUpdated={(newToken) => {
+          setAuthToken(newToken);
+          sessionManager.start(newToken);
+        }}
       />
     );
   }

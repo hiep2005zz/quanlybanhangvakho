@@ -14,14 +14,19 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const formatNotice = (msg: string) => {
+    return msg.startsWith('⚠️') ? msg : `⚠️ ${msg}`;
+  };
+
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState<string | null>(() => {
+    const stored = localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    if (stored) return formatNotice(stored);
+    if (expiredMessage) return formatNotice(expiredMessage);
     const params = new URLSearchParams(window.location.search);
     if (params.get('expired') === 'true') {
       return '⚠️ Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.';
     }
-    const stored = localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
-    if (stored) return stored;
-    if (expiredMessage) return expiredMessage;
     return null;
   });
   const [lockRemaining, setLockRemaining] = useState<number>(0);
@@ -29,11 +34,16 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
 
   // Cập nhật thông báo hết hạn nếu prop thay đổi hoặc có query param
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('expired') === 'true') {
-      setSessionExpiredNotice('⚠️ Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
+    const stored = localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    if (stored) {
+      setSessionExpiredNotice(formatNotice(stored));
     } else if (expiredMessage) {
-      setSessionExpiredNotice(expiredMessage);
+      setSessionExpiredNotice(formatNotice(expiredMessage));
+    } else {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('expired') === 'true') {
+        setSessionExpiredNotice('⚠️ Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
+      }
     }
   }, [expiredMessage]);
 

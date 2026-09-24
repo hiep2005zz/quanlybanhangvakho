@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { changePasswordApi } from '../services/api';
+import { CURRENT_TAB_ID } from '../services/sessionManager';
 
 interface SecurityModalProps {
   isOpen: boolean;
@@ -113,6 +114,22 @@ export default function SecurityModal({
 
       if (res.access_token && onTokenUpdated) {
         onTokenUpdated(res.access_token);
+      }
+
+      // Phát tín hiệu tức thì sang tất cả các tab khác để lập tức thu hồi phiên của họ
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          const channel = new BroadcastChannel('auth_channel');
+          channel.postMessage({
+            type: 'PASSWORD_CHANGED',
+            tabId: CURRENT_TAB_ID,
+            newToken: res.access_token,
+            timestamp: Date.now(),
+          });
+          channel.close();
+        }
+      } catch {
+        // ignore
       }
 
       // Tự động đóng modal sau 2.2 giây

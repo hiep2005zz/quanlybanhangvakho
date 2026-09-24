@@ -8,9 +8,10 @@ interface DashboardProps {
   user: User;
   token: string;
   onLogout: () => void | Promise<void>;
+  onTokenUpdated?: (newToken: string) => void;
 }
 
-export default function DashboardPage({ user, token, onLogout }: DashboardProps) {
+export default function DashboardPage({ user, token, onLogout, onTokenUpdated }: DashboardProps) {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -872,6 +873,7 @@ export default function DashboardPage({ user, token, onLogout }: DashboardProps)
         isOpen={isSecurityModalOpen}
         onClose={() => setIsSecurityModalOpen(false)}
         token={token}
+        onTokenUpdated={onTokenUpdated}
       />
     </div>
   );

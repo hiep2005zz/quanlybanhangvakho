@@ -1,5 +1,8 @@
 // frontend/src/services/sessionManager.ts
-import { refreshTokenApi, notifySessionExpired, AUTH_STORAGE } from './api';
+import { refreshTokenApi, notifySessionExpired, AUTH_STORAGE, validateSessionApi } from './api';
+
+// Định danh duy nhất cho từng Tab/Cửa sổ để phân biệt tab thao tác với các tab khác
+export const CURRENT_TAB_ID = 'tab_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
 
 // Cấu hình thời gian
 const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 phút không tương tác -> hết hạn phiên
@@ -29,11 +32,16 @@ class SessionManager {
   private tokenRefreshListeners: Set<TokenRefreshListener> = new Set();
   private statusListeners: Set<StatusListener> = new Set();
   private isInitialized: boolean = false;
+  private heartbeatCounter: number = 0;
+  private authChannel: BroadcastChannel | null = null;
 
   constructor() {
     this.handleMouseMove = this.throttle(this.handleMouseMove.bind(this), 2000);
     this.handleUserInteraction = this.throttle(this.handleUserInteraction.bind(this), 1000);
     this.handleOnline = this.handleOnline.bind(this);
+    this.handleWindowFocus = this.handleWindowFocus.bind(this);
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    this.handleStorage = this.handleStorage.bind(this);
   }
 
   private throttle(fn: () => void, wait: number) {
@@ -79,10 +87,66 @@ class SessionManager {
     }
   }
 
+  // Lắng nghe sự kiện chuyển tab / focus lại cửa sổ:
+  // Lập tức kiểm tra tính hợp lệ của Token với server (thu hồi tức thì nếu tab khác đã đổi mật khẩu)
+  private handleWindowFocus() {
+    if (this.currentToken && !this.isRefreshing) {
+      validateSessionApi(this.currentToken);
+    }
+  }
+
+  private handleVisibilityChange() {
+    if (document.visibilityState === 'visible' && this.currentToken && !this.isRefreshing) {
+      validateSessionApi(this.currentToken);
+    }
+  }
+
+  // Lắng nghe sự kiện storage trên các tab cùng trình duyệt:
+  private handleStorage(e: StorageEvent) {
+    if (e.key === AUTH_STORAGE.TOKEN) {
+      if (!e.newValue) {
+        // Tab khác đã đăng xuất
+        this.forceExpire('Bạn đã đăng xuất từ một cửa sổ khác.');
+      } else if (this.currentToken && e.newValue !== this.currentToken) {
+        // Tab khác đã đổi mật khẩu và cấp token mới -> token tab này bị thu hồi
+        this.forceExpire('Phiên làm việc đã bị thu hồi do đổi mật khẩu từ một cửa sổ khác. Vui lòng đăng nhập lại.');
+      }
+    }
+  }
+
   public start(token: string) {
     this.currentToken = token;
     this.lastActivityTime = Date.now();
     this.lastRefreshedTime = Date.now();
+    this.heartbeatCounter = 0;
+
+    // Thiết lập BroadcastChannel để đồng bộ tức thì 0ms giữa các tab
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        if (this.authChannel) {
+          this.authChannel.close();
+        }
+        this.authChannel = new BroadcastChannel('auth_channel');
+        this.authChannel.onmessage = (event) => {
+          // Bỏ qua tin nhắn do chính tab này gửi để không tự đá văng chính mình
+          if (event.data?.tabId === CURRENT_TAB_ID) {
+            return;
+          }
+
+          if (event.data?.type === 'PASSWORD_CHANGED') {
+            // Nếu tab này đã cập nhật token mới rồi thì không thu hồi
+            if (this.currentToken && event.data?.newToken === this.currentToken) {
+              return;
+            }
+            this.forceExpire('Phiên làm việc đã bị thu hồi do đổi mật khẩu từ một cửa sổ khác. Vui lòng đăng nhập lại.');
+          } else if (event.data?.type === 'LOGOUT') {
+            this.forceExpire('Bạn đã đăng xuất từ một cửa sổ khác.');
+          }
+        };
+      } catch {
+        // ignore
+      }
+    }
 
     if (!this.isInitialized) {
       window.addEventListener('mousemove', this.handleUserInteraction);
@@ -92,6 +156,9 @@ class SessionManager {
       window.addEventListener('touchstart', this.handleUserInteraction);
       window.addEventListener('scroll', this.handleUserInteraction);
       window.addEventListener('online', this.handleOnline);
+      window.addEventListener('focus', this.handleWindowFocus);
+      window.addEventListener('storage', this.handleStorage);
+      document.addEventListener('visibilitychange', this.handleVisibilityChange);
       this.isInitialized = true;
     }
 
@@ -99,10 +166,19 @@ class SessionManager {
       window.clearInterval(this.checkTimer);
     }
 
-    // Interval chạy mỗi 1000ms tính thời gian còn lại
+    // Interval chạy mỗi 1000ms tính thời gian còn lại & Heartbeat kiểm tra token định kỳ
     this.checkTimer = window.setInterval(() => {
       this.checkAndRefreshSession(false);
       this.notifyStatus();
+
+      // Heartbeat mỗi 10 giây: Ping server kiểm tra hiệu lực token (Realtime Revocation)
+      this.heartbeatCounter++;
+      if (this.heartbeatCounter >= 10) {
+        this.heartbeatCounter = 0;
+        if (this.currentToken && !this.isRefreshing) {
+          validateSessionApi(this.currentToken);
+        }
+      }
     }, CHECK_INTERVAL_MS);
 
     this.notifyStatus();
@@ -115,6 +191,15 @@ class SessionManager {
     }
     this.currentToken = null;
 
+    if (this.authChannel) {
+      try {
+        this.authChannel.close();
+      } catch {
+        // ignore
+      }
+      this.authChannel = null;
+    }
+
     if (this.isInitialized) {
       window.removeEventListener('mousemove', this.handleUserInteraction);
       window.removeEventListener('mousedown', this.handleUserInteraction);
@@ -123,6 +208,9 @@ class SessionManager {
       window.removeEventListener('touchstart', this.handleUserInteraction);
       window.removeEventListener('scroll', this.handleUserInteraction);
       window.removeEventListener('online', this.handleOnline);
+      window.removeEventListener('focus', this.handleWindowFocus);
+      window.removeEventListener('storage', this.handleStorage);
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
       this.isInitialized = false;
     }
   }
@@ -174,9 +262,9 @@ class SessionManager {
     return false;
   }
 
-  public forceExpire() {
+  public forceExpire(message: string = 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.') {
     this.stop();
-    notifySessionExpired('Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.');
+    notifySessionExpired(message);
   }
 
   private async checkAndRefreshSession(forceCheck: boolean = false) {

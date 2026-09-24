@@ -49,6 +49,17 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> UserRespo
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Người dùng không tồn tại hoặc đã bị khóa.",
         )
+
+    # Kiểm tra token_version: Nếu mật khẩu đã đổi, token_version trong DB sẽ tăng lên,
+    # các phiên cũ có token_version nhỏ hơn sẽ bị thu hồi ngay lập tức
+    token_version = payload.get("token_version", 1)
+    user_token_version = getattr(user, "token_version", 1)
+    if token_version != user_token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên làm việc đã bị thu hồi do đổi mật khẩu. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     return UserResponse(
         username=user.username,

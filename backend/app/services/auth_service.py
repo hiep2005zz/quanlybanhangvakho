@@ -72,7 +72,11 @@ def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenRespo
     # 3. Successful login -> reset failed attempts
     FAILED_ATTEMPTS[uname] = {"count": 0, "locked_until": None}
 
-    access_token = create_access_token(subject=user.username, role=user.role)
+    access_token = create_access_token(
+        subject=user.username,
+        role=user.role,
+        token_version=getattr(user, "token_version", 1)
+    )
     token_resp = TokenResponse(
         access_token=access_token,
         token_type="bearer",

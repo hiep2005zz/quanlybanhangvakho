@@ -1,4 +1,4 @@
-# backend/app/models/user.py
+# backend/app/models/user.py - Seed Database Fresh v2
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel

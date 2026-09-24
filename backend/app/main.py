@@ -1,4 +1,4 @@
-# backend/app/main.py
+# backend/app/main.py - Fresh Reset
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints import auth, products
