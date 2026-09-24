@@ -295,6 +295,51 @@
     cursor: not-allowed;
 }
 
+.session-expired-alert {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid #d97706; /* Viền vàng hổ phách tinh tế */
+    color: #fef3c7;
+    padding: 12px 14px;
+    border-radius: 10px; /* Bo góc nhẹ */
+    font-size: 13.5px;
+    line-height: 1.45;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(217, 119, 6, 0.15);
+    animation: fadeInCard 0.3s ease-out;
+}
+
+.session-expired-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.session-expired-close-btn {
+    background: transparent;
+    border: none;
+    color: #fbbf24;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 3px 6px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.session-expired-close-btn:hover {
+    background: rgba(245, 158, 11, 0.25);
+    color: #ffffff;
+}
+
 @keyframes shake {
 
     0%,

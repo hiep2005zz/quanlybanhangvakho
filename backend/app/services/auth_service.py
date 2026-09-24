@@ -76,6 +76,7 @@ def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenRespo
     token_resp = TokenResponse(
         access_token=access_token,
         token_type="bearer",
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user=UserResponse(
             username=user.username,
             full_name=user.full_name,

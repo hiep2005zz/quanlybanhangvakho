@@ -14,5 +14,10 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    expires_in: int = 900 # Thời hạn hiệu lực tính theo giây (15 phút)
     user: UserResponse
     remaining_attempts: Optional[int] = None
+
+class MessageResponse(BaseModel):
+    message: str
+    status: str = "success"

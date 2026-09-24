@@ -2,11 +2,21 @@
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, is_token_revoked
 from app.models.user import USERS_DB, UserInDB
 from app.schemas.auth import UserResponse
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+def get_current_token(token: Optional[str] = Depends(oauth2_scheme)) -> str:
+    """Lấy token xác thực thô từ header Bearer."""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Yêu cầu xác thực. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return token
 
 def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> UserResponse:
     if not token:
@@ -16,11 +26,19 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> UserRespo
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Kiểm tra xem token đã bị hủy (đăng xuất) hay chưa
+    if is_token_revoked(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên làm việc đã bị thu hồi hoặc đã đăng xuất. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     payload = decode_access_token(token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
+            detail="Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
