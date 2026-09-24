@@ -5,7 +5,9 @@
     transform: scale(1);
     opacity: 0.85;
   }
-  70%, 100% {
+
+  70%,
+  100% {
     transform: scale(2.5);
     opacity: 0;
   }
@@ -119,4 +121,31 @@
   background: rgba(99, 102, 241, 0.25);
   border-color: #6366f1;
   color: #ffffff;
+}
+
+/* Tối ưu hóa giao diện cho màn hình di động nhỏ từ 360px */
+@media (max-width: 480px) {
+  .dashboard-wrapper {
+    padding: 10px !important;
+  }
+
+  .sidebar-drawer {
+    width: 290px !important;
+    max-width: 86vw !important;
+  }
+
+  header {
+    padding: 10px 12px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .header-popover-menu {
+    width: calc(100vw - 20px) !important;
+    max-width: 300px !important;
+    right: -4px !important;
+  }
+
+  table {
+    font-size: 12px !important;
+  }
 }
