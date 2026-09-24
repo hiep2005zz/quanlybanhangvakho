@@ -1,5 +1,10 @@
-# backend/app/core/config.py
-import secrets
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Nạp file .env từ thư mục backend
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 class Settings:
     PROJECT_NAME: str = "Backend API - Quan Ly Kho & Ban Hang"
@@ -13,5 +18,14 @@ class Settings:
     # Security Lockout Settings
     MAX_FAILED_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
+
+    # Gmail SMTP Settings
+    MAIL_USERNAME: str = os.getenv("MAIL_USERNAME", "")
+    MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD", "")
+    MAIL_FROM: str = os.getenv("MAIL_FROM", os.getenv("MAIL_USERNAME", ""))
+    MAIL_PORT: int = int(os.getenv("MAIL_PORT", "587"))
+    MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_TLS: bool = os.getenv("MAIL_TLS", "True").lower() in ("true", "1", "yes")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 settings = Settings()

@@ -206,3 +206,41 @@ export async function getProductsApi(token: string): Promise<ProductListResponse
 
   return response.json();
 }
+
+export interface ChangePasswordPayload {
+  current_password: string;
+  new_password: string;
+  confirm_password?: string;
+}
+
+export interface ChangePasswordResult {
+  status: string;
+  message: string;
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: User;
+}
+
+export async function changePasswordApi(
+  payload: ChangePasswordPayload,
+  token: string
+): Promise<ChangePasswordResult> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/auth/change-password`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json();
+  if (!response.ok) {
+    const errorMsg = data?.detail?.message || data?.detail || 'Đổi mật khẩu thất bại. Vui lòng thử lại.';
+    throw new Error(errorMsg);
+  }
+
+  // Cập nhật token mới cho client session
+  if (data.access_token && data.user) {
+    saveClientSession(data.user, data.access_token, data.expires_in || 900);
+  }
+
+  return data;
+}

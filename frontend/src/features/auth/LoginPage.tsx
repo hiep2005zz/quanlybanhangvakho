@@ -6,9 +6,10 @@ interface LoginPageProps {
   onLoginSuccess: (user: User, token: string) => void;
   expiredMessage?: string | null;
   onClearExpiredMessage?: () => void;
+  onForgotPassword?: () => void;
 }
 
-export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpiredMessage }: LoginPageProps) {
+export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpiredMessage, onForgotPassword }: LoginPageProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -223,6 +224,27 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
                   {showPassword ? 'Ẩn' : 'Hiện'}
                 </button>
               </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px', marginBottom: '14px' }}>
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#38bdf8',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  padding: 0,
+                  textDecoration: 'none',
+                  fontWeight: '500'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
+              >
+                Quên mật khẩu?
+              </button>
             </div>
 
             <button type="submit" className="submit-btn" disabled={lockRemaining > 0 || isLoading}>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getProductsApi, ProductItem, User } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
+import SecurityModal from './SecurityModal';
 import './dashboard.css';
 
 interface DashboardProps {
@@ -17,6 +18,7 @@ export default function DashboardPage({ user, token, onLogout }: DashboardProps)
   const [sessionInfo, setSessionInfo] = useState<SessionState>(() => sessionManager.getSessionState());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
@@ -276,20 +278,36 @@ export default function DashboardPage({ user, token, onLogout }: DashboardProps)
 
               {/* 2 Card chức năng phụ: Bảo mật & Phần mở rộng */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-                <div style={{
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  padding: '12px 8px',
-                  textAlign: 'center',
-                  cursor: 'default',
-                }}>
-                  <div style={{ color: '#475569', display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
+                <div
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setIsSecurityModalOpen(true);
+                  }}
+                  style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '12px 8px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#0284c7';
+                    e.currentTarget.style.background = '#f0f9ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.background = '#ffffff';
+                  }}
+                  title="Nhấn để đổi mật khẩu & bảo vệ tài khoản"
+                >
+                  <div style={{ color: '#0284c7', display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                       <polyline points="9 12 11 14 15 10" />
                     </svg>
                   </div>
-                  <span style={{ fontSize: '13px', fontWeight: '500', color: '#334155' }}>Bảo mật</span>
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#0284c7' }}>Bảo mật</span>
                 </div>
 
                 <div style={{
@@ -848,6 +866,13 @@ export default function DashboardPage({ user, token, onLogout }: DashboardProps)
           </div>
         </div>
       )}
+
+      {/* Modal Bảo Mật & Đổi Mật Khẩu */}
+      <SecurityModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        token={token}
+      />
     </div>
   );
 }
