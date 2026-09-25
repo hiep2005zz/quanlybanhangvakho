@@ -26,7 +26,7 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
       CHỈ ĐƯỢC PHÉP TRẢ VỀ khi người dùng có quyền 'cost:read' (Vai trò: Quản lý kinh doanh hoặc Quản trị hệ thống).
     - Đối với Thủ kho, Nhân viên kinh doanh, Kế toán...: Server BÓC TÁCH & GỠ BỎ HOÀN TOÀN các trường này (None).
     """
-    can_view_cost = has_permission(current_user.role, Permission.COST_READ.value)
+    can_view_cost = current_user.can_view_cost or (Permission.COST_READ.value in current_user.permissions)
     
     sanitized_items: list[ProductItem] = []
     total_stock = 0

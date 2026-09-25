@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import LoginPage from './features/auth/LoginPage';
 import DashboardPage from './components/DashboardPage';
-import { User, logoutApi, subscribeSessionExpired, getClientSession, saveClientSession, clearClientSession, AUTH_STORAGE } from './services/api';
+import { User, logoutApi, subscribeSessionExpired, getClientSession, saveClientSession, clearClientSession, AUTH_STORAGE, getMeApi } from './services/api';
 import { sessionManager } from './services/sessionManager';
 import { requestPasswordReset, resetPassword } from './services/auth';
 import './app.css';
@@ -66,6 +66,18 @@ function App() {
     return null;
   });
 
+  // Tự động đồng bộ vai trò và thông tin mới nhất từ máy chủ khi load trang (F5)
+  useEffect(() => {
+    if (authToken) {
+      getMeApi(authToken).then((freshUser) => {
+        if (freshUser) {
+          setCurrentUser(freshUser);
+          sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(freshUser));
+        }
+      });
+    }
+  }, [authToken]);
+
   // Xử lý sự kiện hết hạn phiên
   const handleSessionExpired = useCallback((message: string) => {
     sessionManager.stop();
@@ -96,14 +108,18 @@ function App() {
       const unsubscribeRefresh = sessionManager.onTokenRefreshed((newToken) => {
         setAuthToken(newToken);
       });
+      const unsubscribeProfile = sessionManager.onUserProfileUpdated((updatedUser) => {
+        setCurrentUser(updatedUser);
+      });
       return () => {
         unsubscribeRefresh();
+        unsubscribeProfile();
         sessionManager.stop();
       };
     } else {
       sessionManager.stop();
     }
-  }, [authToken, currentUser]);
+  }, [authToken, currentUser?.username]);
 
   const handleLoginSuccess = (user: User, token: string) => {
     setSessionExpiredMsg(null);
@@ -185,29 +201,50 @@ function App() {
     sessionManager.start(newToken);
   };
 
+  // Component video background động toàn trang web
+  const videoBackground = (
+    <div className="global-bg-video-wrapper" aria-hidden="true">
+      <video
+        className="global-bg-video"
+        autoPlay
+        loop
+        muted
+        playsInline
+      >
+        <source src="/bg-video.mp4" type="video/mp4" />
+      </video>
+      <div className="global-bg-video-overlay" />
+    </div>
+  );
+
   // Nếu đã đăng nhập thành công
   if (currentUser && authToken) {
     return (
-      <DashboardPage
-        user={currentUser}
-        token={authToken}
-        onLogout={handleLogout}
-        onSwitchUser={handleSwitchUser}
-        onTokenUpdated={(newToken) => {
-          setAuthToken(newToken);
-          if (currentUser) {
-            saveClientSession(currentUser, newToken);
-            sessionManager.start(newToken, currentUser.username);
-          }
-        }}
-      />
+      <>
+        {videoBackground}
+        <DashboardPage
+          user={currentUser}
+          token={authToken}
+          onLogout={handleLogout}
+          onSwitchUser={handleSwitchUser}
+          onTokenUpdated={(newToken) => {
+            setAuthToken(newToken);
+            if (currentUser) {
+              saveClientSession(currentUser, newToken);
+              sessionManager.start(newToken, currentUser.username);
+            }
+          }}
+        />
+      </>
     );
   }
 
   // Màn hình Quên mật khẩu / Đặt lại mật khẩu
   if (authView === 'forgot' || authView === 'reset') {
     return (
-      <main className="auth-page">
+      <>
+        {videoBackground}
+        <main className="auth-page" style={{ background: 'transparent' }}>
         <section className="auth-card" aria-labelledby="page-title">
           <p className="eyebrow">QUẢN LÝ BÁN HÀNG & KHO</p>
           <h1 id="page-title">
@@ -299,21 +336,25 @@ function App() {
           {resetError && <p className="message error" role="alert">{resetError}</p>}
         </section>
       </main>
+      </>
     );
   }
 
   // Màn hình Đăng nhập chuẩn
   return (
-    <LoginPage
-      onLoginSuccess={handleLoginSuccess}
-      expiredMessage={sessionExpiredMsg}
-      onClearExpiredMessage={() => setSessionExpiredMsg(null)}
-      onForgotPassword={() => {
-        setResetMessage('');
-        setResetError('');
-        setAuthView('forgot');
-      }}
-    />
+    <>
+      {videoBackground}
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        expiredMessage={sessionExpiredMsg}
+        onClearExpiredMessage={() => setSessionExpiredMsg(null)}
+        onForgotPassword={() => {
+          setResetMessage('');
+          setResetError('');
+          setAuthView('forgot');
+        }}
+      />
+    </>
   );
 }
 

@@ -4,9 +4,16 @@ from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.deps import get_current_user, require_permission
-from app.core.rbac import Role, Permission, ROLE_DETAILS
+from app.core.rbac import (
+    Role,
+    Permission,
+    ROLE_DETAILS,
+    is_warehouse_role,
+    is_specific_warehouse,
+    SPECIFIC_WAREHOUSES,
+)
 from app.core.security import get_password_hash
-from app.models.user import USERS_DB, UserInDB, get_next_user_id
+from app.models.user import USERS_DB, UserInDB, get_next_user_id, save_users_db
 from app.schemas.auth import UserResponse
 from app.schemas.user import UserCreate, UserUpdate, UserItemResponse, UserListResponse
 
@@ -16,28 +23,37 @@ from datetime import datetime, timezone
 from app.models.dealer import count_dealers_by_sale_id, get_dealers_by_sale_id, DEALERS_DB
 
 def _build_user_item(u: UserInDB) -> UserItemResponse:
-    role_info = ROLE_DETAILS.get(u.role, {})
+    roles = u.get_roles()
+    primary_role = roles[0] if roles else u.role
+    role_info = ROLE_DETAILS.get(primary_role, {})
+    role_titles = [ROLE_DETAILS.get(r, {}).get("title", r) for r in roles]
+
     handover_count = count_dealers_by_sale_id(u.id) if (not u.is_active or getattr(u, "status", "ACTIVE") == "LOCKED") else 0
     locked_at_str = u.locked_at.isoformat() if getattr(u, "locked_at", None) else None
     user_status = getattr(u, "status", "ACTIVE")
     if not u.is_active:
         user_status = "LOCKED"
 
+    can_view_cost = any(ROLE_DETAILS.get(r, {}).get("can_view_cost", False) for r in roles)
+    can_write_inventory = any(ROLE_DETAILS.get(r, {}).get("can_write_inventory", False) for r in roles)
+
     return UserItemResponse(
         id=u.id,
         username=u.username,
         full_name=u.full_name,
         email=u.email,
-        role=u.role,
-        role_title=role_info.get("title", u.role),
+        role=primary_role,
+        roles=roles,
+        role_title=role_info.get("title", primary_role),
+        role_titles=role_titles,
         branch=getattr(u, "branch", "Kho Tổng Hà Nội") or "Kho Tổng Hà Nội",
         is_active=u.is_active and user_status == "ACTIVE",
         status=user_status,
         lock_reason=getattr(u, "lock_reason", None),
         locked_at=locked_at_str,
         dealers_needing_handover=handover_count,
-        can_view_cost=role_info.get("can_view_cost", False),
-        can_write_inventory=role_info.get("can_write_inventory", False),
+        can_view_cost=can_view_cost,
+        can_write_inventory=can_write_inventory,
         badge_color=role_info.get("badge_color", "#64748b"),
     )
 
@@ -58,15 +74,42 @@ def create_user(
 ):
     """
     Tạo người dùng mới trong hệ thống:
-    - Admin có quyền tạo thêm tài khoản Admin khác hoặc bất kỳ vai trò nào trong 7 vai trò.
-    - Lưu vào cơ sở dữ liệu USERS_DB và có thể đăng nhập được ngay.
+    - Hỗ trợ gán nhiều vai trò cùng lúc (roles: List[str]).
+    - RÀNG BUỘC KHO: Người dùng có vai trò Kho (Thủ kho hoặc Quản lý kho) bắt buộc phải gắn với ít nhất 1 kho cụ thể.
     """
     valid_roles = [r.value for r in Role]
-    if data.role not in valid_roles:
+    
+    # Chuẩn hóa danh sách roles
+    chosen_roles: List[str] = []
+    if data.roles:
+        chosen_roles = [r.strip() for r in data.roles if r and r.strip()]
+    elif data.role:
+        chosen_roles = [data.role.strip()]
+
+    if not chosen_roles:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Vai trò '{data.role}' không hợp lệ. Vui lòng chọn 1 trong 7 vai trò hệ thống."
+            detail="Vui lòng chọn ít nhất một vai trò cho người dùng."
         )
+
+    # Validate các vai trò phải hợp lệ trong 7 vai trò hệ thống
+    for r in chosen_roles:
+        if r not in valid_roles:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Vai trò '{r}' không hợp lệ. Vui lòng chọn trong các vai trò hệ thống."
+            )
+
+    primary_role = chosen_roles[0]
+    assigned_branch = (data.branch or "Kho Tổng Hà Nội").strip()
+
+    # RÀNG BUỘC KHO: Người dùng có vai trò Kho phải gắn với ít nhất 1 kho cụ thể
+    if is_warehouse_role(chosen_roles):
+        if not is_specific_warehouse(assigned_branch):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Người dùng có vai trò Kho bắt buộc phải gắn với ít nhất 1 kho cụ thể (Ví dụ: {', '.join(SPECIFIC_WAREHOUSES)})."
+            )
 
     # Chuẩn hóa username
     raw_username = (data.username or data.email.split("@")[0]).strip().lower()
@@ -96,12 +139,14 @@ def create_user(
         username=clean_username,
         full_name=data.full_name.strip(),
         email=clean_email,
-        role=data.role,
+        role=primary_role,
+        roles=chosen_roles,
         hashed_password=get_password_hash(data.password),
-        branch=data.branch.strip() if data.branch else "Kho Tổng Hà Nội",
+        branch=assigned_branch,
         is_active=True,
     )
     USERS_DB[clean_username] = new_user
+    save_users_db()
     return _build_user_item(new_user)
 
 @router.put("/{username}", response_model=UserItemResponse)
@@ -112,8 +157,9 @@ def update_user(
 ):
     """
     Cập nhật thông tin người dùng:
-    - BẢO VỆ ADMIN: Không được tự hạ quyền Admin của chính mình.
+    - BẢO VỆ ADMIN: Không thể tự thu hồi vai trò quản trị (Admin) của chính mình.
     - BẢO VỆ ADMIN: Không được tự khóa tài khoản Admin của chính mình.
+    - RÀNG BUỘC KHO: Người dùng có vai trò Kho phải gắn với ít nhất 1 kho cụ thể.
     """
     target_username = username.strip().lower()
     user = USERS_DB.get(target_username)
@@ -124,13 +170,48 @@ def update_user(
         )
 
     is_self = (current_user.username.strip().lower() == target_username)
+    current_user_roles = user.get_roles()
 
-    # Kiểm tra ràng buộc không được tự hạ quyền Admin
-    if is_self and data.role is not None and data.role != Role.SYSTEM_ADMIN.value:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Không được tự hạ quyền Admin của chính mình."
-        )
+    # Xác định danh sách roles mới (nếu có cập nhật)
+    new_roles: Optional[List[str]] = None
+    if data.roles is not None:
+        new_roles = [r.strip() for r in data.roles if r and r.strip()]
+        if not new_roles:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Người dùng phải có ít nhất 1 vai trò."
+            )
+    elif data.role is not None:
+        new_roles = [data.role.strip()]
+
+    # Kiểm tra tính hợp lệ của các roles mới
+    valid_roles = [r.value for r in Role]
+    if new_roles is not None:
+        for r in new_roles:
+            if r not in valid_roles:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Vai trò '{r}' không hợp lệ."
+                )
+
+        # BẢO VỆ ADMIN: Không thể tự thu hồi vai trò quản trị của chính mình
+        if is_self and Role.SYSTEM_ADMIN.value in current_user_roles and Role.SYSTEM_ADMIN.value not in new_roles:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Không thể tự thu hồi vai trò quản trị của chính mình (Không được tự hạ quyền Admin của chính mình)."
+            )
+
+    # Xác định branch mới
+    target_branch = data.branch.strip() if data.branch is not None else getattr(user, "branch", "")
+    effective_roles = new_roles if new_roles is not None else current_user_roles
+
+    # RÀNG BUỘC KHO: Người dùng có vai trò Kho bắt buộc phải gắn với ít nhất 1 kho cụ thể
+    if is_warehouse_role(effective_roles):
+        if not is_specific_warehouse(target_branch):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Người dùng có vai trò Kho bắt buộc phải gắn với ít nhất 1 kho cụ thể (Ví dụ: {', '.join(SPECIFIC_WAREHOUSES)})."
+            )
 
     # Kiểm tra ràng buộc không được tự khóa tài khoản của chính mình
     wants_to_lock = (data.is_active is False) or (data.status == "LOCKED")
@@ -161,14 +242,9 @@ def update_user(
         user.lock_reason = None
         user.locked_at = None
 
-    if data.role is not None:
-        valid_roles = [r.value for r in Role]
-        if data.role not in valid_roles:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Vai trò '{data.role}' không hợp lệ."
-            )
-        user.role = data.role
+    if new_roles is not None:
+        user.roles = new_roles
+        user.role = new_roles[0]
 
     if data.full_name is not None and data.full_name.strip():
         user.full_name = data.full_name.strip()
@@ -190,6 +266,7 @@ def update_user(
         user.hashed_password = get_password_hash(data.password.strip())
         user.token_version = getattr(user, "token_version", 1) + 1
 
+    save_users_db()
     return _build_user_item(user)
 
 @router.delete("/{username}")
@@ -216,6 +293,7 @@ def delete_user(
         )
 
     del USERS_DB[target_username]
+    save_users_db()
     return {
         "status": "success",
         "message": f"Đã xóa thành công người dùng '{target_username}' khỏi hệ thống."

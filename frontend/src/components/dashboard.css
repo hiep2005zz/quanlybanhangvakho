@@ -120,3 +120,198 @@
   border-color: #6366f1;
   color: #ffffff;
 }
+
+/* Dashboard Layout & Responsive Controls */
+.dashboard-main-container {
+  min-height: 100vh;
+  background: transparent;
+  color: #f1f5f9;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding: 24px 32px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  margin-bottom: 28px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 500;
+}
+
+.header-popover-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  background: #ffffff;
+  color: #1e293b;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 1px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  box-sizing: border-box;
+}
+
+/* Tối ưu hóa mượt mà cho màn hình điện thoại & màn hình 360px */
+@media (max-width: 600px) {
+  .dashboard-main-container {
+    padding: 12px 14px;
+  }
+
+  .dashboard-header-bar {
+    padding: 12px 14px;
+    margin-bottom: 18px;
+    border-radius: 12px;
+  }
+
+  .brand-title-shimmer {
+    font-size: 15px !important;
+  }
+
+  .sidebar-drawer {
+    width: 250px;
+  }
+}
+
+@media (max-width: 380px) {
+  .dashboard-main-container {
+    padding: 8px 10px;
+  }
+
+  .dashboard-header-bar {
+    padding: 10px 12px;
+    border-radius: 10px;
+    gap: 8px;
+  }
+
+  .brand-title-shimmer {
+    font-size: 13.5px !important;
+  }
+
+  .header-popover-menu {
+    width: 290px;
+    right: -10px;
+    padding: 16px 14px;
+  }
+
+  .sidebar-drawer {
+    width: 230px;
+  }
+}
+
+/* Ẩn thanh cuộn màu trắng thô nhưng vẫn cuộn lướt bình thường */
+.roles-grid-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE và Edge cũ */
+}
+
+.roles-grid-scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
+}
+
+/* ============================================================
+   PREMIUM GLASSMORPHISM & TECH DASHBOARD STYLING
+   ============================================================ */
+
+/* KPI Card Siêu Đẹp với Viền Kim Loại Mờ & Hover Glow */
+.kpi-stat-card {
+  position: relative;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 22px 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.kpi-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.kpi-stat-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.kpi-stat-card:hover::before {
+  opacity: 1;
+}
+
+.kpi-card-blue:hover {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(56, 189, 248, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.kpi-card-green:hover {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(52, 211, 153, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+.kpi-card-red:hover {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(248, 113, 113, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.kpi-card-amber:hover {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(251, 191, 36, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+/* Glass Table Card Container */
+.premium-table-card {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Interactive Table Rows */
+.inventory-row {
+  transition: all 0.18s ease;
+}
+
+.inventory-row:hover {
+  background: rgba(51, 65, 85, 0.35) !important;
+  transform: scale([1.002]);
+}
+
+.inventory-row:hover td:first-child {
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+
+.inventory-row:hover td:last-child {
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+

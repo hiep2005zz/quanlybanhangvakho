@@ -10,6 +10,8 @@ class UserResponse(BaseModel):
     username: str
     full_name: str
     role: str
+    roles: List[str] = []
+    role_titles: List[str] = []
     permissions: List[str] = []
     role_title: Optional[str] = None
     branch: Optional[str] = None

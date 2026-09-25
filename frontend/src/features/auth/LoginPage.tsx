@@ -152,13 +152,13 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
       <div className="login-card">
         <div className="login-header">
           <div className="brand-icon">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
             </svg>
           </div>
           <h2>Quản Lý Bán Hàng & Kho</h2>
-          <p>Hệ thống kết nối Backend API & Phân quyền bảo mật</p>
         </div>
 
         {/* Thông báo phiên hết hạn */}
@@ -266,18 +266,18 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
           </form>
         )}
 
-        {/* Danh sách 7 vai trò nghiệp vụ (AC 1) - Click điền nhanh để kiểm thử */}
-        <div className="demo-account-hint" style={{ textAlign: 'left', lineHeight: '1.5', marginTop: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        {/* Danh sách 7 vai trò nghiệp vụ - Gợi ý đăng nhập nhanh */}
+        <div className="demo-account-hint" style={{ textAlign: 'left', lineHeight: '1.5', marginTop: '20px', padding: '14px 16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <strong style={{ color: '#e2e8f0', fontSize: '13px' }}>🎯 7 Vai Trò Nghiệp Vụ (Click chọn nhanh):</strong>
-            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Mật khẩu chung: <code>123</code></span>
+            <span style={{ fontSize: '11.5px', color: '#94a3b8' }}>(Mật khẩu chung: <code>123</code>)</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
             {[
               { u: 'admin', label: 'Quản trị hệ thống', color: '#ef4444', desc: 'Toàn quyền + Giá vốn + Kho' },
               { u: 'sales_manager', label: 'Quản lý kinh doanh', color: '#8b5cf6', desc: 'Xem giá vốn & lãi' },
-              { u: 'sales', label: 'Nhân viên kinh doanh', color: '#3b82f6', desc: 'Chặn giá vốn & chặn kho' },
+              { u: 'sales', label: 'Nhân viên kinh doanh', color: '#38bdf8', desc: 'Chặn giá vốn & kho' },
               { u: 'kho', label: 'Thủ kho', color: '#10b981', desc: 'Thao tác kho, ẩn giá vốn' },
               { u: 'warehouse_mgr', label: 'Quản lý kho', color: '#059669', desc: 'Quản lý kho & mua hàng' },
               { u: 'ketoan', label: 'Kế toán', color: '#f59e0b', desc: 'Sổ sách chứng từ' },
@@ -291,28 +291,36 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
                   setPassword('123');
                 }}
                 style={{
-                  background: 'rgba(30, 41, 59, 0.7)',
+                  background: 'rgba(15, 23, 42, 0.65)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '6px',
-                  padding: '6px 8px',
+                  borderRadius: '8px',
+                  padding: '8px 10px',
                   textAlign: 'left',
                   cursor: 'pointer',
                   color: '#f8fafc',
-                  fontSize: '11.5px',
+                  fontSize: '12px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '2px',
-                  transition: 'background 0.15s',
+                  gap: '3px',
+                  transition: 'all 0.18s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = roleItem.color)}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = roleItem.color;
+                  e.currentTarget.style.background = 'rgba(30, 41, 59, 0.85)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                  e.currentTarget.style.background = 'rgba(15, 23, 42, 0.65)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: roleItem.color }} />
-                  <strong style={{ color: roleItem.color }}>{roleItem.label}</strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: roleItem.color, flexShrink: 0 }} />
+                  <strong style={{ color: roleItem.color, fontSize: '12px' }}>{roleItem.label}</strong>
                 </div>
-                <div style={{ color: '#94a3b8', fontSize: '10.5px' }}>
-                  <code>{roleItem.u}</code> • {roleItem.desc}
+                <div style={{ color: '#94a3b8', fontSize: '11px' }}>
+                  <code style={{ color: '#cbd5e1' }}>{roleItem.u}</code> • {roleItem.desc}
                 </div>
               </button>
             ))}

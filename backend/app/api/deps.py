@@ -5,7 +5,9 @@ from fastapi.security import OAuth2PasswordBearer
 from app.core.security import decode_access_token, is_token_revoked
 from app.core.rbac import (
     has_permission,
+    has_roles_permission,
     get_role_permissions,
+    get_roles_permissions,
     ROLE_DETAILS,
     Permission
 )
@@ -76,19 +78,26 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> UserRespo
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    role = user.role
-    role_info = ROLE_DETAILS.get(role, {})
-    permissions = get_role_permissions(role)
+    roles = user.get_roles()
+    primary_role = roles[0] if roles else user.role
+    role_info = ROLE_DETAILS.get(primary_role, {})
+    role_titles = [ROLE_DETAILS.get(r, {}).get("title", r) for r in roles]
+    permissions = get_roles_permissions(roles)
+    
+    can_view_cost = any(ROLE_DETAILS.get(r, {}).get("can_view_cost", False) for r in roles)
+    can_write_inventory = any(ROLE_DETAILS.get(r, {}).get("can_write_inventory", False) for r in roles)
     
     return UserResponse(
         username=user.username,
         full_name=user.full_name,
-        role=role,
+        role=primary_role,
+        roles=roles,
+        role_titles=role_titles,
         permissions=permissions,
-        role_title=role_info.get("title", role),
+        role_title=role_info.get("title", primary_role),
         branch=getattr(user, "branch", "Kho Tổng Hà Nội"),
-        can_view_cost=role_info.get("can_view_cost", False),
-        can_write_inventory=role_info.get("can_write_inventory", False),
+        can_view_cost=can_view_cost,
+        can_write_inventory=can_write_inventory,
     )
 
 
@@ -96,13 +105,15 @@ def require_permission(permission: str) -> Callable[[UserResponse], UserResponse
     """
     AC 2 - Zero-Trust / Default Deny Guard:
     Bảo vệ endpoint bằng cách kiểm tra quyền hạn cụ thể.
+    Kiểm tra trên toàn bộ danh sách vai trò người dùng (roles / permissions).
     Nếu user không có quyền -> Chặn ngay lập tức với HTTP 403 Forbidden.
     """
     def permission_checker(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
-        if not has_permission(current_user.role, permission):
+        user_roles = current_user.roles or ([current_user.role] if current_user.role else [])
+        if not has_roles_permission(user_roles, permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Truy cập bị từ chối (403 Forbidden). Bạn thuộc vai trò '{current_user.role}' và không có quyền '{permission}' để thực hiện thao tác này (Chính sách Zero-Trust)."
+                detail=f"Truy cập bị từ chối (403 Forbidden). Bạn thuộc vai trò '{', '.join(user_roles)}' và không có quyền '{permission}' để thực hiện thao tác này (Chính sách Zero-Trust)."
             )
         return current_user
     return permission_checker
@@ -111,10 +122,11 @@ def require_permission(permission: str) -> Callable[[UserResponse], UserResponse
 def require_roles(allowed_roles: List[str]) -> Callable[[UserResponse], UserResponse]:
     """
     Guard kiểm tra vai trò người dùng trong danh sách cho phép.
-    Nếu không thuộc vai trò cho phép -> 403 Forbidden.
+    Nếu người dùng có ít nhất 1 vai trò trong allowed_roles -> Cho phép.
     """
     def role_checker(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
-        if current_user.role not in allowed_roles:
+        user_roles = current_user.roles or ([current_user.role] if current_user.role else [])
+        if not any(r in allowed_roles for r in user_roles):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Truy cập bị từ chối (403 Forbidden). Chức năng này chỉ dành cho các vai trò: {', '.join(allowed_roles)}."

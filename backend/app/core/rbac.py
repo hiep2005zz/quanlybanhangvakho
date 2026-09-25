@@ -4,7 +4,7 @@ Hệ thống Phân quyền theo Vai trò (Role-Based Access Control - RBAC)
 Nguyên tắc: Zero-Trust & Default Deny
 """
 from enum import Enum
-from typing import Dict, Set, List
+from typing import Dict, Set, List, Optional
 
 
 class Role(str, Enum):
@@ -163,30 +163,73 @@ ROLE_DETAILS: Dict[str, dict] = {
     },
 }
 
+# Danh sách các vai trò thuộc nghiệp vụ Kho
+WAREHOUSE_ROLES: Set[str] = {
+    Role.WAREHOUSE_STAFF.value,
+    Role.WAREHOUSE_MANAGER.value,
+}
 
-def get_role_permissions(role: str) -> List[str]:
-    """Lấy danh sách các quyền hạn được cấp cho vai trò (nếu admin trả về all)."""
-    if not role or role not in ROLE_PERMISSIONS:
+# Danh sách các kho thực tế (Địa điểm kho cụ thể, không tính địa bàn tổng quát như Toàn quốc)
+SPECIFIC_WAREHOUSES: List[str] = [
+    "Kho Tổng Hà Nội",
+    "Kho Chi Nhánh Đà Nẵng",
+    "Kho Chi Nhánh TP. Hồ Chí Minh",
+]
+
+
+def is_warehouse_role(roles: List[str]) -> bool:
+    """Kiểm tra danh sách vai trò có chứa vai trò Kho nào không."""
+    return any(r in WAREHOUSE_ROLES for r in roles)
+
+
+def is_specific_warehouse(branch: Optional[str]) -> bool:
+    """Kiểm tra tên kho/địa bàn có phải là một kho cụ thể hay không."""
+    if not branch or not branch.strip():
+        return False
+    b = branch.strip()
+    return b.startswith("Kho ") or b in SPECIFIC_WAREHOUSES
+
+
+def get_roles_permissions(roles: List[str]) -> List[str]:
+    """Hợp nhất (union) toàn bộ quyền hạn từ tất cả các vai trò mà người dùng nắm giữ."""
+    if not roles:
         return []
     
-    perms = ROLE_PERMISSIONS[role]
-    if "*" in perms:
+    # Nếu sở hữu vai trò Quản trị hệ thống -> Toàn quyền
+    if Role.SYSTEM_ADMIN.value in roles or any("*" in ROLE_PERMISSIONS.get(r, set()) for r in roles):
         return [p.value for p in Permission]
-    return sorted(list(perms))
+
+    effective_perms: Set[str] = set()
+    for r in roles:
+        effective_perms.update(ROLE_PERMISSIONS.get(r, set()))
+
+    return sorted(list(effective_perms))
+
+
+def get_role_permissions(role: str) -> List[str]:
+    """Lấy danh sách các quyền hạn được cấp cho vai trò (tương thích ngược)."""
+    return get_roles_permissions([role] if role else [])
 
 
 def has_permission(role: str, permission: str) -> bool:
     """
-    Kiểm tra xem vai trò có quyền thực thi thao tác hay không.
-    Nguyên tắc Default Deny:
-    - Nếu vai trò không tồn tại trong hệ thống -> False
-    - Nếu vai trò chưa được cấp quyền tương ứng -> False
+    Kiểm tra xem vai trò có quyền thực thi thao tác hay không (tương thích ngược).
     """
-    if not role:
+    return has_roles_permission([role] if role else [], permission)
+
+
+def has_roles_permission(roles: List[str], permission: str) -> bool:
+    """
+    Kiểm tra xem người dùng (với 1 hoặc nhiều vai trò) có quyền thực thi thao tác hay không.
+    Nguyên tắc Default Deny:
+    - Nếu danh sách vai trò rỗng -> False
+    - Nếu có bất kỳ vai trò nào có quyền (hoặc Superuser *) -> True
+    """
+    if not roles:
         return False
-    perms = ROLE_PERMISSIONS.get(role)
-    if perms is None:
-        return False
-    if "*" in perms:
-        return True
-    return permission in perms
+    for r in roles:
+        perms = ROLE_PERMISSIONS.get(r)
+        if perms is not None:
+            if "*" in perms or permission in perms:
+                return True
+    return False

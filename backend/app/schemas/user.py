@@ -7,7 +7,8 @@ class UserCreate(BaseModel):
     email: str = Field(..., min_length=5, max_length=255)
     username: Optional[str] = None
     password: str = Field(..., min_length=3, max_length=128)
-    role: str
+    role: Optional[str] = None
+    roles: Optional[List[str]] = None
     branch: Optional[str] = "Kho Tổng Hà Nội"
 
 class UserUpdate(BaseModel):
@@ -15,6 +16,7 @@ class UserUpdate(BaseModel):
     email: Optional[str] = None
     password: Optional[str] = None
     role: Optional[str] = None
+    roles: Optional[List[str]] = None
     branch: Optional[str] = None
     is_active: Optional[bool] = None
     status: Optional[str] = None  # ACTIVE | LOCKED
@@ -26,7 +28,9 @@ class UserItemResponse(BaseModel):
     full_name: str
     email: Optional[str] = None
     role: str
+    roles: List[str] = []
     role_title: str
+    role_titles: List[str] = []
     branch: str
     is_active: bool
     status: str = "ACTIVE"

@@ -12,6 +12,8 @@ export interface User {
   username: string;
   full_name: string;
   role: string;
+  roles?: string[];
+  role_titles?: string[];
   permissions?: string[];
   role_title?: string;
   branch?: string;
@@ -201,6 +203,22 @@ export async function validateSessionApi(token?: string): Promise<boolean> {
     return response.ok;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Get current user profile from server (/auth/me) with fresh roles & permissions:
+ */
+export async function getMeApi(token?: string): Promise<User | null> {
+  try {
+    const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, {
+      method: 'GET',
+    }, token);
+    if (!response.ok) return null;
+    const user: User = await response.json();
+    return user;
+  } catch {
+    return null;
   }
 }
 
@@ -422,7 +440,9 @@ export interface UserAccount {
   full_name: string;
   email?: string;
   role: string;
+  roles?: string[];
   role_title: string;
+  role_titles?: string[];
   branch: string;
   is_active: boolean;
   status: string;
@@ -439,7 +459,8 @@ export interface UserCreatePayload {
   username?: string;
   email: string;
   password: string;
-  role: string;
+  role?: string;
+  roles?: string[];
   branch?: string;
 }
 
@@ -448,6 +469,7 @@ export interface UserUpdatePayload {
   email?: string;
   password?: string;
   role?: string;
+  roles?: string[];
   branch?: string;
   is_active?: boolean;
   status?: string;

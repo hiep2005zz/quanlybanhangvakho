@@ -162,3 +162,84 @@ def test_admin_can_delete_other_user():
     del_res = client.delete("/api/v1/users/user_to_delete", headers={"Authorization": f"Bearer {admin_token}"})
     assert del_res.status_code == 200
     assert "user_to_delete" not in USERS_DB
+
+
+def test_user_can_have_multiple_roles():
+    """Yêu cầu: Một người dùng có thể giữ nhiều vai trò cùng lúc và hợp nhất quyền hạn."""
+    admin_token = get_token("admin", "123")
+    payload = {
+        "full_name": "Đa Năng Vừa Sales Vừa Kho",
+        "username": "multi_role_user",
+        "email": "multirole@congty.vn",
+        "password": "Password123@",
+        "roles": ["sales", "warehouse"],
+        "branch": "Kho Tổng Hà Nội"
+    }
+    res_create = client.post("/api/v1/users", headers={"Authorization": f"Bearer {admin_token}"}, json=payload)
+    assert res_create.status_code == 201
+    created_data = res_create.json()
+    assert set(created_data["roles"]) == {"sales", "warehouse"}
+    assert created_data["can_write_inventory"] is True  # Có quyền kho nhờ vai trò warehouse
+
+    # Đăng nhập và kiểm tra thông tin user trả về
+    res_login = client.post("/api/v1/auth/login", json={"username": "multi_role_user", "password": "Password123@"})
+    assert res_login.status_code == 200
+    user_data = res_login.json()["user"]
+    assert set(user_data["roles"]) == {"sales", "warehouse"}
+    assert "inventory:write" in user_data["permissions"]
+    assert "order:write" in user_data["permissions"]
+
+
+def test_warehouse_role_must_be_assigned_to_specific_warehouse():
+    """Yêu cầu: Người dùng vai trò Kho phải gắn với ít nhất 1 kho cụ thể."""
+    admin_token = get_token("admin", "123")
+
+    # Thử gán vai trò kho nhưng địa bàn là 'Toàn quốc' (không phải kho cụ thể) -> Phải bị từ chối 400
+    payload_invalid = {
+        "full_name": "Thủ Kho Sai Địa Bàn",
+        "username": "kho_invalid_branch",
+        "email": "kho_invalid@congty.vn",
+        "password": "Password123@",
+        "roles": ["warehouse"],
+        "branch": "Toàn quốc"
+    }
+    res_fail = client.post("/api/v1/users", headers={"Authorization": f"Bearer {admin_token}"}, json=payload_invalid)
+    assert res_fail.status_code == 400
+    assert "bắt buộc phải gắn với ít nhất 1 kho cụ thể" in res_fail.json()["detail"]
+
+    # Gán vai trò kho với kho cụ thể -> Thành công 201
+    payload_valid = {
+        "full_name": "Thủ Kho Đúng Kho",
+        "username": "kho_valid_branch",
+        "email": "kho_valid@congty.vn",
+        "password": "Password123@",
+        "roles": ["warehouse"],
+        "branch": "Kho Chi Nhánh Đà Nẵng"
+    }
+    res_ok = client.post("/api/v1/users", headers={"Authorization": f"Bearer {admin_token}"}, json=payload_valid)
+    assert res_ok.status_code == 201
+    assert res_ok.json()["branch"] == "Kho Chi Nhánh Đà Nẵng"
+
+
+def test_admin_cannot_revoke_own_admin_role_in_multi_roles():
+    """Yêu cầu: Không thể tự thu hồi vai trò quản trị của chính mình (kể cả khi gửi mảng roles)."""
+    admin_token = get_token("admin", "123")
+
+    # Cố gắng cập nhật danh sách vai trò cho chính mình nhưng bỏ vai trò admin
+    res_update = client.put(
+        "/api/v1/users/admin",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"roles": ["sales", "accountant"]}
+    )
+    assert res_update.status_code == 400
+    assert "Không thể tự thu hồi vai trò quản trị của chính mình" in res_update.json()["detail"]
+
+    # Nhưng có thể thêm vai trò khác cho chính mình mà vẫn giữ admin
+    res_ok = client.put(
+        "/api/v1/users/admin",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"roles": ["admin", "sales_manager"]}
+    )
+    assert res_ok.status_code == 200
+    assert "admin" in res_ok.json()["roles"]
+    assert "sales_manager" in res_ok.json()["roles"]

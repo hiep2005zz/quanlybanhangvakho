@@ -13,6 +13,7 @@ import {
   UserCreatePayload,
   UserUpdatePayload,
 } from '../services/api';
+import { sessionManager } from '../services/sessionManager';
 
 interface UserManagementViewProps {
   currentUser: User;
@@ -25,7 +26,7 @@ const ROLES_LIST = [
     role: 'admin',
     title: 'Quản trị hệ thống',
     badgeColor: '#ef4444',
-    description: 'Toàn quyền cấu hình, quản trị tài khoản, tạo admin mới và giám sát hệ thống.',
+    description: '(Toàn quyền cấu hình, quản trị tài khoản, tạo admin mới và giám sát hệ thống)',
     costPerm: true,
     invPerm: true,
   },
@@ -33,7 +34,7 @@ const ROLES_LIST = [
     role: 'sales_manager',
     title: 'Quản lý kinh doanh',
     badgeColor: '#8b5cf6',
-    description: 'Quản lý bán hàng, xem báo cáo doanh thu, giá vốn và biên lợi nhuận.',
+    description: '(Quản lý bán hàng, xem báo cáo doanh thu, giá vốn và biên lợi nhuận)',
     costPerm: true,
     invPerm: false,
   },
@@ -41,7 +42,7 @@ const ROLES_LIST = [
     role: 'sales',
     title: 'Nhân viên kinh doanh',
     badgeColor: '#3b82f6',
-    description: 'Tạo đơn hàng, tra cứu tồn kho bán hàng. Không xem giá vốn và không sửa kho.',
+    description: '(Tạo đơn hàng, tra cứu tồn kho bán hàng. Không xem giá vốn và không sửa kho)',
     costPerm: false,
     invPerm: false,
   },
@@ -49,7 +50,7 @@ const ROLES_LIST = [
     role: 'warehouse',
     title: 'Thủ kho',
     badgeColor: '#10b981',
-    description: 'Thực hiện nhập, xuất, điều chỉnh kho. Tuyệt đối không xem giá vốn & lợi nhuận.',
+    description: '(Thực hiện nhập, xuất, điều chỉnh kho. Tuyệt đối không xem giá vốn & lợi nhuận)',
     costPerm: false,
     invPerm: true,
   },
@@ -57,7 +58,7 @@ const ROLES_LIST = [
     role: 'warehouse_manager',
     title: 'Quản lý kho',
     badgeColor: '#059669',
-    description: 'Giám sát điều phối hàng hóa kho vận, duyệt phiếu. Không xem giá vốn.',
+    description: '(Giám sát điều phối hàng hóa kho vận, duyệt phiếu. Không xem giá vốn)',
     costPerm: false,
     invPerm: true,
   },
@@ -65,7 +66,7 @@ const ROLES_LIST = [
     role: 'accountant',
     title: 'Kế toán',
     badgeColor: '#f59e0b',
-    description: 'Đối soát hóa đơn, chứng từ doanh thu và chi phí đơn hàng.',
+    description: '(Đối soát hóa đơn, chứng từ doanh thu và chi phí đơn hàng)',
     costPerm: false,
     invPerm: false,
   },
@@ -73,7 +74,7 @@ const ROLES_LIST = [
     role: 'purchasing',
     title: 'Nhân viên mua hàng',
     badgeColor: '#06b6d4',
-    description: 'Lập phiếu mua hàng, theo dõi đơn nhập hàng từ nhà cung cấp.',
+    description: '(Lập phiếu mua hàng, theo dõi đơn nhập hàng từ nhà cung cấp)',
     costPerm: false,
     invPerm: false,
   },
@@ -114,6 +115,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     email: '',
     password: '',
     role: 'sales',
+    roles: ['sales'],
     branch: 'Kho Tổng Hà Nội',
   });
 
@@ -125,6 +127,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     full_name: string;
     email: string;
     role: string;
+    roles: string[];
     branch: string;
     password: string;
     is_active: boolean;
@@ -133,6 +136,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     full_name: '',
     email: '',
     role: 'sales',
+    roles: ['sales'],
     branch: 'Kho Tổng Hà Nội',
     password: '',
     is_active: true,
@@ -215,6 +219,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     });
   };
 
+  // Helper kiểm tra vai trò kho
+  const hasWarehouseRole = (roles: string[]) => roles.some((r) => r === 'warehouse' || r === 'warehouse_manager');
+  const isWarehouseBranch = (b: string) => b.startsWith('Kho ');
+
   // Submit create user
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,6 +241,18 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       return;
     }
 
+    const rolesToAssign = createFormData.roles && createFormData.roles.length > 0 ? createFormData.roles : [createFormData.role || 'sales'];
+    if (rolesToAssign.length === 0) {
+      setCreateModalError('Vui lòng chọn ít nhất 1 vai trò cho người dùng.');
+      return;
+    }
+
+    // Nghiệp vụ: Người dùng vai trò Kho phải gắn với ít nhất 1 kho cụ thể
+    if (hasWarehouseRole(rolesToAssign) && !isWarehouseBranch(createFormData.branch || '')) {
+      setCreateModalError('Người dùng có vai trò Kho (Thủ kho / Quản lý kho) bắt buộc phải gắn với ít nhất 1 kho cụ thể.');
+      return;
+    }
+
     setIsSubmittingCreate(true);
     try {
       const created = await createUserApi(token, {
@@ -240,12 +260,14 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         username: createFormData.username?.trim() || undefined,
         email: createFormData.email.trim(),
         password: createFormData.password,
-        role: createFormData.role,
+        role: rolesToAssign[0],
+        roles: rolesToAssign,
         branch: createFormData.branch,
       });
 
+      const roleDisplay = created.role_titles && created.role_titles.length > 0 ? created.role_titles.join(', ') : created.role_title;
       setSuccessMessage(
-        `✅ Đã tạo tài khoản "${created.username}" (${created.full_name}) với vai trò "${created.role_title}". Tài khoản đã lưu vào DB và có thể đăng nhập ngay!`
+        `✅ Đã tạo tài khoản "${created.username}" (${created.full_name}) với các vai trò [${roleDisplay}]. Tài khoản đã lưu vào DB và có thể đăng nhập ngay!`
       );
       setIsCreateModalOpen(false);
       setCreateFormData({
@@ -254,6 +276,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         email: '',
         password: '',
         role: 'sales',
+        roles: ['sales'],
         branch: 'Kho Tổng Hà Nội',
       });
       loadUsers();
@@ -268,10 +291,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const openEditModal = (targetUser: UserAccount) => {
     setUserToEdit(targetUser);
     setEditModalError(null);
+    const initialRoles = targetUser.roles && targetUser.roles.length > 0 ? targetUser.roles : [targetUser.role];
     setEditFormData({
       full_name: targetUser.full_name,
       email: targetUser.email || '',
       role: targetUser.role,
+      roles: initialRoles,
       branch: targetUser.branch || 'Kho Tổng Hà Nội',
       password: '',
       is_active: targetUser.is_active && targetUser.status !== 'LOCKED',
@@ -286,9 +311,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     setEditModalError(null);
 
     const isEditingSelf = (userToEdit.username.toLowerCase() === currentUser.username.toLowerCase());
+    const userHadAdmin = (userToEdit.roles || [userToEdit.role]).includes('admin');
 
-    if (isEditingSelf && editFormData.role !== 'admin') {
-      setEditModalError('Bảo vệ hệ thống: Không được tự hạ quyền Admin của chính mình!');
+    // Nghiệp vụ: Không thể tự thu hồi vai trò quản trị của chính mình
+    if (isEditingSelf && userHadAdmin && !editFormData.roles.includes('admin')) {
+      setEditModalError('Bảo vệ hệ thống: Không thể tự thu hồi vai trò quản trị (Admin) của chính mình!');
       return;
     }
 
@@ -299,6 +326,17 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
     if (!editFormData.full_name.trim()) {
       setEditModalError('Họ và tên không được để trống.');
+      return;
+    }
+
+    if (editFormData.roles.length === 0) {
+      setEditModalError('Người dùng phải có ít nhất 1 vai trò hệ thống.');
+      return;
+    }
+
+    // Nghiệp vụ: Người dùng vai trò Kho phải gắn với ít nhất 1 kho cụ thể
+    if (hasWarehouseRole(editFormData.roles) && !isWarehouseBranch(editFormData.branch)) {
+      setEditModalError('Người dùng có vai trò Kho bắt buộc phải gắn với ít nhất 1 kho cụ thể.');
       return;
     }
 
@@ -313,7 +351,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       const updatePayload: UserUpdatePayload = {
         full_name: editFormData.full_name.trim(),
         email: editFormData.email.trim() || undefined,
-        role: editFormData.role,
+        role: editFormData.roles[0],
+        roles: editFormData.roles,
         branch: editFormData.branch,
         is_active: editFormData.is_active,
         status: editFormData.is_active ? 'ACTIVE' : 'LOCKED',
@@ -333,6 +372,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       setSuccessMessage(
         `✅ Đã cập nhật thành công thông tin nhân viên "${updated.full_name}" (@${updated.username}).`
       );
+      // Phát tín hiệu đồng bộ vai trò tức thì cho các tab/cửa sổ đang mở
+      sessionManager.broadcastUserUpdate(userToEdit.username);
+      if (userToEdit.username.toLowerCase() === currentUser.username.toLowerCase()) {
+        sessionManager.syncCurrentProfile();
+      }
       setUserToEdit(null);
       loadUsers();
     } catch (err: any) {
@@ -421,13 +465,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       (u.email && u.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (u.branch && u.branch.toLowerCase().includes(searchTerm.toLowerCase()));
 
+    const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.role];
     const matchesRole =
-      selectedRoleFilter === 'all' || u.role === selectedRoleFilter;
+      selectedRoleFilter === 'all' || userRoles.includes(selectedRoleFilter);
 
     return matchesSearch && matchesRole;
   });
-
-  const selectedCreateRoleMeta = ROLES_LIST.find((r) => r.role === createFormData.role) || ROLES_LIST[0];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -495,38 +538,64 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
       {/* 2. Tiêu đề: Quản Lý Phân Quyền Vai Trò */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95))',
+        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))',
         border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: '16px',
-        padding: '24px 28px',
+        padding: '20px 24px',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
         display: 'flex',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         alignItems: 'center',
-        gap: '20px'
+        gap: '16px'
       }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <span style={{ fontSize: '24px' }}>👥</span>
-            <h2 style={{ fontSize: '22px', fontWeight: '800', margin: 0, color: '#f8fafc', letterSpacing: '-0.02em' }}>
-              Phân Quyền Vai Trò Hệ Thống (RBAC)
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {/* Icon Khiên Phân Quyền Hiện Đại Gradient */}
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 18px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+            flexShrink: 0
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: '800',
+              margin: 0,
+              color: '#ffffff',
+              letterSpacing: '-0.02em',
+              background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}>
+              Phân Quyền
             </h2>
             <span style={{
-              background: 'rgba(239, 68, 68, 0.15)',
-              color: '#ef4444',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              background: 'rgba(99, 102, 241, 0.15)',
+              color: '#a5b4fc',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
               borderRadius: '999px',
-              padding: '3px 10px',
+              padding: '3px 12px',
               fontSize: '12px',
-              fontWeight: '700'
+              fontWeight: '600',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
             }}>
-              Khu vực Quản trị viên
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6366f1' }}></span>
+              Quản trị viên
             </span>
           </div>
-          <p style={{ margin: 0, color: '#94a3b8', fontSize: '14px', maxWidth: '680px', lineHeight: '1.5' }}>
-            Quản lý và gán vai trò theo 7 nhóm nghiệp vụ, giám sát quyền xem giá vốn và quyền can thiệp kho của nhân viên theo chính sách Zero-Trust.
-          </p>
         </div>
       </div>
 
@@ -657,63 +726,76 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       </div>
 
       {/* 4. Users Table */}
-      <div style={{
-        background: '#1e293b',
-        border: '1px solid #334155',
-        borderRadius: '16px',
-        padding: '20px 24px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
-        overflowX: 'auto',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+      <div
+        className="roles-grid-scroll"
+        style={{
+          background: '#1e293b',
+          border: '1px solid #334155',
+          borderRadius: '16px',
+          padding: '20px 24px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+          position: 'relative',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div>
-            <h2 style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#f8fafc' }}>
-              Danh Sách Nhân Viên & Tài Khoản ({filteredUsers.length})
+            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#f8fafc' }}>
+              Danh Sách Nhân Viên ({filteredUsers.length})
             </h2>
-            <p style={{ fontSize: '13px', color: '#94a3b8', margin: '4px 0 0 0' }}>
-              Dữ liệu người dùng được lưu trữ trong Backend và kiểm soát phiên làm việc theo Zero-Trust.
-            </p>
           </div>
         </div>
 
         {isLoading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-            Đang tải danh sách người dùng...
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8' }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
+            <div>Đang tải danh sách nhân viên...</div>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-            Không tìm thấy người dùng nào phù hợp với bộ lọc.
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+            <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔍</div>
+            <div style={{ fontSize: '15px', color: '#cbd5e1', fontWeight: '600' }}>Không tìm thấy nhân viên nào</div>
+            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Hãy thử thay đổi từ khóa tìm kiếm hoặc chọn lọc vai trò khác</div>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8' }}>
-                <th style={{ padding: '12px 14px', fontWeight: '600' }}>ID</th>
-                <th style={{ padding: '12px 14px', fontWeight: '600' }}>Họ và tên / Tài khoản</th>
-                <th style={{ padding: '12px 14px', fontWeight: '600' }}>Email</th>
-                <th style={{ padding: '12px 14px', fontWeight: '600' }}>Vai trò hệ thống</th>
-                <th style={{ padding: '12px 14px', fontWeight: '600' }}>Kho / Địa bàn</th>
-                <th style={{ padding: '12px 14px', fontWeight: '600' }}>Trạng thái</th>
-                <th style={{ padding: '12px 14px', fontWeight: '600' }}>Quyền hạn cốt lõi</th>
-                <th style={{ padding: '12px 14px', fontWeight: '600', textAlign: 'center' }}>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((u, idx) => {
-                const isCurrentSelf = (u.username.toLowerCase() === currentUser.username.toLowerCase());
-                const isDropdownOpen = activeDropdownUserId === u.id;
-                return (
-                  <tr
-                    key={u.id}
-                    style={{
-                      borderBottom: '1px solid rgba(51, 65, 85, 0.6)',
-                      background: isDropdownOpen
-                        ? 'rgba(30, 41, 59, 0.8)'
-                        : idx % 2 === 0 ? 'transparent' : 'rgba(15, 23, 42, 0.25)',
-                      position: 'relative',
-                      zIndex: isDropdownOpen ? 30 : 1,
-                    }}
-                  >
+          <div style={{ borderRadius: '12px', border: '1px solid rgba(51, 65, 85, 0.7)', overflow: 'visible' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: 'rgba(15, 23, 42, 0.7)', borderBottom: '1px solid #334155', color: '#94a3b8' }}>
+                  <th style={{ padding: '14px 16px', fontWeight: '600', width: '60px' }}>ID</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Họ và tên / Tài khoản</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Email</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Vai trò hệ thống</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Kho / Địa bàn</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Trạng thái</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Quyền hạn</th>
+                  <th style={{ padding: '14px 16px', fontWeight: '600', textAlign: 'center', width: '90px' }}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((u, idx) => {
+                  const isCurrentSelf = (u.username.toLowerCase() === currentUser.username.toLowerCase());
+                  const isDropdownOpen = activeDropdownUserId === u.id;
+                  return (
+                    <tr
+                      key={u.id}
+                      style={{
+                        borderBottom: idx === filteredUsers.length - 1 ? 'none' : '1px solid rgba(51, 65, 85, 0.5)',
+                        background: isDropdownOpen
+                          ? 'rgba(30, 41, 59, 0.85)'
+                          : idx % 2 === 0 ? 'rgba(30, 41, 59, 0.35)' : 'rgba(15, 23, 42, 0.4)',
+                        transition: 'background 0.15s ease',
+                        position: 'relative',
+                        zIndex: isDropdownOpen ? 30 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isDropdownOpen) e.currentTarget.style.background = 'rgba(51, 65, 85, 0.35)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isDropdownOpen) {
+                          e.currentTarget.style.background = idx % 2 === 0 ? 'rgba(30, 41, 59, 0.35)' : 'rgba(15, 23, 42, 0.4)';
+                        }
+                      }}
+                    >
                     <td style={{ padding: '14px', color: '#64748b', fontWeight: '600' }}>
                       #{u.id}
                     </td>
@@ -767,21 +849,34 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                     {/* Vai trò */}
                     <td style={{ padding: '14px' }}>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '4px 10px',
-                        borderRadius: '8px',
-                        background: `${u.badge_color}22`,
-                        color: u.badge_color,
-                        fontWeight: '700',
-                        fontSize: '12.5px',
-                        border: `1px solid ${u.badge_color}44`
-                      }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: u.badge_color }}></span>
-                        {u.role_title}
-                      </span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {((u.roles && u.roles.length > 0) ? u.roles : [u.role]).map((rCode) => {
+                          const rMeta = ROLES_LIST.find((item) => item.role === rCode);
+                          const color = rMeta?.badgeColor || u.badge_color || '#64748b';
+                          const title = rMeta?.title || rCode;
+                          return (
+                            <span
+                              key={rCode}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                background: `${color}22`,
+                                color: color,
+                                fontWeight: '600',
+                                fontSize: '12px',
+                                border: `1px solid ${color}44`,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }}></span>
+                              {title}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </td>
 
                     {/* Kho / Địa bàn */}
@@ -807,35 +902,17 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                             Hoạt động
                           </span>
                         ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '5px',
-                              color: '#f87171',
-                              fontSize: '12.5px',
-                              fontWeight: '600'
-                            }}>
-                              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f87171' }}></span>
-                              Đã khóa
-                            </span>
-                            {u.lock_reason && (
-                              <span
-                                title={u.lock_reason}
-                                style={{
-                                  fontSize: '11px',
-                                  color: '#94a3b8',
-                                  maxWidth: '160px',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  cursor: 'help'
-                                }}
-                              >
-                                💬 {u.lock_reason}
-                              </span>
-                            )}
-                          </div>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            color: '#64748b',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#475569' }}></span>
+                            Tạm dừng
+                          </span>
                         )}
 
                         {/* AC 3: Cảnh báo bàn giao đại lý */}
@@ -943,34 +1020,38 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           </span>
                         </button>
 
-                        {/* Menu thả xuống */}
-                        {activeDropdownUserId === u.id && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              right: 0,
-                              top: 'calc(100% + 6px)',
-                              background: '#1e293b',
-                              border: '1px solid #475569',
-                              borderRadius: '10px',
-                              boxShadow: '0 12px 28px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 0, 0, 0.3)',
-                              minWidth: '175px',
-                              zIndex: 100,
-                              padding: '6px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '4px',
-                              textAlign: 'left',
-                              animation: 'fadeIn 0.15s ease-out',
-                            }}
-                          >
-                            {/* Nút Phân vai trò & Kho/Địa bàn */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveDropdownUserId(null);
-                                openEditModal(u);
+                        {/* Menu thả xuống - Tự động mở lên trên nếu ở cuối danh sách để không bao giờ bị che */}
+                        {activeDropdownUserId === u.id && (() => {
+                          const openUpward = filteredUsers.length > 3 && idx >= filteredUsers.length - 2;
+                          return (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                right: 0,
+                                ...(openUpward
+                                  ? { bottom: 'calc(100% + 8px)' }
+                                  : { top: 'calc(100% + 8px)' }),
+                                background: '#1e293b',
+                                border: '1px solid #475569',
+                                borderRadius: '12px',
+                                boxShadow: '0 16px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 0, 0, 0.4)',
+                                minWidth: '185px',
+                                zIndex: 9999,
+                                padding: '6px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px',
+                                textAlign: 'left',
+                                animation: 'fadeIn 0.15s ease-out',
                               }}
+                            >
+                              {/* Nút Phân vai trò & Kho/Địa bàn */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveDropdownUserId(null);
+                                  openEditModal(u);
+                                }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -995,7 +1076,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                 e.currentTarget.style.color = '#e2e8f0';
                               }}
                             >
-                              <span style={{ fontSize: '15px' }}>🛡️</span>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                              </svg>
                               <span>Phân vai trò & Kho/Địa bàn</span>
                             </button>
 
@@ -1031,7 +1114,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                   e.currentTarget.style.color = '#fbbf24';
                                 }}
                               >
-                                <span style={{ fontSize: '15px' }}>🔄</span>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="23 4 23 10 17 10" />
+                                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                                </svg>
                                 <span>Bàn giao đại lý ({u.dealers_needing_handover})</span>
                               </button>
                             )}
@@ -1056,7 +1142,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                   boxSizing: 'border-box'
                                 }}
                               >
-                                <span style={{ fontSize: '15px' }}>🔒</span>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                </svg>
                                 <span>Không thể xóa</span>
                               </div>
                             ) : (
@@ -1090,12 +1179,16 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                                   e.currentTarget.style.color = '#f87171';
                                 }}
                               >
-                                <span style={{ fontSize: '15px' }}>🗑️</span>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
                                 <span>Xóa tài khoản</span>
                               </button>
                             )}
-                          </div>
-                        )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </td>
                   </tr>
@@ -1103,6 +1196,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -1282,58 +1376,126 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   </span>
                 </div>
 
-                {/* Dropdown Vai trò (Trong 7 vai trò hệ thống) */}
+                {/* Chọn nhiều Vai trò (Trong 7 vai trò hệ thống) */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
-                    Vai trò hệ thống (7 vai trò RBAC) <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
-                    name="role"
-                    value={createFormData.role}
-                    onChange={handleCreateChange}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#cbd5e1' }}>
+                      Vai trò hệ thống (Một người dùng có thể giữ nhiều vai trò) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                      Đã chọn: <strong style={{ color: '#38bdf8' }}>{createFormData.roles?.length || 0}</strong> vai trò
+                    </span>
+                  </div>
+
+                  <div
+                    className="roles-grid-scroll"
                     style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid #475569',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                      gap: '10px',
                       background: '#0f172a',
-                      color: '#f8fafc',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                      cursor: 'pointer'
+                      border: '1px solid #334155',
+                      borderRadius: '10px',
+                      padding: '12px',
+                      maxHeight: '230px',
+                      overflowY: 'auto',
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none',
                     }}
                   >
-                    {ROLES_LIST.map((r) => (
-                      <option key={r.role} value={r.role}>
-                        {r.title} ({r.role}) {r.role === 'admin' ? '— Có toàn quyền hệ thống' : ''}
-                      </option>
-                    ))}
-                  </select>
+                    {ROLES_LIST.map((r) => {
+                      const currentRoles = createFormData.roles || [];
+                      const isChecked = currentRoles.includes(r.role);
 
-                  {/* Role summary card */}
-                  <div style={{
-                    marginTop: '8px',
-                    padding: '10px 12px',
-                    background: `${selectedCreateRoleMeta.badgeColor}15`,
-                    border: `1px solid ${selectedCreateRoleMeta.badgeColor}33`,
-                    borderRadius: '8px',
-                    fontSize: '12.5px',
-                    color: '#e2e8f0',
-                    lineHeight: '1.5'
-                  }}>
-                    <div style={{ fontWeight: '700', color: selectedCreateRoleMeta.badgeColor, marginBottom: '2px' }}>
-                      {selectedCreateRoleMeta.title}
-                    </div>
-                    <div>{selectedCreateRoleMeta.description}</div>
-                    <div style={{ marginTop: '4px', display: 'flex', gap: '14px', fontSize: '12px' }}>
-                      <span style={{ color: selectedCreateRoleMeta.costPerm ? '#34d399' : '#f87171' }}>
-                        {selectedCreateRoleMeta.costPerm ? '✓ Được xem giá vốn' : '✕ Khóa giá vốn'}
-                      </span>
-                      <span style={{ color: selectedCreateRoleMeta.invPerm ? '#38bdf8' : '#f87171' }}>
-                        {selectedCreateRoleMeta.invPerm ? '✓ Có quyền sửa kho' : '✕ Khóa quyền sửa kho'}
-                      </span>
-                    </div>
+                      return (
+                        <label
+                          key={r.role}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '10px',
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: `1px solid ${isChecked ? r.badgeColor : '#334155'}`,
+                            background: isChecked ? `${r.badgeColor}18` : 'rgba(30, 41, 59, 0.4)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              let nextRoles: string[];
+                              if (checked) {
+                                nextRoles = [...currentRoles.filter(code => code !== r.role), r.role];
+                              } else {
+                                nextRoles = currentRoles.filter((code) => code !== r.role);
+                              }
+                              setCreateFormData({
+                                ...createFormData,
+                                role: nextRoles[0] || 'sales',
+                                roles: nextRoles,
+                              });
+                            }}
+                            style={{ marginTop: '3px', cursor: 'pointer', accentColor: r.badgeColor }}
+                          />
+                          <div style={{ fontSize: '12.5px', lineHeight: '1.4' }}>
+                            <div style={{ fontWeight: '700', color: isChecked ? r.badgeColor : '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {r.title}
+                              {r.role === 'admin' && isChecked && (
+                                <span style={{ fontSize: '10.5px', color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)', padding: '1px 5px', borderRadius: '4px' }}>
+                                  Toàn quyền
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                              {r.role === 'admin' ? '(Toàn quyền cấu hình, quản trị và kiểm soát mọi nghiệp vụ trong hệ thống)' : r.description}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
                   </div>
+
+                  {/* Thông báo giải thích nếu đã chọn vai trò Admin */}
+                  {(createFormData.roles || []).includes('admin') && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      fontSize: '12px',
+                      color: '#fca5a5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span>⚡</span>
+                      <span><strong>Quản trị hệ thống:</strong> Vai trò Admin đã sở hữu toàn quyền cao nhất (Superuser *), không cần chọn thêm các vai trò bên cạnh.</span>
+                    </div>
+                  )}
+
+                  {/* Cảnh báo ràng buộc kho nếu có chọn vai trò kho */}
+                  {hasWarehouseRole(createFormData.roles || []) && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      fontSize: '12px',
+                      color: '#6ee7b7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span>📦</span>
+                      <span><strong>Ràng buộc Kho:</strong> Bạn đã chọn vai trò Kho (Thủ kho hoặc Quản lý kho). Bắt buộc phải gắn tài khoản này với ít nhất 1 kho cụ thể bên dưới.</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Kho / Địa bàn phụ trách */}
@@ -1450,10 +1612,25 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               justifyContent: 'space-between',
               background: 'rgba(15, 23, 42, 0.6)'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '20px' }}>🛡️</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.25))',
+                  border: '1px solid rgba(129, 140, 248, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <path d="M9 12l2 2 4-4" />
+                  </svg>
+                </div>
                 <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>
+                  <h3 style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#f8fafc' }}>
                     Phân Vai Trò & Kho/Địa Bàn Phụ Trách
                   </h3>
                   <span style={{ fontSize: '12px', color: '#94a3b8' }}>
@@ -1584,35 +1761,124 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 </div>
 
 
-                {/* Vai trò */}
+                {/* Chọn nhiều Vai trò (Trong 7 vai trò hệ thống) */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
-                    Vai trò hệ thống <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
-                    value={editFormData.role}
-                    disabled={userToEdit.username.toLowerCase() === currentUser.username.toLowerCase()}
-                    onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid #475569',
-                      background: userToEdit.username.toLowerCase() === currentUser.username.toLowerCase() ? '#1e293b' : '#0f172a',
-                      color: '#f8fafc',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                      cursor: userToEdit.username.toLowerCase() === currentUser.username.toLowerCase() ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    {ROLES_LIST.map((r) => (
-                      <option key={r.role} value={r.role}>
-                        {r.title} ({r.role})
-                      </option>
-                    ))}
-                  </select>
-
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#cbd5e1' }}>
+                      Vai trò hệ thống (Gán nhiều vai trò cùng lúc) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                      Đã chọn: <strong style={{ color: '#38bdf8' }}>{editFormData.roles?.length || 0}</strong> vai trò
+                    </span>
                   </div>
+
+                  {/* Danh sách vai trò: Admin có quyền cấp quyền Admin cho bất kỳ nhân viên nào */}
+                    <div
+                      className="roles-grid-scroll"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                        gap: '10px',
+                        background: '#0f172a',
+                        border: '1px solid #334155',
+                        borderRadius: '10px',
+                        padding: '12px',
+                        maxHeight: '230px',
+                        overflowY: 'auto',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                      }}
+                    >
+                      {ROLES_LIST.map((r) => {
+                        const currentRoles = editFormData.roles || [];
+                        const isChecked = currentRoles.includes(r.role);
+                        const isSelf = userToEdit.username.toLowerCase() === currentUser.username.toLowerCase();
+                        // Chỉ cấm bỏ tích Admin khi đang sửa chính tài khoản Admin của bản thân
+                        const isSelfAdminRole = isSelf && r.role === 'admin' && (userToEdit.roles || [userToEdit.role]).includes('admin');
+                        const isDisabled = isSelfAdminRole;
+
+                        return (
+                          <label
+                            key={r.role}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: '12px',
+                              padding: '10px 12px',
+                              borderRadius: '10px',
+                              border: `1px solid ${isChecked ? r.badgeColor : 'rgba(51, 65, 85, 0.7)'}`,
+                              background: isChecked ? `${r.badgeColor}15` : 'rgba(15, 23, 42, 0.6)',
+                              cursor: isDisabled ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                              boxShadow: isChecked ? `0 2px 10px ${r.badgeColor}22` : 'none',
+                            }}
+                            title={
+                              isSelfAdminRole
+                                ? 'Bạn không thể tự thu hồi vai trò Quản trị viên của chính mình'
+                                : undefined
+                            }
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              disabled={isDisabled}
+                              onChange={(e) => {
+                                if (isDisabled) return;
+                                const checked = e.target.checked;
+                                let nextRoles: string[];
+                                if (checked) {
+                                  nextRoles = [...currentRoles.filter((code) => code !== r.role), r.role];
+                                } else {
+                                  nextRoles = currentRoles.filter((code) => code !== r.role);
+                                }
+                                setEditFormData({
+                                  ...editFormData,
+                                  role: nextRoles[0] || 'sales',
+                                  roles: nextRoles,
+                                });
+                              }}
+                              style={{ marginTop: '2px', cursor: isDisabled ? 'not-allowed' : 'pointer', accentColor: r.badgeColor, width: '16px', height: '16px' }}
+                            />
+                            <div style={{ fontSize: '12.5px', lineHeight: '1.4' }}>
+                              <div style={{ fontWeight: '700', color: isChecked ? r.badgeColor : '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {r.title}
+                                {r.role === 'admin' && isChecked && (
+                                  <span style={{ fontSize: '10.5px', color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)', padding: '1px 6px', borderRadius: '4px' }}>
+                                    Toàn quyền
+                                  </span>
+                                )}
+                                {isSelfAdminRole && (
+                                  <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '500' }}>🔒 Bắt buộc</span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
+                                {r.description}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                  {/* Cảnh báo ràng buộc kho nếu có vai trò kho */}
+                  {!((editFormData.roles || []).includes('admin')) && hasWarehouseRole(editFormData.roles || []) && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      fontSize: '12px',
+                      color: '#6ee7b7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span>📦</span>
+                      <span><strong>Ràng buộc Kho:</strong> Tài khoản này có vai trò Kho (Thủ kho hoặc Quản lý kho), bắt buộc phải gắn với ít nhất 1 kho cụ thể bên dưới.</span>
+                    </div>
+                  )}
+                </div>
 
                 {/* Kho / Địa bàn phụ trách */}
                 <div>
@@ -1728,15 +1994,18 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   type="button"
                   onClick={() => setUserToEdit(null)}
                   style={{
-                    background: '#334155',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#e2e8f0',
-                    padding: '10px 18px',
+                    background: 'rgba(51, 65, 85, 0.6)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '10px',
+                    color: '#cbd5e1',
+                    padding: '10px 20px',
                     fontSize: '13.5px',
                     fontWeight: '600',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(71, 85, 105, 0.8)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(51, 65, 85, 0.6)')}
                 >
                   Hủy bỏ
                 </button>
@@ -1746,19 +2015,32 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   style={{
                     background: (!editFormData.is_active && !editFormData.lock_reason.trim())
                       ? '#475569'
-                      : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                      : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                     border: 'none',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     color: '#ffffff',
-                    padding: '10px 22px',
+                    padding: '10px 24px',
                     fontSize: '13.5px',
-                    fontWeight: '700',
+                    fontWeight: '600',
                     cursor: (isSubmittingEdit || (!editFormData.is_active && !editFormData.lock_reason.trim()))
                       ? 'not-allowed'
                       : 'pointer',
                     boxShadow: (!editFormData.is_active && !editFormData.lock_reason.trim())
                       ? 'none'
-                      : '0 4px 12px rgba(79, 70, 229, 0.4)',
+                      : '0 4px 16px rgba(99, 102, 241, 0.45)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSubmittingEdit && (editFormData.is_active || editFormData.lock_reason.trim())) {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.6)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = (!editFormData.is_active && !editFormData.lock_reason.trim())
+                      ? 'none'
+                      : '0 4px 16px rgba(99, 102, 241, 0.45)';
                   }}
                 >
                   {isSubmittingEdit ? 'Đang lưu...' : 'Lưu Thay Đổi'}
