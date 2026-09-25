@@ -5,6 +5,7 @@ import DashboardPage from './components/DashboardPage';
 import { User, logoutApi, subscribeSessionExpired, getClientSession, clearClientSession, AUTH_STORAGE } from './services/api';
 import { sessionManager } from './services/sessionManager';
 import { requestPasswordReset, resetPassword } from './services/auth';
+import UserManagementPage from './features/users/UserManagementPage';
 import './app.css';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
   const [resetError, setResetError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countdown, setCountdown] = useState<number>(0);
+  const [activePage, setActivePage] = useState<'dashboard' | 'users'>('dashboard');
 
   // Đếm ngược 60 giây chống spam request
   useEffect(() => {
@@ -109,6 +111,7 @@ function App() {
     setSessionExpiredMsg(null);
     setCurrentUser(user);
     setAuthToken(token);
+    setActivePage('dashboard');
     sessionManager.start(token);
   };
 
@@ -120,6 +123,7 @@ function App() {
     clearClientSession();
     setCurrentUser(null);
     setAuthToken(null);
+    setActivePage('dashboard');
     setSessionExpiredMsg(null);
   };
 
@@ -178,13 +182,16 @@ function App() {
     }
   }
 
-  // Nếu đã đăng nhập thành công
   if (currentUser && authToken) {
+    if (activePage === 'users' && currentUser.role === 'admin') {
+      return <UserManagementPage token={authToken} onLogout={handleLogout} onBack={() => setActivePage('dashboard')} />;
+    }
     return (
       <DashboardPage
         user={currentUser}
         token={authToken}
         onLogout={handleLogout}
+        onOpenUserManagement={currentUser.role === 'admin' ? () => setActivePage('users') : undefined}
         onTokenUpdated={(newToken) => {
           setAuthToken(newToken);
           sessionManager.start(newToken);

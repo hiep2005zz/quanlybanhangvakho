@@ -8,10 +8,11 @@ interface DashboardProps {
   user: User;
   token: string;
   onLogout: () => void | Promise<void>;
+  onOpenUserManagement?: () => void;
   onTokenUpdated?: (newToken: string) => void;
 }
 
-export default function DashboardPage({ user, token, onLogout, onTokenUpdated }: DashboardProps) {
+export default function DashboardPage({ user, token, onLogout, onOpenUserManagement, onTokenUpdated }: DashboardProps) {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -510,7 +511,7 @@ export default function DashboardPage({ user, token, onLogout, onTokenUpdated }:
               ),
             },
             {
-              title: 'Nhân viên',
+              title: 'Quản lý tài khoản',
               icon: (
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="2" y="3" width="20" height="18" rx="2" />
@@ -566,6 +567,9 @@ export default function DashboardPage({ user, token, onLogout, onTokenUpdated }:
             <div
               key={index}
               className={`sidebar-menu-item ${item.active ? 'active' : ''}`}
+              onClick={item.title === 'Quản lý tài khoản' && user.role === 'admin' ? onOpenUserManagement : undefined}
+              role={item.title === 'Quản lý tài khoản' && user.role === 'admin' ? 'button' : undefined}
+              tabIndex={item.title === 'Quản lý tài khoản' && user.role === 'admin' ? 0 : undefined}
             >
               <span style={{ display: 'flex', alignItems: 'center', opacity: item.active ? 1 : 0.8 }}>
                 {item.icon}
