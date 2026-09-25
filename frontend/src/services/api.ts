@@ -12,6 +12,11 @@ export interface User {
   username: string;
   full_name: string;
   role: string;
+  permissions?: string[];
+  role_title?: string;
+  branch?: string;
+  can_view_cost?: boolean;
+  can_write_inventory?: boolean;
 }
 
 export interface LoginResponse {
@@ -29,6 +34,17 @@ export interface ProductItem {
   stock: number;
   sell_price: number;
   cost_price?: number | null;
+  profit_margin?: number | null;
+  profit_per_unit?: number | null;
+}
+
+export interface ProductFinancialSummary {
+  total_products: number;
+  total_stock: number;
+  total_sell_value: number;
+  total_cost_value?: number | null;
+  total_gross_profit?: number | null;
+  average_margin_percent?: number | null;
 }
 
 export interface ProductListResponse {
@@ -36,6 +52,44 @@ export interface ProductListResponse {
   total: number;
   user_role: string;
   is_cost_price_visible: boolean;
+  summary?: ProductFinancialSummary;
+}
+
+export interface RoleInfoItem {
+  role: string;
+  title: string;
+  badge_color: string;
+  description: string;
+  can_view_cost: boolean;
+  can_write_inventory: boolean;
+  permissions: string[];
+}
+
+export interface RoleMatrixResponse {
+  roles: RoleInfoItem[];
+  total_roles: number;
+}
+
+export interface InventoryTransaction {
+  id: number;
+  product_id: number;
+  product_name: string;
+  type: string;
+  quantity: number;
+  previous_stock: number;
+  new_stock: number;
+  performed_by: string;
+  user_role: string;
+  reason: string;
+  created_at: string;
+}
+
+export interface InventoryResponse {
+  status: string;
+  message: string;
+  product_id: number;
+  current_stock: number;
+  transaction?: InventoryTransaction;
 }
 
 // Interceptor callback list for session expiration
@@ -51,7 +105,7 @@ export function subscribeSessionExpired(handler: SessionExpiredHandler): () => v
 
 export function notifySessionExpired(message: string = 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.') {
   clearClientSession();
-  localStorage.setItem(AUTH_STORAGE.EXPIRED_MESSAGE, message);
+  sessionStorage.setItem(AUTH_STORAGE.EXPIRED_MESSAGE, message);
 
   // Đồng bộ URL với query param ?expired=true để trang login và khi reload luôn hiển thị thông báo
   try {
@@ -69,23 +123,23 @@ export function notifySessionExpired(message: string = 'Phiên làm việc đã 
 
 export function saveClientSession(user: User, token: string, expiresInSeconds: number = 900) {
   const expiresAt = Date.now() + expiresInSeconds * 1000;
-  localStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(user));
-  localStorage.setItem(AUTH_STORAGE.TOKEN, token);
-  localStorage.setItem(AUTH_STORAGE.EXPIRES_AT, expiresAt.toString());
-  localStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+  sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(user));
+  sessionStorage.setItem(AUTH_STORAGE.TOKEN, token);
+  sessionStorage.setItem(AUTH_STORAGE.EXPIRES_AT, expiresAt.toString());
+  sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
 }
 
 export function clearClientSession() {
-  localStorage.removeItem(AUTH_STORAGE.TOKEN);
-  localStorage.removeItem(AUTH_STORAGE.USER);
-  localStorage.removeItem(AUTH_STORAGE.EXPIRES_AT);
+  sessionStorage.removeItem(AUTH_STORAGE.TOKEN);
+  sessionStorage.removeItem(AUTH_STORAGE.USER);
+  sessionStorage.removeItem(AUTH_STORAGE.EXPIRES_AT);
 }
 
 export function getClientSession(): { user: User | null; token: string | null; expiresAt: number | null } {
   try {
-    const userStr = localStorage.getItem(AUTH_STORAGE.USER);
-    const token = localStorage.getItem(AUTH_STORAGE.TOKEN);
-    const expiresAtStr = localStorage.getItem(AUTH_STORAGE.EXPIRES_AT);
+    const userStr = sessionStorage.getItem(AUTH_STORAGE.USER);
+    const token = sessionStorage.getItem(AUTH_STORAGE.TOKEN);
+    const expiresAtStr = sessionStorage.getItem(AUTH_STORAGE.EXPIRES_AT);
     const user = userStr ? JSON.parse(userStr) : null;
     const expiresAt = expiresAtStr ? parseInt(expiresAtStr, 10) : null;
     return { user, token, expiresAt };
@@ -99,7 +153,7 @@ export function getClientSession(): { user: User | null; token: string | null; e
  * If server returns 401 (token revoked or expired), immediately clears auth and redirects with notification.
  */
 export async function authenticatedFetch(input: string, init: RequestInit = {}, token?: string): Promise<Response> {
-  const currentToken = token || localStorage.getItem(AUTH_STORAGE.TOKEN);
+  const currentToken = token || sessionStorage.getItem(AUTH_STORAGE.TOKEN);
   const headers = new Headers(init.headers || {});
   if (currentToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${currentToken}`);
@@ -290,3 +344,221 @@ export async function changePasswordApi(
 
   return data;
 }
+
+export async function getRolesMatrixApi(): Promise<RoleMatrixResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/roles-matrix`);
+  if (!response.ok) {
+    throw new Error('Không thể tải ma trận vai trò từ hệ thống.');
+  }
+  return response.json();
+}
+
+export async function getInventoryTransactionsApi(token: string): Promise<InventoryTransaction[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/transactions`, {
+    method: 'GET',
+  }, token);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Không thể tải lịch sử biến động kho.');
+  }
+  return response.json();
+}
+
+export async function adjustStockApi(
+  token: string,
+  payload: { product_id: number; adjustment: number; reason: string }
+): Promise<InventoryResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/adjust`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật kho (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function createStockReceiptApi(
+  token: string,
+  payload: { product_id: number; quantity: number; supplier: string; note?: string }
+): Promise<InventoryResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/receipt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi nhập kho (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function createStockIssueApi(
+  token: string,
+  payload: { product_id: number; quantity: number; destination: string; note?: string }
+): Promise<InventoryResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/inventory/issue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xuất kho (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export interface UserAccount {
+  id: number;
+  username: string;
+  full_name: string;
+  email?: string;
+  role: string;
+  role_title: string;
+  branch: string;
+  is_active: boolean;
+  status: string;
+  lock_reason?: string | null;
+  locked_at?: string | null;
+  dealers_needing_handover: number;
+  can_view_cost: boolean;
+  can_write_inventory: boolean;
+  badge_color: string;
+}
+
+export interface UserCreatePayload {
+  full_name: string;
+  username?: string;
+  email: string;
+  password: string;
+  role: string;
+  branch?: string;
+}
+
+export interface UserUpdatePayload {
+  full_name?: string;
+  email?: string;
+  password?: string;
+  role?: string;
+  branch?: string;
+  is_active?: boolean;
+  status?: string;
+  lock_reason?: string;
+}
+
+export interface DealerItem {
+  id: number;
+  code: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  assigned_sale_id?: number;
+  needs_handover?: boolean;
+}
+
+export interface UserDealersResponse {
+  user_id: number;
+  username: string;
+  full_name: string;
+  is_locked: boolean;
+  lock_reason?: string | null;
+  total_dealers: number;
+  dealers: DealerItem[];
+}
+
+export interface UserListResponse {
+  users: UserAccount[];
+  total: number;
+}
+
+export async function getUsersApi(token: string): Promise<UserListResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách người dùng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function createUserApi(token: string, payload: UserCreatePayload): Promise<UserAccount> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo người dùng mới (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function updateUserApi(token: string, username: string, payload: UserUpdatePayload): Promise<UserAccount> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/${encodeURIComponent(username)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi cập nhật người dùng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function deleteUserApi(token: string, username: string): Promise<{ status: string; message: string }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/${encodeURIComponent(username)}`, {
+    method: 'DELETE',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi xóa người dùng (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function getUserDealersApi(token: string, username: string): Promise<UserDealersResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/${encodeURIComponent(username)}/dealers`, {
+    method: 'GET',
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tải danh sách đại lý (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function handoverDealersApi(
+  token: string,
+  username: string,
+  newSaleUsername: string
+): Promise<{ status: string; message: string; transferred_count: number }> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/${encodeURIComponent(username)}/handover`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_sale_username: newSaleUsername }),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi bàn giao đại lý (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+

@@ -1,4 +1,5 @@
-from typing import Optional
+# backend/app/schemas/auth.py
+from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
 class LoginRequest(BaseModel):
@@ -9,11 +10,16 @@ class UserResponse(BaseModel):
     username: str
     full_name: str
     role: str
+    permissions: List[str] = []
+    role_title: Optional[str] = None
+    branch: Optional[str] = None
+    can_view_cost: bool = False
+    can_write_inventory: bool = False
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    expires_in: int = 900 # Thời hạn hiệu lực tính theo giây (15 phút)
+    expires_in: int = 900  # Thời hạn hiệu lực tính theo giây (15 phút)
     user: UserResponse
     remaining_attempts: Optional[int] = None
 
@@ -40,3 +46,16 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str = Field(min_length=32)
     new_password: str = Field(min_length=8, max_length=128)
+
+class RoleInfoItem(BaseModel):
+    role: str
+    title: str
+    badge_color: str
+    description: str
+    can_view_cost: bool
+    can_write_inventory: bool
+    permissions: List[str]
+
+class RoleMatrixResponse(BaseModel):
+    roles: List[RoleInfoItem]
+    total_roles: int

@@ -32,8 +32,21 @@ def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenRespo
             }
         )
 
-    # 2. Check user in database
+    # 2. Check user in database by username or email
     user: Optional[UserInDB] = USERS_DB.get(uname)
+    if not user:
+        for u in USERS_DB.values():
+            if u.email and u.email.strip().lower() == uname:
+                user = u
+                break
+
+    # AC 1 & AC 2: Nếu tài khoản bị Quản trị viên khóa -> Trả về 403 Forbidden với lý do khóa
+    if user and (getattr(user, "status", "ACTIVE") == "LOCKED" or not user.is_active):
+        reason = getattr(user, "lock_reason", None) or "Tài khoản bị tạm khóa bởi Quản trị viên."
+        return None, HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Tài khoản đã bị khóa. Lý do: {reason}"
+        )
 
     # Verify password if user exists
     is_valid = False
@@ -77,6 +90,8 @@ def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenRespo
         role=user.role,
         token_version=getattr(user, "token_version", 1)
     )
+    from app.core.rbac import get_role_permissions, ROLE_DETAILS
+    role_info = ROLE_DETAILS.get(user.role, {})
     token_resp = TokenResponse(
         access_token=access_token,
         token_type="bearer",
@@ -84,7 +99,12 @@ def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenRespo
         user=UserResponse(
             username=user.username,
             full_name=user.full_name,
-            role=user.role
+            role=user.role,
+            permissions=get_role_permissions(user.role),
+            role_title=role_info.get("title", user.role),
+            branch=getattr(user, "branch", "Kho Tổng Hà Nội"),
+            can_view_cost=role_info.get("can_view_cost", False),
+            can_write_inventory=role_info.get("can_write_inventory", False),
         )
     )
     return token_resp, None
