@@ -165,6 +165,9 @@ export function getClientSession(): { user: User | null; token: string | null; e
  * Fetch wrapper with 401 Interceptor:
  * If server returns 401 (token revoked or expired), immediately clears auth and redirects with notification.
  */
+// Tìm hàm authenticatedFetch hiện có trong api.ts, XÓA TOÀN BỘ hàm đó,
+// rồi THAY BẰNG toàn bộ nội dung dưới đây:
+
 export async function authenticatedFetch(input: string, init: RequestInit = {}, token?: string): Promise<Response> {
   const currentToken = token || sessionStorage.getItem(AUTH_STORAGE.TOKEN);
   const headers = new Headers(init.headers || {});
@@ -193,6 +196,24 @@ export async function authenticatedFetch(input: string, init: RequestInit = {}, 
       }
 
       notifySessionExpired(errorDetail);
+      throw new Error(errorDetail);
+    }
+
+    if (response.status === 403) {
+      let errorDetail = 'Bạn không có quyền truy cập chức năng này.';
+      try {
+        const cloned = response.clone();
+        const data = await cloned.json();
+        if (typeof data?.detail === 'string') {
+          errorDetail = data.detail;
+        } else if (data?.detail && typeof data.detail.message === 'string') {
+          errorDetail = data.detail.message;
+        }
+      } catch {
+        // ignore
+      }
+
+      notifyAccessDenied(errorDetail);
       throw new Error(errorDetail);
     }
 
