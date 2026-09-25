@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { getProductsApi, ProductItem, User } from '../services/api';
+﻿import { useState, useEffect, useRef } from 'react';
+import { getProductsApi, getMeApi, ProductItem, User } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
@@ -11,6 +11,7 @@ interface DashboardProps {
   onLogout: () => void | Promise<void>;
   onTokenUpdated?: (newToken: string) => void;
   onSwitchUser?: (newUser: User, newToken: string) => void;
+  onPermissionsUpdated?: (user: User) => void;
 }
 
 export default function DashboardPage({
@@ -18,6 +19,7 @@ export default function DashboardPage({
   token,
   onLogout,
   onTokenUpdated,
+  onPermissionsUpdated,
 }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<'inventory' | 'users'>('inventory');
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -29,6 +31,7 @@ export default function DashboardPage({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [openCustomerCreateOnUsers, setOpenCustomerCreateOnUsers] = useState(false);
 
   // Timer điều khiển di chuột vào mở rộng, di chuột ra tự động đóng
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,9 +87,36 @@ export default function DashboardPage({
 
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
+  const hasNoPermissions = user.role !== 'admin' && (!user.permissions || user.permissions.length === 0);
+
+  useEffect(() => {
+    if (!hasNoPermissions) return;
+    let cancelled = false;
+    const checkPermissions = async () => {
+      try {
+        const latestUser = await getMeApi(token);
+        if (!cancelled && latestUser.permissions && latestUser.permissions.length > 0) {
+          onPermissionsUpdated?.(latestUser);
+        }
+      } catch {
+        // Keep the permission notice visible while the account still has no access.
+      }
+    };
+    void checkPermissions();
+    const timer = window.setInterval(() => void checkPermissions(), 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [hasNoPermissions, onPermissionsUpdated, token]);
 
   // Tải dữ liệu sản phẩm từ Backend
   useEffect(() => {
+    if (hasNoPermissions) {
+      setProducts([]);
+      setIsLoading(false);
+      return;
+    }
     let isMounted = true;
     setIsLoading(true);
     getProductsApi(token)
@@ -107,7 +137,7 @@ export default function DashboardPage({
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, hasNoPermissions]);
 
   // Tính toán số liệu thống kê
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
@@ -140,6 +170,18 @@ export default function DashboardPage({
 
   const currentRoleTitle = roleLabelMap[user.role] || user.role;
   const currentBadgeColor = roleBadgeColorMap[user.role] || '#64748b';
+
+  if (hasNoPermissions) {
+    return (
+      <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0b1120', color: '#f1f5f9', padding: 24, fontFamily: 'system-ui, sans-serif' }}>
+        <section role="status" style={{ maxWidth: 480, textAlign: 'center', padding: 32, background: '#1e293b', border: '1px solid #334155', borderRadius: 16 }}>
+          <h1 style={{ marginTop: 0 }}>Tài khoản chưa được cấp quyền</h1>
+          <p>Quản trị viên chưa cấp quyền truy cập cho tài khoản này. Vui lòng liên hệ admin để được phân quyền.</p>
+          <button onClick={() => void onLogout()} style={{ marginTop: 12, padding: '10px 18px', border: 0, borderRadius: 8, cursor: 'pointer' }}>Đăng xuất</button>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#0b1120', color: '#f1f5f9', fontFamily: 'system-ui, -apple-system, sans-serif', padding: '24px 32px' }}>
@@ -362,6 +404,34 @@ export default function DashboardPage({
                       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
                     Quản lý người dùng (RBAC)
+                  </button>
+                )}
+
+                {user.role === 'admin' && (
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setOpenCustomerCreateOnUsers(true);
+                      setActiveTab('users');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: '#ecfeff',
+                      border: 'none',
+                      color: '#0f766e',
+                      fontSize: '13.5px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span style={{ fontSize: '16px' }}>👤+</span>
+                    Tạo nhân viên kinh doanh
                   </button>
                 )}
 
@@ -702,6 +772,8 @@ export default function DashboardPage({
         <UserManagementView
           currentUser={user}
           token={token}
+          openCustomerCreate={openCustomerCreateOnUsers}
+          onCustomerCreateOpened={() => setOpenCustomerCreateOnUsers(false)}
           onBackToHome={() => setActiveTab('inventory')}
         />
       ) : (
@@ -980,3 +1052,4 @@ export default function DashboardPage({
     </div>
   );
 }
+

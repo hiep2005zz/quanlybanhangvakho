@@ -10,9 +10,21 @@ class UserCreate(BaseModel):
     role: str
     branch: Optional[str] = "Kho Tổng Hà Nội"
 
+class CustomerCreate(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=100)
+    username: Optional[str] = Field(default=None, min_length=3, max_length=50)
+    email: str = Field(..., min_length=5, max_length=255)
+    phone: str = Field(..., min_length=10, max_length=15)
+
+class CustomerCreateResponse(BaseModel):
+    user: UserItemResponse
+    email_sent: bool
+    message: str
+
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[str] = None
+    phone: Optional[str] = None
     password: Optional[str] = None
     role: Optional[str] = None
     branch: Optional[str] = None
@@ -25,6 +37,7 @@ class UserItemResponse(BaseModel):
     username: str
     full_name: str
     email: Optional[str] = None
+    phone: Optional[str] = None
     role: str
     role_title: str
     branch: str

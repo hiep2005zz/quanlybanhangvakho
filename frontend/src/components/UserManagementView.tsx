@@ -1,16 +1,18 @@
-// frontend/src/components/UserManagementView.tsx
+﻿// frontend/src/components/UserManagementView.tsx
 import React, { useState, useEffect } from 'react';
 import {
   User,
   UserAccount,
   getUsersApi,
   createUserApi,
+  createCustomerApi,
   updateUserApi,
   deleteUserApi,
   getUserDealersApi,
   handoverDealersApi,
   DealerItem,
   UserCreatePayload,
+  CustomerCreatePayload,
   UserUpdatePayload,
 } from '../services/api';
 
@@ -18,6 +20,8 @@ interface UserManagementViewProps {
   currentUser: User;
   token: string;
   onBackToHome?: () => void;
+  openCustomerCreate?: boolean;
+  onCustomerCreateOpened?: () => void;
 }
 
 const ROLES_LIST = [
@@ -77,6 +81,14 @@ const ROLES_LIST = [
     costPerm: false,
     invPerm: false,
   },
+  {
+    role: 'customer',
+    title: 'Nhân viên kinh doanh',
+    badgeColor: '#64748b',
+    description: 'Nhân viên kinh doanh mới; cần admin cấp vai trò trước khi truy cập hệ thống.',
+    costPerm: false,
+    invPerm: false,
+  },
 ];
 
 const BRANCH_OPTIONS = [
@@ -94,6 +106,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   currentUser,
   token,
   onBackToHome,
+  openCustomerCreate = false,
+  onCustomerCreateOpened,
 }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -106,8 +120,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
   // Modal Create State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState<boolean>(false);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState<boolean>(false);
+  const [isSubmittingCustomer, setIsSubmittingCustomer] = useState<boolean>(false);
   const [createModalError, setCreateModalError] = useState<string | null>(null);
+  const [customerModalError, setCustomerModalError] = useState<string | null>(null);
+  const [customerFormData, setCustomerFormData] = useState<CustomerCreatePayload>({ full_name: '', username: '', email: '', phone: '' });
   const [createFormData, setCreateFormData] = useState<UserCreatePayload>({
     full_name: '',
     username: '',
@@ -124,6 +142,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [editFormData, setEditFormData] = useState<{
     full_name: string;
     email: string;
+    phone: string;
     role: string;
     branch: string;
     password: string;
@@ -132,6 +151,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   }>({
     full_name: '',
     email: '',
+    phone: '',
     role: 'sales',
     branch: 'Kho Tổng Hà Nội',
     password: '',
@@ -177,8 +197,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   }, []);
 
   // Load users from Backend
-  const loadUsers = async () => {
-    setIsLoading(true);
+  const loadUsers = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     setError(null);
     try {
       const res = await getUsersApi(token);
@@ -186,13 +206,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách người dùng.');
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 
   useEffect(() => {
     loadUsers();
   }, [token]);
+
+  useEffect(() => {
+    if (openCustomerCreate) {
+      setCustomerModalError(null);
+      setIsCustomerModalOpen(true);
+      onCustomerCreateOpened?.();
+    }
+  }, [openCustomerCreate, onCustomerCreateOpened]);
 
   // Tự động ẩn thông báo thành công sau 5 giây
   useEffect(() => {
@@ -264,6 +292,37 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     }
   };
 
+  const handleCreateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCustomerModalError(null);
+    if (!customerFormData.full_name.trim() || !customerFormData.email.trim()) {
+      setCustomerModalError('Vui lòng nhập đầy đủ họ tên, tên đăng nhập và email nhân viên.');
+      return;
+    }
+    if (!customerFormData.username?.trim() || !customerFormData.phone.trim()) {
+      setCustomerModalError('Vui lòng nhập tên đăng nhập và số điện thoại nhân viên kinh doanh.');
+      return;
+    }
+
+    setIsSubmittingCustomer(true);
+    try {
+      const result = await createCustomerApi(token, {
+        full_name: customerFormData.full_name.trim(),
+        username: customerFormData.username.trim(),
+        email: customerFormData.email.trim(),
+        phone: customerFormData.phone.trim(),
+      });
+      setSuccessMessage(`✅ ${result.message} Tài khoản "${result.user.username}" đang chờ admin cấp vai trò.`);
+      await loadUsers(false);
+      setIsCustomerModalOpen(false);
+      setCustomerFormData({ full_name: '', username: '', email: '', phone: '' });
+    } catch (err: any) {
+      setCustomerModalError(err.message || 'Lỗi khi tạo tài khoản nhân viên kinh doanh.');
+    } finally {
+      setIsSubmittingCustomer(false);
+    }
+  };
+
   // Open Edit Modal
   const openEditModal = (targetUser: UserAccount) => {
     setUserToEdit(targetUser);
@@ -271,6 +330,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     setEditFormData({
       full_name: targetUser.full_name,
       email: targetUser.email || '',
+      phone: targetUser.phone || '',
       role: targetUser.role,
       branch: targetUser.branch || 'Kho Tổng Hà Nội',
       password: '',
@@ -313,6 +373,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       const updatePayload: UserUpdatePayload = {
         full_name: editFormData.full_name.trim(),
         email: editFormData.email.trim() || undefined,
+        phone: editFormData.phone.trim() || undefined,
         role: editFormData.role,
         branch: editFormData.branch,
         is_active: editFormData.is_active,
@@ -334,7 +395,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         `✅ Đã cập nhật thành công thông tin nhân viên "${updated.full_name}" (@${updated.username}).`
       );
       setUserToEdit(null);
-      loadUsers();
+      await loadUsers();
     } catch (err: any) {
       setEditModalError(err.message || 'Lỗi khi cập nhật người dùng.');
     } finally {
@@ -623,7 +684,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               }}
             >
               <option value="all">Tất cả vai trò ({users.length})</option>
-              {ROLES_LIST.map((r) => (
+              {ROLES_LIST.filter((r) => r.role !== 'customer').map((r) => (
                 <option key={r.role} value={r.role}>
                   {r.title}
                 </option>
@@ -652,6 +713,28 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             title="Làm mới danh sách"
           >
             🔄 Làm mới
+          </button>
+          <button
+            onClick={() => {
+              setCustomerModalError(null);
+              setIsCustomerModalOpen(true);
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #0f766e, #14b8a6)',
+              border: 'none',
+              borderRadius: '10px',
+              color: '#ffffff',
+              padding: '10px 16px',
+              fontSize: '13.5px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+            title="Tạo tài khoản nhân viên kinh doanh"
+          >
+            👤+ Nhân viên kinh doanh
           </button>
         </div>
       </div>
@@ -760,9 +843,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       </div>
                     </td>
 
-                    {/* Email */}
+                    {/* Email và số điện thoại */}
                     <td style={{ padding: '14px', color: '#cbd5e1' }}>
-                      {u.email || <span style={{ color: '#64748b' }}>Chưa có</span>}
+                      <div>{u.email || <span style={{ color: '#64748b' }}>Chưa có email</span>}</div>
+                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#94a3b8' }}>{u.phone || 'Chưa có số điện thoại'}</div>
                     </td>
 
                     {/* Vai trò */}
@@ -1107,6 +1191,56 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       </div>
 
       {/* POPUP 1 (Giữa màn hình): Thêm người dùng mới */}
+      {isCustomerModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(11, 17, 32, 0.82)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px'
+        }}>
+          <div style={{
+            background: '#1e293b', border: '1px solid #334155', borderRadius: '18px',
+            width: '100%', maxWidth: '500px', boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)',
+            overflow: 'hidden', color: '#f8fafc'
+          }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(15, 23, 42, 0.6)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '20px' }}>👤</span>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>Tạo tài khoản nhân viên kinh doanh</h3>
+              </div>
+              <button type="button" disabled={isSubmittingCustomer} onClick={() => setIsCustomerModalOpen(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: isSubmittingCustomer ? 'not-allowed' : 'pointer', padding: '4px' }}>✕</button>
+            </div>
+            <form onSubmit={handleCreateCustomer} style={{ padding: '24px' }}>
+              {customerModalError && <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', marginBottom: '18px' }}>⚠️ {customerModalError}</div>}
+              <p style={{ margin: '0 0 18px', color: '#94a3b8', fontSize: '13px', lineHeight: 1.5 }}>
+                Hệ thống tạo username và mật khẩu rồi gửi qua email. Admin cần cấp vai trò trong phần Sửa tài khoản trước khi nhân viên truy cập hệ thống.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>Họ và tên <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="text" required value={customerFormData.full_name} onChange={(e) => setCustomerFormData({ ...customerFormData, full_name: e.target.value })} placeholder="Ví dụ: Nguyễn Văn An" style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#f8fafc', fontSize: '14px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>Tên đăng nhập <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="text" required value={customerFormData.username} onChange={(e) => setCustomerFormData({ ...customerFormData, username: e.target.value })} placeholder="nguyen.van.an" style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#f8fafc', fontSize: '14px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>Gmail nhận mật khẩu <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="email" required value={customerFormData.email} onChange={(e) => setCustomerFormData({ ...customerFormData, email: e.target.value })} placeholder="nhanvien@gmail.com" style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#f8fafc', fontSize: '14px', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>Số điện thoại <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="tel" required value={customerFormData.phone} onChange={(e) => setCustomerFormData({ ...customerFormData, phone: e.target.value })} placeholder="0901234567" style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #475569', background: '#0f172a', color: '#f8fafc', fontSize: '14px', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #334155', paddingTop: '18px' }}>
+                <button type="button" disabled={isSubmittingCustomer} onClick={() => setIsCustomerModalOpen(false)} style={{ background: '#334155', border: 'none', borderRadius: '8px', color: '#e2e8f0', padding: '10px 18px', fontSize: '13.5px', fontWeight: '600', cursor: isSubmittingCustomer ? 'not-allowed' : 'pointer' }}>Hủy bỏ</button>
+                <button type="submit" disabled={isSubmittingCustomer} style={{ background: 'linear-gradient(135deg, #0f766e, #14b8a6)', border: 'none', borderRadius: '8px', color: '#ffffff', padding: '10px 22px', fontSize: '13.5px', fontWeight: '700', cursor: isSubmittingCustomer ? 'not-allowed' : 'pointer' }}>{isSubmittingCustomer ? 'Đang lưu tài khoản...' : 'Tạo và gửi mật khẩu'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {isCreateModalOpen && (
         <div style={{
           position: 'fixed',
@@ -1208,6 +1342,28 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+                    Số điện thoại
+                  </label>
+                  <input
+                    type="tel"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    placeholder="0901234567"
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #475569',
+                      background: '#0f172a',
+                      color: '#f8fafc',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
                       Email <span style={{ color: '#ef4444' }}>*</span>
                     </label>
                     <input
@@ -1303,7 +1459,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       cursor: 'pointer'
                     }}
                   >
-                    {ROLES_LIST.map((r) => (
+                    {ROLES_LIST.filter((r) => r.role !== 'customer').map((r) => (
                       <option key={r.role} value={r.role}>
                         {r.title} ({r.role}) {r.role === 'admin' ? '— Có toàn quyền hệ thống' : ''}
                       </option>
@@ -1590,7 +1746,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     Vai trò hệ thống <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <select
-                    value={editFormData.role}
+                    value={editFormData.role === 'customer' ? '' : editFormData.role}
                     disabled={userToEdit.username.toLowerCase() === currentUser.username.toLowerCase()}
                     onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
                     style={{
@@ -1605,7 +1761,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       cursor: userToEdit.username.toLowerCase() === currentUser.username.toLowerCase() ? 'not-allowed' : 'pointer'
                     }}
                   >
-                    {ROLES_LIST.map((r) => (
+                    {editFormData.role === 'customer' && <option value="" disabled>Chọn vai trò để cấp quyền</option>}
+                    {ROLES_LIST.filter((r) => r.role !== 'customer').map((r) => (
                       <option key={r.role} value={r.role}>
                         {r.title} ({r.role})
                       </option>
@@ -2147,3 +2304,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     </div>
   );
 };
+
+
+
+

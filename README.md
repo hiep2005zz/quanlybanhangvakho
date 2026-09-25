@@ -1,4 +1,4 @@
-# Dự Án Fullstack (Frontend + Backend)
+﻿# Dự Án Fullstack (Frontend + Backend)
 
 ## Cấu trúc thư mục
 - `frontend/`: React 19 + TypeScript + Vite
@@ -53,6 +53,22 @@
    - Root API: `http://127.0.0.1:8000`
    - Tài liệu Swagger UI: `http://127.0.0.1:8000/docs`
 
+### Gửi mật khẩu tài khoản nhân viên kinh doanh qua Gmail
+
+Để nút **Tạo tài khoản nhân viên kinh doanh** gửi username và mật khẩu tự sinh qua Gmail, tạo file `backend/.env` và khai báo Gmail App Password (không dùng mật khẩu Gmail chính):
+
+```env
+MAIL_USERNAME=your-account@gmail.com
+MAIL_PASSWORD=your-gmail-app-password
+MAIL_FROM=your-account@gmail.com
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_TLS=True
+FRONTEND_URL=http://localhost:5173
+```
+
+Tài khoản nhân viên kinh doanh mới được tạo ở trạng thái chưa phân quyền; admin chọn vai trò trong phần Sửa tài khoản trước khi nhân viên sử dụng hệ thống. Mật khẩu tạm được tạo ngẫu nhiên và chỉ lưu dưới dạng mã hóa; tài khoản chỉ được tạo sau khi gửi email thành công. Nếu SMTP chưa cấu hình hoặc gửi thất bại, giao diện báo lỗi và có thể thử lại sau khi cấu hình SMTP.
+
 ---
 
 ## 3. Hệ Thống Phân Quyền Theo Vai Trò (RBAC) & Bảo Mật Dữ Liệu
@@ -75,3 +91,6 @@ Hệ thống triển khai nguyên tắc **Zero-Trust (Default Deny)** tại Back
 cd backend
 .\venv\Scripts\python.exe -m pytest tests/rbac -v
 ```
+
+
+

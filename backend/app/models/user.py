@@ -1,6 +1,8 @@
 # backend/app/models/user.py - Seed Database Fresh v3 with 7 Roles
 from datetime import datetime
 from typing import Optional
+import sqlite3
+from pathlib import Path
 from pydantic import BaseModel
 from app.core.security import get_password_hash
 from app.core.rbac import Role
@@ -10,6 +12,7 @@ class UserInDB(BaseModel):
     username: str
     full_name: str
     email: Optional[str] = None
+    phone: Optional[str] = None
     role: str  # admin, sales_manager, sales, warehouse, warehouse_manager, accountant, purchasing
     hashed_password: str
     branch: Optional[str] = "Kho Tổng Hà Nội"
@@ -103,4 +106,43 @@ def get_next_user_id() -> int:
     if not USERS_DB:
         return 1
     return max(u.id for u in USERS_DB.values()) + 1
+
+
+_USERS_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "users.db"
+
+
+def _ensure_persistent_users_table() -> None:
+    _USERS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(_USERS_DB_PATH) as connection:
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS rbac_users (username TEXT PRIMARY KEY, user_json TEXT NOT NULL)"
+        )
+
+
+def persist_user(user: UserInDB) -> None:
+    _ensure_persistent_users_table()
+    with sqlite3.connect(_USERS_DB_PATH) as connection:
+        connection.execute(
+            "INSERT INTO rbac_users (username, user_json) VALUES (?, ?) "
+            "ON CONFLICT(username) DO UPDATE SET user_json = excluded.user_json",
+            (user.username, user.model_dump_json()),
+        )
+
+
+def delete_persisted_user(username: str) -> None:
+    _ensure_persistent_users_table()
+    with sqlite3.connect(_USERS_DB_PATH) as connection:
+        connection.execute("DELETE FROM rbac_users WHERE username = ?", (username,))
+
+
+def _load_persisted_users() -> None:
+    _ensure_persistent_users_table()
+    with sqlite3.connect(_USERS_DB_PATH) as connection:
+        rows = connection.execute("SELECT user_json FROM rbac_users").fetchall()
+    for (user_json,) in rows:
+        user = UserInDB.model_validate_json(user_json)
+        USERS_DB[user.username] = user
+
+
+_load_persisted_users()
 

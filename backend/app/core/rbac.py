@@ -15,6 +15,7 @@ class Role(str, Enum):
     WAREHOUSE_MANAGER = "warehouse_manager"  # Quản lý kho
     ACCOUNTANT = "accountant"                # Kế toán
     PURCHASING_STAFF = "purchasing"          # Nhân viên mua hàng
+    CUSTOMER = "customer"                    # Khách hàng, không có quyền nội bộ
 
 
 class Permission(str, Enum):
@@ -108,6 +109,9 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.PURCHASE_WRITE.value,
         Permission.INVENTORY_READ.value,
     },
+
+    # 8. Khách hàng: chỉ đăng nhập, không được truy cập chức năng nội bộ.
+    Role.CUSTOMER.value: set(),
 }
 
 # Thông tin mô tả 7 vai trò nghiệp vụ
@@ -158,6 +162,13 @@ ROLE_DETAILS: Dict[str, dict] = {
         "title": "Nhân viên mua hàng",
         "badge_color": "#06b6d4",
         "description": "Lập phiếu mua hàng, theo dõi đơn nhập từ nhà cung cấp. Không can thiệp kho trực tiếp.",
+        "can_view_cost": False,
+        "can_write_inventory": False,
+    },
+    Role.CUSTOMER.value: {
+        "title": "Nhân viên kinh doanh",
+        "badge_color": "#64748b",
+        "description": "Nhân viên kinh doanh mới; quản trị viên cần cấp vai trò trước khi truy cập chức năng.",
         "can_view_cost": False,
         "can_write_inventory": False,
     },

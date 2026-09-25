@@ -204,6 +204,15 @@ export async function validateSessionApi(token?: string): Promise<boolean> {
   }
 }
 
+export async function getMeApi(token: string): Promise<User> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { method: 'GET' }, token);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || 'Không thể tải thông tin quyền tài khoản.');
+  }
+  return data as User;
+}
+
 export async function loginApi(username: string, password: string): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
@@ -421,6 +430,7 @@ export interface UserAccount {
   username: string;
   full_name: string;
   email?: string;
+  phone?: string;
   role: string;
   role_title: string;
   branch: string;
@@ -443,9 +453,17 @@ export interface UserCreatePayload {
   branch?: string;
 }
 
+export interface CustomerCreatePayload {
+  full_name: string;
+  username?: string;
+  email: string;
+  phone: string;
+}
+
 export interface UserUpdatePayload {
   full_name?: string;
   email?: string;
+  phone?: string;
   password?: string;
   role?: string;
   branch?: string;
@@ -502,6 +520,24 @@ export async function createUserApi(token: string, payload: UserCreatePayload): 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tạo người dùng mới (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function createCustomerApi(token: string, payload: CustomerCreatePayload): Promise<{
+  user: UserAccount;
+  email_sent: boolean;
+  message: string;
+}> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/customers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo tài khoản khách hàng (Mã lỗi ${response.status})`);
   }
   return data;
 }

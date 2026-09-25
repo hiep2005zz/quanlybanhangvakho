@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.deps import get_current_user, get_current_token
 from app.core.config import settings
 from app.core.security import create_access_token, revoke_token, verify_password, get_password_hash
-from app.models.user import USERS_DB
+from app.models.user import USERS_DB, persist_user
 from app.schemas.auth import (
     LoginRequest,
     TokenResponse,
@@ -108,6 +108,7 @@ def change_password(
 
     user_db.hashed_password = get_password_hash(new_pwd)
     user_db.token_version = getattr(user_db, "token_version", 1) + 1
+    persist_user(user_db)
 
     new_token = create_access_token(
         subject=user_db.username,

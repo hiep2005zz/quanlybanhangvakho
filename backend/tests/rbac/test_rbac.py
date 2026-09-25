@@ -19,10 +19,10 @@ def get_token_for_user(username: str, password: str = "123") -> str:
 
 
 # ==============================================================================
-# AC 1: Khai báo vai trò & Ma trận quyền cho 7 vai trò nghiệp vụ
+# AC 1: Khai báo vai trò & Ma trận quyền cho 8 vai trò nghiệp vụ
 # ==============================================================================
-def test_ac1_seven_roles_declared():
-    """Kiểm tra hệ thống khai báo đầy đủ 7 vai trò nghiệp vụ."""
+def test_ac1_roles_declared():
+    """Kiểm tra hệ thống khai báo đầy đủ vai trò nghiệp vụ và khách hàng."""
     expected_roles = {
         "admin",              # Quản trị hệ thống
         "sales_manager",      # Quản lý kinh doanh
@@ -31,6 +31,7 @@ def test_ac1_seven_roles_declared():
         "warehouse_manager",  # Quản lý kho
         "accountant",         # Kế toán
         "purchasing",         # Nhân viên mua hàng
+        "customer",           # Khách hàng, default deny
     }
     system_roles = {r.value for r in Role}
     assert expected_roles.issubset(system_roles), f"Thiếu vai trò trong hệ thống: {expected_roles - system_roles}"
@@ -39,7 +40,7 @@ def test_ac1_seven_roles_declared():
     resp = client.get("/api/v1/auth/roles-matrix")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["total_roles"] == 7
+    assert data["total_roles"] == 8
     roles_in_resp = {item["role"] for item in data["roles"]}
     assert expected_roles.issubset(roles_in_resp)
 

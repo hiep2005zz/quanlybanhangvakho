@@ -112,6 +112,11 @@ function App() {
     sessionManager.start(token, user.username);
   };
 
+  const handlePermissionsUpdated = useCallback((user: User) => {
+    setCurrentUser(user);
+    if (authToken) saveClientSession(user, authToken);
+  }, [authToken]);
+
   const handleLogout = async () => {
     sessionManager.stop();
     if (authToken) {
@@ -191,6 +196,7 @@ function App() {
       <DashboardPage
         user={currentUser}
         token={authToken}
+        onPermissionsUpdated={handlePermissionsUpdated}
         onLogout={handleLogout}
         onSwitchUser={handleSwitchUser}
         onTokenUpdated={(newToken) => {
