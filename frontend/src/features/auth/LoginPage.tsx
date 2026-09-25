@@ -20,7 +20,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
   };
 
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState<string | null>(() => {
-    const stored = localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    const stored = sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) || localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     if (stored) return formatNotice(stored);
     if (expiredMessage) return formatNotice(expiredMessage);
     const params = new URLSearchParams(window.location.search);
@@ -34,7 +34,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
 
   // Cập nhật thông báo hết hạn nếu prop thay đổi hoặc có query param
   useEffect(() => {
-    const stored = localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    const stored = sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) || localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     if (stored) {
       setSessionExpiredNotice(formatNotice(stored));
     } else if (expiredMessage) {
@@ -51,6 +51,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
   // Nhờ đó khi người dùng bấm F5 / load lại trang, thông báo sẽ biến mất đúng như mong muốn
   useEffect(() => {
     if (sessionExpiredNotice) {
+      sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
       localStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
       onClearExpiredMessage?.();
       if (typeof window !== 'undefined' && window.location.search.includes('expired')) {
@@ -63,6 +64,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
 
   const handleCloseExpiredNotice = () => {
     setSessionExpiredNotice(null);
+    sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     localStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     onClearExpiredMessage?.();
     if (typeof window !== 'undefined' && window.location.search.includes('expired')) {
@@ -117,6 +119,7 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
       // Đăng nhập thành công
       localStorage.removeItem('login_failed_count');
       localStorage.removeItem('lockout_until');
+      sessionStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
       localStorage.removeItem(AUTH_STORAGE.EXPIRED_MESSAGE);
       setSessionExpiredNotice(null);
       onClearExpiredMessage?.();
@@ -263,12 +266,57 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
           </form>
         )}
 
-        {/* Danh sách tài khoản demo tiện test */}
-        <div className="demo-account-hint" style={{ textAlign: 'left', lineHeight: '1.6' }}>
-          <div><strong>Tài khoản thử nghiệm (kết nối Backend):</strong></div>
-          <div>• Quản trị: <code>admin</code> / <code>123</code> (Xem trọn vẹn giá vốn)</div>
-          <div>• Bán hàng: <code>sales</code> / <code>123</code> (Bị ẩn hoàn toàn giá vốn)</div>
-          <div>• Thủ kho: <code>kho</code> / <code>123</code> (Quản lý tồn kho)</div>
+        {/* Danh sách 7 vai trò nghiệp vụ (AC 1) - Click điền nhanh để kiểm thử */}
+        <div className="demo-account-hint" style={{ textAlign: 'left', lineHeight: '1.5', marginTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <strong style={{ color: '#e2e8f0', fontSize: '13px' }}>🎯 7 Vai Trò Nghiệp Vụ (Click chọn nhanh):</strong>
+            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Mật khẩu chung: <code>123</code></span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+            {[
+              { u: 'admin', label: 'Quản trị hệ thống', color: '#ef4444', desc: 'Toàn quyền + Giá vốn + Kho' },
+              { u: 'sales_manager', label: 'Quản lý kinh doanh', color: '#8b5cf6', desc: 'Xem giá vốn & lãi' },
+              { u: 'sales', label: 'Nhân viên kinh doanh', color: '#3b82f6', desc: 'Chặn giá vốn & chặn kho' },
+              { u: 'kho', label: 'Thủ kho', color: '#10b981', desc: 'Thao tác kho, ẩn giá vốn' },
+              { u: 'warehouse_mgr', label: 'Quản lý kho', color: '#059669', desc: 'Quản lý kho & mua hàng' },
+              { u: 'ketoan', label: 'Kế toán', color: '#f59e0b', desc: 'Sổ sách chứng từ' },
+              { u: 'muahang', label: 'Nhân viên mua hàng', color: '#06b6d4', desc: 'Lập phiếu mua hàng' },
+            ].map((roleItem) => (
+              <button
+                key={roleItem.u}
+                type="button"
+                onClick={() => {
+                  setUsername(roleItem.u);
+                  setPassword('123');
+                }}
+                style={{
+                  background: 'rgba(30, 41, 59, 0.7)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '6px',
+                  padding: '6px 8px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  color: '#f8fafc',
+                  fontSize: '11.5px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = roleItem.color)}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: roleItem.color }} />
+                  <strong style={{ color: roleItem.color }}>{roleItem.label}</strong>
+                </div>
+                <div style={{ color: '#94a3b8', fontSize: '10.5px' }}>
+                  <code>{roleItem.u}</code> • {roleItem.desc}
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -52,3 +52,26 @@
 5. Kiểm tra API:
    - Root API: `http://127.0.0.1:8000`
    - Tài liệu Swagger UI: `http://127.0.0.1:8000/docs`
+
+---
+
+## 3. Hệ Thống Phân Quyền Theo Vai Trò (RBAC) & Bảo Mật Dữ Liệu
+
+Hệ thống triển khai nguyên tắc **Zero-Trust (Default Deny)** tại Backend FastAPI:
+
+### Danh sách 7 vai trò nghiệp vụ (Mật khẩu mặc định: `123`):
+| Vai trò | Username | Quyền Xem Giá Vốn & Lợi Nhuận (AC 3) | Quyền Ghi Kho (AC 4) | Mô tả |
+|---------|----------|--------------------------------------|----------------------|-------|
+| **Quản trị hệ thống** | `admin` | ✓ Có quyền | ✓ Có quyền | Toàn quyền quản trị hệ thống |
+| **Quản lý kinh doanh** | `sales_manager` | ✓ Có quyền | ⛔ Bị chặn (403) | Xem báo cáo tài chính, giá vốn & lãi |
+| **Nhân viên kinh doanh** | `sales` | 🔒 Ẩn hoàn toàn (Server strip) | ⛔ Bị chặn (403) | Bán hàng, xem tồn kho. Bị chặn giá vốn và kho |
+| **Thủ kho** | `kho` | 🔒 Ẩn hoàn toàn (Server strip) | ✓ Có quyền | Nhập/xuất/điều chỉnh kho. Ẩn giá vốn |
+| **Quản lý kho** | `warehouse_mgr` | 🔒 Ẩn hoàn toàn (Server strip) | ✓ Có quyền | Quản lý quy trình kho vận & mua hàng |
+| **Kế toán** | `ketoan` | 🔒 Ẩn hoàn toàn (Server strip) | ⛔ Bị chặn (403) | Đối soát chứng từ, hóa đơn |
+| **Nhân viên mua hàng** | `muahang` | 🔒 Ẩn hoàn toàn (Server strip) | ⛔ Bị chặn (403) | Lập phiếu mua hàng nhà cung cấp |
+
+### Chạy bộ kiểm thử tự động (AC 5):
+```powershell
+cd backend
+.\venv\Scripts\python.exe -m pytest tests/rbac -v
+```

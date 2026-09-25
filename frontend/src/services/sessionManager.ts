@@ -27,6 +27,7 @@ class SessionManager {
   private lastRefreshedTime: number = Date.now();
   private checkTimer: number | null = null;
   private currentToken: string | null = null;
+  private currentUsername: string | null = null;
   private isRefreshing: boolean = false;
   private lastSilentRefreshTrigger: number = 0;
   private tokenRefreshListeners: Set<TokenRefreshListener> = new Set();
@@ -41,7 +42,6 @@ class SessionManager {
     this.handleOnline = this.handleOnline.bind(this);
     this.handleWindowFocus = this.handleWindowFocus.bind(this);
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
-    this.handleStorage = this.handleStorage.bind(this);
   }
 
   private throttle(fn: () => void, wait: number) {
@@ -88,7 +88,7 @@ class SessionManager {
   }
 
   // Lắng nghe sự kiện chuyển tab / focus lại cửa sổ:
-  // Lập tức kiểm tra tính hợp lệ của Token với server (thu hồi tức thì nếu tab khác đã đổi mật khẩu)
+  // Lập tức kiểm tra tính hợp lệ của Token với server (thu hồi tức thì nếu server đã đổi token_version)
   private handleWindowFocus() {
     if (this.currentToken && !this.isRefreshing) {
       validateSessionApi(this.currentToken);
@@ -101,26 +101,16 @@ class SessionManager {
     }
   }
 
-  // Lắng nghe sự kiện storage trên các tab cùng trình duyệt:
-  private handleStorage(e: StorageEvent) {
-    if (e.key === AUTH_STORAGE.TOKEN) {
-      if (!e.newValue) {
-        // Tab khác đã đăng xuất
-        this.forceExpire('Bạn đã đăng xuất từ một cửa sổ khác.');
-      } else if (this.currentToken && e.newValue !== this.currentToken) {
-        // Tab khác đã đổi mật khẩu và cấp token mới -> token tab này bị thu hồi
-        this.forceExpire('Phiên làm việc đã bị thu hồi do đổi mật khẩu từ một cửa sổ khác. Vui lòng đăng nhập lại.');
-      }
-    }
-  }
-
-  public start(token: string) {
+  public start(token: string, username?: string) {
     this.currentToken = token;
+    if (username) {
+      this.currentUsername = username;
+    }
     this.lastActivityTime = Date.now();
     this.lastRefreshedTime = Date.now();
     this.heartbeatCounter = 0;
 
-    // Thiết lập BroadcastChannel để đồng bộ tức thì 0ms giữa các tab
+    // Thiết lập BroadcastChannel để đồng bộ thu hồi tức thì giữa các tab CÙNG TÀI KHOẢN
     if (typeof BroadcastChannel !== 'undefined') {
       try {
         if (this.authChannel) {
@@ -134,13 +124,15 @@ class SessionManager {
           }
 
           if (event.data?.type === 'PASSWORD_CHANGED') {
+            // Chỉ thu hồi nếu đổi mật khẩu cho đúng tài khoản đang đăng nhập ở tab này
+            if (this.currentUsername && event.data?.username && event.data.username !== this.currentUsername) {
+              return;
+            }
             // Nếu tab này đã cập nhật token mới rồi thì không thu hồi
             if (this.currentToken && event.data?.newToken === this.currentToken) {
               return;
             }
             this.forceExpire('Phiên làm việc đã bị thu hồi do đổi mật khẩu từ một cửa sổ khác. Vui lòng đăng nhập lại.');
-          } else if (event.data?.type === 'LOGOUT') {
-            this.forceExpire('Bạn đã đăng xuất từ một cửa sổ khác.');
           }
         };
       } catch {
@@ -157,7 +149,6 @@ class SessionManager {
       window.addEventListener('scroll', this.handleUserInteraction);
       window.addEventListener('online', this.handleOnline);
       window.addEventListener('focus', this.handleWindowFocus);
-      window.addEventListener('storage', this.handleStorage);
       document.addEventListener('visibilitychange', this.handleVisibilityChange);
       this.isInitialized = true;
     }
@@ -209,7 +200,6 @@ class SessionManager {
       window.removeEventListener('scroll', this.handleUserInteraction);
       window.removeEventListener('online', this.handleOnline);
       window.removeEventListener('focus', this.handleWindowFocus);
-      window.removeEventListener('storage', this.handleStorage);
       document.removeEventListener('visibilitychange', this.handleVisibilityChange);
       this.isInitialized = false;
     }
@@ -230,7 +220,7 @@ class SessionManager {
   }
 
   public getSessionState(): SessionState {
-    const expiresAtStr = localStorage.getItem(AUTH_STORAGE.EXPIRES_AT);
+    const expiresAtStr = sessionStorage.getItem(AUTH_STORAGE.EXPIRES_AT) || localStorage.getItem(AUTH_STORAGE.EXPIRES_AT);
     const expiresAt = expiresAtStr ? parseInt(expiresAtStr, 10) : 0;
     const now = Date.now();
     // Logic tính toán: const remainingSeconds = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
@@ -270,7 +260,7 @@ class SessionManager {
   private async checkAndRefreshSession(forceCheck: boolean = false) {
     if (!this.currentToken || this.isRefreshing) return;
 
-    const expiresAtStr = localStorage.getItem(AUTH_STORAGE.EXPIRES_AT);
+    const expiresAtStr = sessionStorage.getItem(AUTH_STORAGE.EXPIRES_AT) || localStorage.getItem(AUTH_STORAGE.EXPIRES_AT);
     const expiresAt = expiresAtStr ? parseInt(expiresAtStr, 10) : 0;
     const now = Date.now();
     const remainingSeconds = Math.max(0, Math.floor((expiresAt - now) / 1000));

@@ -41,3 +41,70 @@ button.secondary { margin-top: 2px; color: #285b4d; background: transparent; bor
 .error { color: #8b332b; background: #f8e3de; }
 
 @media (max-width: 520px) { .auth-card { padding: 30px 24px; } }
+
+/* Sparkling & Shimmering Title Animations */
+@keyframes textShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes sparkleGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.45)) drop-shadow(0 0 20px rgba(56, 189, 248, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgba(168, 85, 247, 0.75)) drop-shadow(0 0 32px rgba(56, 189, 248, 0.45));
+  }
+}
+
+@keyframes pulseGlowIcon {
+  0%, 100% {
+    box-shadow: 0 4px 18px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 6px 26px rgba(168, 85, 247, 0.7), 0 0 20px rgba(56, 189, 248, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    transform: scale(1.02);
+  }
+}
+
+.brand-title-shimmer {
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #e0e7ff 20%,
+    #a5b4fc 35%,
+    #c084fc 50%,
+    #67e8f9 65%,
+    #ffffff 80%,
+    #fbcfe8 100%
+  );
+  background-size: 250% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 5s ease-in-out infinite, sparkleGlow 4s ease-in-out infinite;
+  display: inline-block;
+  font-weight: 800 !important;
+  letter-spacing: -0.3px;
+}
+
+.brand-subtitle-glow {
+  color: #94a3b8;
+  transition: color 0.3s ease;
+}
+
+.brand-logo-animated {
+  animation: pulseGlowIcon 4s ease-in-out infinite;
+  transition: transform 0.2s ease;
+}
+
+.brand-logo-animated:hover {
+  transform: scale(1.08) rotate(3deg) !important;
+}

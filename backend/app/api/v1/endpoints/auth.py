@@ -13,8 +13,11 @@ from app.schemas.auth import (
     ChangePasswordRequest,
     ChangePasswordResponse,
     ForgotPasswordRequest,
-    ResetPasswordRequest
+    ResetPasswordRequest,
+    RoleMatrixResponse,
+    RoleInfoItem,
 )
+from app.core.rbac import ROLE_DETAILS, get_role_permissions, Role
 from app.services.auth_service import authenticate_user
 from app.services.password_reset import password_reset_service
 
@@ -163,3 +166,26 @@ def logout(
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: UserResponse = Depends(get_current_user)):
     return current_user
+
+@router.get("/roles-matrix", response_model=RoleMatrixResponse)
+def get_roles_matrix():
+    """
+    Khai báo ma trận phân quyền 7 vai trò nghiệp vụ (AC 1).
+    Endpoint công khai cung cấp thông tin quyền hạn và mô tả chi tiết của từng vai trò.
+    """
+    items = []
+    for role_enum in Role:
+        role_key = role_enum.value
+        info = ROLE_DETAILS.get(role_key, {})
+        items.append(
+            RoleInfoItem(
+                role=role_key,
+                title=info.get("title", role_key),
+                badge_color=info.get("badge_color", "#64748b"),
+                description=info.get("description", ""),
+                can_view_cost=info.get("can_view_cost", False),
+                can_write_inventory=info.get("can_write_inventory", False),
+                permissions=get_role_permissions(role_key),
+            )
+        )
+    return RoleMatrixResponse(roles=items, total_roles=len(items))

@@ -6,6 +6,7 @@ interface SecurityModalProps {
   isOpen: boolean;
   onClose: () => void;
   token: string;
+  username?: string;
   onTokenUpdated?: (newToken: string) => void;
 }
 
@@ -13,6 +14,7 @@ export default function SecurityModal({
   isOpen,
   onClose,
   token,
+  username,
   onTokenUpdated,
 }: SecurityModalProps) {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -116,13 +118,14 @@ export default function SecurityModal({
         onTokenUpdated(res.access_token);
       }
 
-      // Phát tín hiệu tức thì sang tất cả các tab khác để lập tức thu hồi phiên của họ
+      // Phát tín hiệu tức thì sang các tab khác có cùng tài khoản để lập tức thu hồi phiên của họ
       try {
         if (typeof BroadcastChannel !== 'undefined') {
           const channel = new BroadcastChannel('auth_channel');
           channel.postMessage({
             type: 'PASSWORD_CHANGED',
             tabId: CURRENT_TAB_ID,
+            username: username,
             newToken: res.access_token,
             timestamp: Date.now(),
           });

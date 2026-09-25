@@ -2,10 +2,9 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import LoginPage from './features/auth/LoginPage';
 import DashboardPage from './components/DashboardPage';
-import { User, logoutApi, subscribeSessionExpired, getClientSession, clearClientSession, AUTH_STORAGE } from './services/api';
+import { User, logoutApi, subscribeSessionExpired, getClientSession, saveClientSession, clearClientSession, AUTH_STORAGE } from './services/api';
 import { sessionManager } from './services/sessionManager';
 import { requestPasswordReset, resetPassword } from './services/auth';
-import UserManagementPage from './features/users/UserManagementPage';
 import './app.css';
 
 function App() {
@@ -24,7 +23,6 @@ function App() {
   const [resetError, setResetError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countdown, setCountdown] = useState<number>(0);
-  const [activePage, setActivePage] = useState<'dashboard' | 'users'>('dashboard');
 
   // Đếm ngược 60 giây chống spam request
   useEffect(() => {
@@ -59,7 +57,7 @@ function App() {
   });
 
   const [sessionExpiredMsg, setSessionExpiredMsg] = useState<string | null>(() => {
-    const stored = localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
+    const stored = sessionStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE) || localStorage.getItem(AUTH_STORAGE.EXPIRED_MESSAGE);
     if (stored) return stored;
     const params = new URLSearchParams(window.location.search);
     if (params.get('expired') === 'true') {
@@ -94,7 +92,7 @@ function App() {
   // Quản lý lifecycle của SessionManager
   useEffect(() => {
     if (authToken && currentUser) {
-      sessionManager.start(authToken);
+      sessionManager.start(authToken, currentUser.username);
       const unsubscribeRefresh = sessionManager.onTokenRefreshed((newToken) => {
         setAuthToken(newToken);
       });
@@ -111,8 +109,7 @@ function App() {
     setSessionExpiredMsg(null);
     setCurrentUser(user);
     setAuthToken(token);
-    setActivePage('dashboard');
-    sessionManager.start(token);
+    sessionManager.start(token, user.username);
   };
 
   const handleLogout = async () => {
@@ -123,7 +120,6 @@ function App() {
     clearClientSession();
     setCurrentUser(null);
     setAuthToken(null);
-    setActivePage('dashboard');
     setSessionExpiredMsg(null);
   };
 
@@ -182,19 +178,27 @@ function App() {
     }
   }
 
+  const handleSwitchUser = (newUser: User, newToken: string) => {
+    saveClientSession(newUser, newToken);
+    setCurrentUser(newUser);
+    setAuthToken(newToken);
+    sessionManager.start(newToken);
+  };
+
+  // Nếu đã đăng nhập thành công
   if (currentUser && authToken) {
-    if (activePage === 'users' && currentUser.role === 'admin') {
-      return <UserManagementPage token={authToken} onLogout={handleLogout} onBack={() => setActivePage('dashboard')} />;
-    }
     return (
       <DashboardPage
         user={currentUser}
         token={authToken}
         onLogout={handleLogout}
-        onOpenUserManagement={currentUser.role === 'admin' ? () => setActivePage('users') : undefined}
+        onSwitchUser={handleSwitchUser}
         onTokenUpdated={(newToken) => {
           setAuthToken(newToken);
-          sessionManager.start(newToken);
+          if (currentUser) {
+            saveClientSession(currentUser, newToken);
+            sessionManager.start(newToken, currentUser.username);
+          }
         }}
       />
     );
