@@ -1,0 +1,123 @@
+# backend/app/api/deps.py
+from typing import Optional, List, Callable
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from app.core.security import decode_access_token, is_token_revoked
+from app.core.rbac import (
+    has_permission,
+    get_role_permissions,
+    ROLE_DETAILS,
+    Permission
+)
+from app.models.user import USERS_DB, UserInDB
+from app.schemas.auth import UserResponse
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+def get_current_token(token: Optional[str] = Depends(oauth2_scheme)) -> str:
+    """Lấy token xác thực thô từ header Bearer (Zero-Trust: Default Deny nếu thiếu token)."""
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Yêu cầu xác thực. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return token
+
+def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> UserResponse:
+    """
+    Xác thực token JWT của người dùng:
+    - Kiểm tra tính hợp lệ và thời hạn token
+    - Kiểm tra trạng thái thu hồi (blacklist / logout)
+    - Kiểm tra token_version (thu hồi khi đổi mật khẩu)
+    - Bóc tách vai trò (Role) và nạp danh sách quyền hạn (Permissions)
+    """
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Yêu cầu xác thực. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Kiểm tra xem token đã bị hủy (đăng xuất) hay chưa
+    if is_token_revoked(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên làm việc đã bị thu hồi hoặc đã đăng xuất. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    username: str = payload.get("sub", "")
+    user: Optional[UserInDB] = USERS_DB.get(username)
+    if not user or not user.is_active or getattr(user, "status", "ACTIVE") == "LOCKED":
+        lock_msg = f"Tài khoản đã bị khóa. Lý do: {user.lock_reason}" if user and user.lock_reason else "Tài khoản đã bị khóa hoặc không tồn tại."
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=lock_msg,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Kiểm tra token_version: Nếu mật khẩu đã đổi hoặc tài khoản bị khóa, token_version trong DB sẽ tăng lên,
+    # các phiên cũ có token_version nhỏ hơn sẽ bị thu hồi ngay lập tức
+    token_version = payload.get("token_version", 1)
+    user_token_version = getattr(user, "token_version", 1)
+    if token_version != user_token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Phiên làm việc đã bị thu hồi do đổi mật khẩu hoặc cập nhật trạng thái tài khoản. Vui lòng đăng nhập lại.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    role = user.role
+    role_info = ROLE_DETAILS.get(role, {})
+    permissions = get_role_permissions(role)
+    
+    return UserResponse(
+        username=user.username,
+        full_name=user.full_name,
+        role=role,
+        permissions=permissions,
+        role_title=role_info.get("title", role),
+        branch=getattr(user, "branch", "Kho Tổng Hà Nội"),
+        can_view_cost=role_info.get("can_view_cost", False),
+        can_write_inventory=role_info.get("can_write_inventory", False),
+    )
+
+
+def require_permission(permission: str) -> Callable[[UserResponse], UserResponse]:
+    """
+    AC 2 - Zero-Trust / Default Deny Guard:
+    Bảo vệ endpoint bằng cách kiểm tra quyền hạn cụ thể.
+    Nếu user không có quyền -> Chặn ngay lập tức với HTTP 403 Forbidden.
+    """
+    def permission_checker(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
+        if not has_permission(current_user.role, permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Truy cập bị từ chối (403 Forbidden). Bạn thuộc vai trò '{current_user.role}' và không có quyền '{permission}' để thực hiện thao tác này (Chính sách Zero-Trust)."
+            )
+        return current_user
+    return permission_checker
+
+
+def require_roles(allowed_roles: List[str]) -> Callable[[UserResponse], UserResponse]:
+    """
+    Guard kiểm tra vai trò người dùng trong danh sách cho phép.
+    Nếu không thuộc vai trò cho phép -> 403 Forbidden.
+    """
+    def role_checker(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Truy cập bị từ chối (403 Forbidden). Chức năng này chỉ dành cho các vai trò: {', '.join(allowed_roles)}."
+            )
+        return current_user
+    return role_checker
