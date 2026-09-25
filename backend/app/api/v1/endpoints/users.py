@@ -49,7 +49,7 @@ def list_users(
     current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
 ):
     """
-    Láº¥y danh sÃ¡ch ngÆ°á»i dÃ¹ng trong há»‡ thá»‘ng (Chá»‰ dÃ nh cho Quáº£n trá»‹ viÃªn - Zero-Trust).
+    Lấy danh sách người dùng trong hệ thống (Chỉ dành cho Quản trị viên - Zero-Trust).
     """
     users = [_build_user_item(u) for u in sorted(USERS_DB.values(), key=lambda x: x.id)]
     return UserListResponse(users=users, total=len(users))
@@ -60,30 +60,30 @@ def create_user(
     current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
 ):
     """
-    Táº¡o ngÆ°á»i dÃ¹ng má»›i trong há»‡ thá»‘ng:
-    - Admin cÃ³ quyá»n táº¡o thÃªm tÃ i khoáº£n Admin khÃ¡c hoáº·c báº¥t ká»³ vai trÃ² nÃ o trong 7 vai trÃ².
-    - LÆ°u vÃ o cÆ¡ sá»Ÿ dá»¯ liá»‡u USERS_DB vÃ  cÃ³ thá»ƒ Ä‘Äƒng nháº­p Ä‘Æ°á»£c ngay.
+    Tạo người dùng mới trong hệ thống:
+    - Admin có quyền tạo thêm tài khoản Admin khác hoặc bất kỳ vai trò nào trong 7 vai trò.
+    - Lưu vào cơ sở dữ liệu USERS_DB và có thể đăng nhập được ngay.
     """
     valid_roles = [r.value for r in Role]
     if data.role not in valid_roles:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Vai trÃ² '{data.role}' khÃ´ng há»£p lá»‡. Vui lÃ²ng chá»n 1 trong 7 vai trÃ² há»‡ thá»‘ng."
+            detail=f"Vai trò '{data.role}' không hợp lệ. Vui lòng chọn 1 trong 7 vai trò hệ thống."
         )
 
-    # Chuáº©n hÃ³a username
+    # Chuẩn hóa username
     raw_username = (data.username or data.email.split("@")[0]).strip().lower()
     clean_username = re.sub(r'[^a-zA-Z0-9_\-\.]', '', raw_username)
     if not clean_username:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="TÃªn Ä‘Äƒng nháº­p khÃ´ng há»£p lá»‡."
+            detail="Tên đăng nhập không hợp lệ."
         )
 
     if clean_username in USERS_DB:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"TÃªn Ä‘Äƒng nháº­p '{clean_username}' Ä‘Ã£ tá»“n táº¡i trong há»‡ thá»‘ng."
+            detail=f"Tên đăng nhập '{clean_username}' đã tồn tại trong hệ thống."
         )
 
     clean_email = data.email.strip().lower()
@@ -91,7 +91,7 @@ def create_user(
         if existing.email and existing.email.strip().lower() == clean_email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Email '{clean_email}' Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng bá»Ÿi ngÆ°á»i dÃ¹ng khÃ¡c."
+                detail=f"Email '{clean_email}' đã được sử dụng bởi người dùng khác."
             )
 
     new_user = UserInDB(
@@ -101,7 +101,7 @@ def create_user(
         email=clean_email,
         role=data.role,
         hashed_password=get_password_hash(data.password),
-        branch=data.branch.strip() if data.branch else "Kho Tá»•ng HÃ  Ná»™i",
+        branch=data.branch.strip() if data.branch else "Kho Tổng Hà Nội",
         is_active=True,
     )
     persist_user(new_user)
@@ -113,13 +113,13 @@ def create_customer(
     data: CustomerCreate,
     current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
 ):
-    """Táº¡o tÃ i khoáº£n khÃ¡ch hÃ ng khÃ´ng cÃ³ role nghiá»‡p vá»¥ hoáº·c Ä‘á»‹a bÃ n kho."""
+    """Tạo tài khoản khách hàng không có role nghiệp vụ hoặc địa bàn kho."""
     clean_email = data.email.strip().lower()
     for existing in USERS_DB.values():
         if existing.email and existing.email.strip().lower() == clean_email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Email '{clean_email}' Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng bá»Ÿi ngÆ°á»i dÃ¹ng khÃ¡c."
+                detail=f"Email '{clean_email}' đã được sử dụng bởi người dùng khác."
             )
 
     raw_username = re.sub(r'[^a-zA-Z0-9_.-]', '', (data.username or clean_email.split("@", 1)[0]).strip().lower()) or "customer"
@@ -128,7 +128,7 @@ def create_customer(
     while username in USERS_DB:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"TÃªn Ä‘Äƒng nháº­p '{raw_username}' Ä‘Ã£ tá»“n táº¡i trong há»‡ thá»‘ng."
+            detail=f"Tên đăng nhập '{raw_username}' đã tồn tại trong hệ thống."
         )
 
     clean_phone = data.phone.strip()
@@ -136,7 +136,7 @@ def create_customer(
         if getattr(existing, "phone", None) == clean_phone:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Sá»‘ Ä‘iá»‡n thoáº¡i '{clean_phone}' Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng bá»Ÿi ngÆ°á»i dÃ¹ng khÃ¡c."
+                detail=f"Số điện thoại '{clean_phone}' đã được sử dụng bởi người dùng khác."
             )
 
     temporary_password = generate_temporary_password()
@@ -173,51 +173,51 @@ def update_user(
     current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
 ):
     """
-    Cáº­p nháº­t thÃ´ng tin ngÆ°á»i dÃ¹ng:
-    - Báº¢O Vá»† ADMIN: KhÃ´ng Ä‘Æ°á»£c tá»± háº¡ quyá»n Admin cá»§a chÃ­nh mÃ¬nh.
-    - Báº¢O Vá»† ADMIN: KhÃ´ng Ä‘Æ°á»£c tá»± khÃ³a tÃ i khoáº£n Admin cá»§a chÃ­nh mÃ¬nh.
+    Cập nhật thông tin người dùng:
+    - BẢO VỆ ADMIN: Không được tự hạ quyền Admin của chính mình.
+    - BẢO VỆ ADMIN: Không được tự khóa tài khoản Admin của chính mình.
     """
     target_username = username.strip().lower()
     user = USERS_DB.get(target_username)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng '{username}'."
+            detail=f"Không tìm thấy người dùng '{username}'."
         )
 
     is_self = (current_user.username.strip().lower() == target_username)
 
-    # Kiá»ƒm tra rÃ ng buá»™c khÃ´ng Ä‘Æ°á»£c tá»± háº¡ quyá»n Admin
+    # Kiểm tra ràng buộc không được tự hạ quyền Admin
     if is_self and data.role is not None and data.role != Role.SYSTEM_ADMIN.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="KhÃ´ng Ä‘Æ°á»£c tá»± háº¡ quyá»n Admin cá»§a chÃ­nh mÃ¬nh."
+            detail="Không được tự hạ quyền Admin của chính mình."
         )
 
-    # Kiá»ƒm tra rÃ ng buá»™c khÃ´ng Ä‘Æ°á»£c tá»± khÃ³a tÃ i khoáº£n cá»§a chÃ­nh mÃ¬nh
+    # Kiểm tra ràng buộc không được tự khóa tài khoản của chính mình
     wants_to_lock = (data.is_active is False) or (data.status == "LOCKED")
     if is_self and wants_to_lock:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="KhÃ´ng Ä‘Æ°á»£c tá»± khÃ³a tÃ i khoáº£n Admin cá»§a chÃ­nh mÃ¬nh."
+            detail="Không được tự khóa tài khoản Admin của chính mình."
         )
 
-    # AC 2: Báº¯t buá»™c ghi lÃ½ do khi khÃ³a tÃ i khoáº£n
+    # AC 2: Bắt buộc ghi lý do khi khóa tài khoản
     if wants_to_lock:
         reason = (data.lock_reason or "").strip()
         if not reason:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Báº¯t buá»™c pháº£i nháº­p lÃ½ do khi khÃ³a tÃ i khoáº£n (VÃ­ dá»¥: Nghá»‰ viá»‡c, chuyá»ƒn cÃ´ng tÃ¡c...)."
+                detail="Bắt buộc phải nhập lý do khi khóa tài khoản (Ví dụ: Nghỉ việc, chuyển công tác...)."
             )
         user.is_active = False
         user.status = "LOCKED"
         user.lock_reason = reason
         user.locked_at = datetime.now(timezone.utc)
-        # AC 1: Tá»± Ä‘á»™ng tÄƒng token_version Ä‘á»ƒ thu há»“i ngay láº­p tá»©c má»i phiÃªn Ä‘ang má»Ÿ
+        # AC 1: Tự động tăng token_version để thu hồi ngay lập tức mọi phiên đang mở
         user.token_version = getattr(user, "token_version", 1) + 1
     elif data.is_active is True or data.status == "ACTIVE":
-        # Má»Ÿ khÃ³a tÃ i khoáº£n
+        # Mở khóa tài khoản
         user.is_active = True
         user.status = "ACTIVE"
         user.lock_reason = None
@@ -228,7 +228,7 @@ def update_user(
         if data.role not in valid_roles:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Vai trÃ² '{data.role}' khÃ´ng há»£p lá»‡."
+            detail=f"Vai trò '{data.role}' không hợp lệ."
             )
         user.role = data.role
 
@@ -241,7 +241,7 @@ def update_user(
             if uname != target_username and existing.email and existing.email.strip().lower() == clean_email:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Email '{clean_email}' Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng bá»Ÿi ngÆ°á»i dÃ¹ng khÃ¡c."
+                    detail=f"Email '{clean_email}' đã được sử dụng bởi người dùng khác."
                 )
         user.email = clean_email
 
@@ -251,7 +251,7 @@ def update_user(
             if uname != target_username and getattr(existing, "phone", None) == clean_phone:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Sá»‘ Ä‘iá»‡n thoáº¡i '{clean_phone}' Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng bá»Ÿi ngÆ°á»i dÃ¹ng khÃ¡c."
+                    detail=f"Số điện thoại '{clean_phone}' đã được sử dụng bởi người dùng khác."
                 )
         user.phone = clean_phone
 
@@ -271,28 +271,28 @@ def delete_user(
     current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
 ):
     """
-    XÃ³a tÃ i khoáº£n ngÆ°á»i dÃ¹ng:
-    - Báº¢O Vá»† ADMIN: Tuyá»‡t Ä‘á»‘i khÃ´ng Ä‘Æ°á»£c tá»± xÃ³a tÃ i khoáº£n Admin cá»§a chÃ­nh mÃ¬nh!
+    Xóa tài khoản người dùng:
+    - BẢO VỆ ADMIN: Tuyệt đối không được tự xóa tài khoản Admin của chính mình!
     """
     target_username = username.strip().lower()
     if target_username not in USERS_DB:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng '{username}'."
+            detail=f"Không tìm thấy người dùng '{username}'."
         )
 
-    # Báº¢O Vá»† ADMIN: Cháº·n tá»± xÃ³a chÃ­nh mÃ¬nh
+    # BẢO VỆ ADMIN: Chặn tự xóa chính mình
     if current_user.username.strip().lower() == target_username:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="KhÃ´ng Ä‘Æ°á»£c tá»± xÃ³a tÃ i khoáº£n Admin cá»§a chÃ­nh mÃ¬nh."
+            detail="Không được tự xóa tài khoản Admin của chính mình."
         )
 
     del USERS_DB[target_username]
     delete_persisted_user(target_username)
     return {
         "status": "success",
-        "message": f"ÄÃ£ xÃ³a thÃ nh cÃ´ng ngÆ°á»i dÃ¹ng '{target_username}' khá»i há»‡ thá»‘ng."
+        "message": f"Đã xóa thành công người dùng '{target_username}' khỏi hệ thống."
     }
 
 @router.get("/{username}/dealers")
@@ -301,14 +301,14 @@ def get_user_dealers(
     current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
 ):
     """
-    Láº¥y danh sÃ¡ch cÃ¡c Ä‘áº¡i lÃ½ do nhÃ¢n viÃªn nÃ y phá»¥ trÃ¡ch Ä‘á»ƒ kiá»ƒm tra hoáº·c bÃ n giao.
+    Lấy danh sách các đại lý do nhân viên này phụ trách để kiểm tra hoặc bàn giao.
     """
     target_username = username.strip().lower()
     user = USERS_DB.get(target_username)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng '{username}'."
+            detail=f"Không tìm thấy người dùng '{username}'."
         )
 
     dealers = get_dealers_by_sale_id(user.id)
@@ -345,14 +345,14 @@ def handover_dealers(
     current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
 ):
     """
-    BÃ n giao toÃ n bá»™ Ä‘áº¡i lÃ½ cá»§a nhÃ¢n viÃªn bá»‹ khÃ³a sang cho nhÃ¢n viÃªn má»›i.
+    Bàn giao toàn bộ đại lý của nhân viên bị khóa sang cho nhân viên mới.
     """
     target_username = username.strip().lower()
     old_user = USERS_DB.get(target_username)
     if not old_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"KhÃ´ng tÃ¬m tháº¥y nhÃ¢n viÃªn nguá»“n '{username}'."
+            detail=f"Không tìm thấy nhân viên nguồn '{username}'."
         )
 
     new_uname = data.new_sale_username.strip().lower()
@@ -360,16 +360,16 @@ def handover_dealers(
     if not new_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"KhÃ´ng tÃ¬m tháº¥y nhÃ¢n viÃªn má»›i '{data.new_sale_username}'."
+            detail=f"Không tìm thấy nhân viên mới '{data.new_sale_username}'."
         )
 
     if not new_user.is_active or getattr(new_user, "status", "ACTIVE") == "LOCKED":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"NhÃ¢n viÃªn má»›i '{new_user.full_name}' cÅ©ng Ä‘ang bá»‹ khÃ³a tÃ i khoáº£n! Vui lÃ²ng chá»n nhÃ¢n viÃªn Ä‘ang hoáº¡t Ä‘á»™ng."
+            detail=f"Nhân viên mới '{new_user.full_name}' cũng đang bị khóa tài khoản! Vui lòng chọn nhân viên đang hoạt động."
         )
 
-    # Chuyá»ƒn toÃ n bá»™ Ä‘áº¡i lÃ½ sang nhÃ¢n viÃªn má»›i
+    # Chuyển toàn bộ đại lý sang nhân viên mới
     transferred_count = 0
     for d in DEALERS_DB.values():
         if d.assigned_sale_id == old_user.id:
@@ -378,7 +378,7 @@ def handover_dealers(
 
     return {
         "status": "success",
-        "message": f"ÄÃ£ bÃ n giao thÃ nh cÃ´ng {transferred_count} Ä‘áº¡i lÃ½ tá»« '{old_user.full_name}' sang '{new_user.full_name}'.",
+        "message": f"Đã bàn giao thành công {transferred_count} đại lý từ '{old_user.full_name}' sang '{new_user.full_name}'.",
         "transferred_count": transferred_count,
         "new_assigned_sale_id": new_user.id,
         "new_assigned_sale_name": new_user.full_name
