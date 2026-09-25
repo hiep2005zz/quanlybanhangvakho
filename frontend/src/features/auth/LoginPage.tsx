@@ -114,7 +114,9 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
     setErrorMessage('');
 
     try {
-      const data = await loginApi(username, password);
+      const cleanUsername = username.trim();
+      const cleanPassword = password.trim();
+      const data = await loginApi(cleanUsername, cleanPassword);
 
       // Đăng nhập thành công
       localStorage.removeItem('login_failed_count');

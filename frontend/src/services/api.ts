@@ -439,6 +439,7 @@ export interface UserAccount {
   username: string;
   full_name: string;
   email?: string;
+  phone?: string;
   role: string;
   roles?: string[];
   role_title: string;
@@ -454,6 +455,19 @@ export interface UserAccount {
   badge_color: string;
 }
 
+export interface CustomerCreatePayload {
+  full_name: string;
+  email: string;
+  phone: string;
+  username?: string;
+}
+
+export interface CustomerCreateResponse {
+  user: UserAccount;
+  email_sent: boolean;
+  message: string;
+}
+
 export interface UserCreatePayload {
   full_name: string;
   username?: string;
@@ -467,6 +481,7 @@ export interface UserCreatePayload {
 export interface UserUpdatePayload {
   full_name?: string;
   email?: string;
+  phone?: string;
   password?: string;
   role?: string;
   roles?: string[];
@@ -524,6 +539,20 @@ export async function createUserApi(token: string, payload: UserCreatePayload): 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.detail || `Lỗi tạo người dùng mới (Mã lỗi ${response.status})`);
+  }
+  return data;
+}
+
+export async function createCustomerApi(token: string, payload: CustomerCreatePayload): Promise<CustomerCreateResponse> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/users/customers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, token);
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.detail || `Lỗi tạo tài khoản kinh doanh (Mã lỗi ${response.status})`);
   }
   return data;
 }

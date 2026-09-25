@@ -15,6 +15,7 @@ class Role(str, Enum):
     WAREHOUSE_MANAGER = "warehouse_manager"  # Quản lý kho
     ACCOUNTANT = "accountant"                # Kế toán
     PURCHASING_STAFF = "purchasing"          # Nhân viên mua hàng
+    CUSTOMER = "customer"                    # Nhân viên kinh doanh chờ cấp quyền
 
 
 class Permission(str, Enum):
@@ -108,6 +109,10 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.PURCHASE_WRITE.value,
         Permission.INVENTORY_READ.value,
     },
+
+    # 8. Nhân viên kinh doanh mới (Chờ quản trị viên cấp quyền) - Zero-Trust Default Deny
+    # Tuyệt đối KHÔNG có quyền truy cập sản phẩm, kho hay đơn hàng khi chưa được admin phân quyền
+    Role.CUSTOMER.value: set(),
 }
 
 # Thông tin mô tả 7 vai trò nghiệp vụ
@@ -158,6 +163,13 @@ ROLE_DETAILS: Dict[str, dict] = {
         "title": "Nhân viên mua hàng",
         "badge_color": "#06b6d4",
         "description": "Lập phiếu mua hàng, theo dõi đơn nhập từ nhà cung cấp. Không can thiệp kho trực tiếp.",
+        "can_view_cost": False,
+        "can_write_inventory": False,
+    },
+    Role.CUSTOMER.value: {
+        "title": "Chờ cấp quyền",
+        "badge_color": "#94a3b8",
+        "description": "Tài khoản nhân viên kinh doanh mới tạo, đang chờ Quản trị viên phân quyền chính thức.",
         "can_view_cost": False,
         "can_write_inventory": False,
     },

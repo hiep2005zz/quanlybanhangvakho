@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 from fastapi import HTTPException, status
 from app.core.config import settings
 from app.core.security import verify_password, create_access_token
-from app.models.user import USERS_DB, UserInDB
+from app.models.user import USERS_DB, UserInDB, load_users_db
 from app.schemas.auth import TokenResponse, UserResponse
 
 # Global track for failed attempts by username (even if user doesn't exist in DB, to prevent enumeration)
@@ -13,9 +13,16 @@ FAILED_ATTEMPTS: dict[str, dict] = {}
 def get_current_utc() -> datetime:
     return datetime.now(timezone.utc)
 
+def reset_failed_attempts(username: str) -> None:
+    uname = username.strip().lower()
+    FAILED_ATTEMPTS[uname] = {"count": 0, "locked_until": None}
+
 def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenResponse], Optional[HTTPException]]:
     uname = username.strip().lower()
     now = get_current_utc()
+
+    # Đồng bộ dữ liệu người dùng mới nhất từ file JSON (nếu có tài khoản mới được tạo từ endpoint)
+    load_users_db()
 
     # Track attempts state
     attempt_record = FAILED_ATTEMPTS.get(uname, {"count": 0, "locked_until": None})

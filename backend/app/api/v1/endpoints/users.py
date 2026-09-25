@@ -15,7 +15,8 @@ from app.core.rbac import (
 from app.core.security import get_password_hash
 from app.models.user import USERS_DB, UserInDB, get_next_user_id, save_users_db
 from app.schemas.auth import UserResponse
-from app.schemas.user import UserCreate, UserUpdate, UserItemResponse, UserListResponse
+from app.schemas.user import UserCreate, UserUpdate, UserItemResponse, UserListResponse, CustomerCreate, CustomerCreateResponse
+from app.services.customer_account import generate_temporary_password, send_customer_credentials
 
 router = APIRouter()
 
@@ -37,16 +38,18 @@ def _build_user_item(u: UserInDB) -> UserItemResponse:
     can_view_cost = any(ROLE_DETAILS.get(r, {}).get("can_view_cost", False) for r in roles)
     can_write_inventory = any(ROLE_DETAILS.get(r, {}).get("can_write_inventory", False) for r in roles)
 
+    display_branch = getattr(u, "branch", None) or ("Chưa phân công" if u.role == Role.CUSTOMER.value else "Kho Tổng Hà Nội")
     return UserItemResponse(
         id=u.id,
         username=u.username,
         full_name=u.full_name,
         email=u.email,
+        phone=getattr(u, "phone", None),
         role=primary_role,
         roles=roles,
         role_title=role_info.get("title", primary_role),
         role_titles=role_titles,
-        branch=getattr(u, "branch", "Kho Tổng Hà Nội") or "Kho Tổng Hà Nội",
+        branch=display_branch,
         is_active=u.is_active and user_status == "ACTIVE",
         status=user_status,
         lock_reason=getattr(u, "lock_reason", None),
@@ -149,6 +152,86 @@ def create_user(
     save_users_db()
     return _build_user_item(new_user)
 
+@router.post("/customers", response_model=CustomerCreateResponse, status_code=status.HTTP_201_CREATED)
+def create_customer(
+    data: CustomerCreate,
+    current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
+):
+    """
+    Tạo tài khoản cho nhân viên kinh doanh / đại diện bán hàng (Role.CUSTOMER):
+    - Tự động sinh mật khẩu tạm thời bảo mật cao.
+    - Gửi thông tin đăng nhập qua Email đến nhân viên.
+    - Lưu số điện thoại liên hệ để quản lý thuận tiện.
+    """
+    clean_email = data.email.strip().lower()
+    clean_phone = data.phone.strip()
+
+    # Kiểm tra trùng email
+    for existing in USERS_DB.values():
+        if existing.email and existing.email.strip().lower() == clean_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Email '{clean_email}' đã được sử dụng trong hệ thống."
+            )
+
+    # Sinh hoặc kiểm tra username
+    if data.username and data.username.strip():
+        clean_username = data.username.strip().lower()
+        if not re.match(r'^[a-zA-Z0-9_.-]+$', clean_username):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tên đăng nhập chỉ được chứa chữ cái, số, dấu gạch dưới, gạch ngang hoặc chấm."
+            )
+        if clean_username in USERS_DB:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Tên đăng nhập '{clean_username}' đã tồn tại."
+            )
+    else:
+        prefix = re.sub(r'[^a-z0-9]', '', clean_email.split('@')[0].lower())
+        if not prefix:
+            prefix = "sales"
+        clean_username = prefix
+        counter = 1
+        while clean_username in USERS_DB:
+            clean_username = f"{prefix}{counter}"
+            counter += 1
+
+    temp_password = generate_temporary_password()
+
+    new_user = UserInDB(
+        id=get_next_user_id(),
+        username=clean_username,
+        full_name=data.full_name.strip(),
+        email=clean_email,
+        phone=clean_phone,
+        role=Role.CUSTOMER.value,
+        roles=[Role.CUSTOMER.value],
+        hashed_password=get_password_hash(temp_password),
+        branch="Chưa phân công",
+        is_active=True,
+    )
+    USERS_DB[clean_username] = new_user
+    save_users_db()
+
+    email_sent = send_customer_credentials(
+        email=clean_email,
+        full_name=new_user.full_name,
+        username=clean_username,
+        password=temp_password,
+        phone=clean_phone,
+    )
+
+    msg = "Tạo tài khoản kinh doanh thành công!"
+    if not email_sent:
+        msg += " (Lưu ý: Không thể gửi email tự động, vui lòng bàn giao trực tiếp)."
+
+    return CustomerCreateResponse(
+        user=_build_user_item(new_user),
+        email_sent=email_sent,
+        message=msg
+    )
+
 @router.put("/{username}", response_model=UserItemResponse)
 def update_user(
     username: str,
@@ -243,8 +326,14 @@ def update_user(
         user.locked_at = None
 
     if new_roles is not None:
-        user.roles = new_roles
-        user.role = new_roles[0]
+        # Nếu đã gán bất kỳ vai trò chính thức nào, tự động loại bỏ nhãn tạm 'customer'
+        clean_new_roles = [r for r in new_roles if r != Role.CUSTOMER.value]
+        if clean_new_roles:
+            user.roles = clean_new_roles
+            user.role = clean_new_roles[0]
+        else:
+            user.roles = [Role.CUSTOMER.value]
+            user.role = Role.CUSTOMER.value
 
     if data.full_name is not None and data.full_name.strip():
         user.full_name = data.full_name.strip()
@@ -258,6 +347,9 @@ def update_user(
                     detail=f"Email '{clean_email}' đã được sử dụng bởi người dùng khác."
                 )
         user.email = clean_email
+
+    if data.phone is not None:
+        user.phone = data.phone.strip()
 
     if data.branch is not None:
         user.branch = data.branch.strip()

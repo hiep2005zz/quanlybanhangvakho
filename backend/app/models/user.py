@@ -14,6 +14,7 @@ class UserInDB(BaseModel):
     username: str
     full_name: str
     email: Optional[str] = None
+    phone: Optional[str] = None
     role: str  # Vai trò chính (backward compatibility)
     roles: List[str] = Field(default_factory=list)  # Danh sách nhiều vai trò cùng lúc
     hashed_password: str

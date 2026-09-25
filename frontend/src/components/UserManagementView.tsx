@@ -4,13 +4,11 @@ import {
   User,
   UserAccount,
   getUsersApi,
-  createUserApi,
   updateUserApi,
   deleteUserApi,
   getUserDealersApi,
   handoverDealersApi,
   DealerItem,
-  UserCreatePayload,
   UserUpdatePayload,
 } from '../services/api';
 import { sessionManager } from '../services/sessionManager';
@@ -105,19 +103,6 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
 
-  // Modal Create State
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-  const [isSubmittingCreate, setIsSubmittingCreate] = useState<boolean>(false);
-  const [createModalError, setCreateModalError] = useState<string | null>(null);
-  const [createFormData, setCreateFormData] = useState<UserCreatePayload>({
-    full_name: '',
-    username: '',
-    email: '',
-    password: '',
-    role: 'sales',
-    roles: ['sales'],
-    branch: 'Kho Tổng Hà Nội',
-  });
 
   // Modal Edit State
   const [userToEdit, setUserToEdit] = useState<UserAccount | null>(null);
@@ -126,6 +111,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [editFormData, setEditFormData] = useState<{
     full_name: string;
     email: string;
+    phone: string;
     role: string;
     roles: string[];
     branch: string;
@@ -135,6 +121,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   }>({
     full_name: '',
     email: '',
+    phone: '',
     role: 'sales',
     roles: ['sales'],
     branch: 'Kho Tổng Hà Nội',
@@ -196,6 +183,15 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
   useEffect(() => {
     loadUsers();
+
+    // Lắng nghe sự kiện tạo hoặc thay đổi tài khoản người dùng để tự động cập nhật ngay tức thì
+    const handleAccountsChanged = () => {
+      loadUsers();
+    };
+    window.addEventListener('USER_ACCOUNTS_CHANGED', handleAccountsChanged);
+    return () => {
+      window.removeEventListener('USER_ACCOUNTS_CHANGED', handleAccountsChanged);
+    };
   }, [token]);
 
   // Tự động ẩn thông báo thành công sau 5 giây
@@ -206,103 +202,31 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     }, 5000);
     return () => clearTimeout(timer);
   }, [successMessage]);
-
-  // Handle create form change
-  const handleCreateChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setCreateFormData((prev) => {
-      const updated = { ...prev, [name]: value };
-      if (name === 'email' && (!prev.username || prev.username === prev.email.split('@')[0])) {
-        updated.username = value.split('@')[0].toLowerCase().replace(/[^a-z0-9_\-\.]/g, '');
-      }
-      return updated;
-    });
-  };
-
   // Helper kiểm tra vai trò kho
   const hasWarehouseRole = (roles: string[]) => roles.some((r) => r === 'warehouse' || r === 'warehouse_manager');
   const isWarehouseBranch = (b: string) => b.startsWith('Kho ');
-
-  // Submit create user
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreateModalError(null);
-
-    if (!createFormData.full_name.trim()) {
-      setCreateModalError('Vui lòng nhập Họ và tên.');
-      return;
-    }
-    if (!createFormData.email.trim()) {
-      setCreateModalError('Vui lòng nhập địa chỉ Email.');
-      return;
-    }
-    if (!createFormData.password.trim() || createFormData.password.length < 3) {
-      setCreateModalError('Mật khẩu phải có tối thiểu 3 ký tự.');
-      return;
-    }
-
-    const rolesToAssign = createFormData.roles && createFormData.roles.length > 0 ? createFormData.roles : [createFormData.role || 'sales'];
-    if (rolesToAssign.length === 0) {
-      setCreateModalError('Vui lòng chọn ít nhất 1 vai trò cho người dùng.');
-      return;
-    }
-
-    // Nghiệp vụ: Người dùng vai trò Kho phải gắn với ít nhất 1 kho cụ thể
-    if (hasWarehouseRole(rolesToAssign) && !isWarehouseBranch(createFormData.branch || '')) {
-      setCreateModalError('Người dùng có vai trò Kho (Thủ kho / Quản lý kho) bắt buộc phải gắn với ít nhất 1 kho cụ thể.');
-      return;
-    }
-
-    setIsSubmittingCreate(true);
-    try {
-      const created = await createUserApi(token, {
-        full_name: createFormData.full_name.trim(),
-        username: createFormData.username?.trim() || undefined,
-        email: createFormData.email.trim(),
-        password: createFormData.password,
-        role: rolesToAssign[0],
-        roles: rolesToAssign,
-        branch: createFormData.branch,
-      });
-
-      const roleDisplay = created.role_titles && created.role_titles.length > 0 ? created.role_titles.join(', ') : created.role_title;
-      setSuccessMessage(
-        `✅ Đã tạo tài khoản "${created.username}" (${created.full_name}) với các vai trò [${roleDisplay}]. Tài khoản đã lưu vào DB và có thể đăng nhập ngay!`
-      );
-      setIsCreateModalOpen(false);
-      setCreateFormData({
-        full_name: '',
-        username: '',
-        email: '',
-        password: '',
-        role: 'sales',
-        roles: ['sales'],
-        branch: 'Kho Tổng Hà Nội',
-      });
-      loadUsers();
-    } catch (err: any) {
-      setCreateModalError(err.message || 'Lỗi khi tạo người dùng.');
-    } finally {
-      setIsSubmittingCreate(false);
-    }
-  };
 
   // Open Edit Modal
   const openEditModal = (targetUser: UserAccount) => {
     setUserToEdit(targetUser);
     setEditModalError(null);
-    const initialRoles = targetUser.roles && targetUser.roles.length > 0 ? targetUser.roles : [targetUser.role];
+    const rawRoles = targetUser.roles && targetUser.roles.length > 0 ? targetUser.roles : [targetUser.role];
+    // Loại bỏ role tạm 'customer' để quản trị viên chọn vai trò nghiệp vụ chính thức
+    const initialRoles = rawRoles.filter((r) => r && r !== 'customer');
     setEditFormData({
       full_name: targetUser.full_name,
       email: targetUser.email || '',
-      role: targetUser.role,
+      phone: targetUser.phone || '',
+      role: initialRoles[0] || 'sales',
       roles: initialRoles,
-      branch: targetUser.branch || 'Kho Tổng Hà Nội',
+      branch: targetUser.branch && targetUser.branch !== 'Chưa phân công' ? targetUser.branch : 'Kho Tổng Hà Nội',
       password: '',
       is_active: targetUser.is_active && targetUser.status !== 'LOCKED',
       lock_reason: targetUser.lock_reason || '',
     });
   };
+
+
 
   // Submit edit user
   const handleUpdateUser = async (e: React.FormEvent) => {
@@ -351,6 +275,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       const updatePayload: UserUpdatePayload = {
         full_name: editFormData.full_name.trim(),
         email: editFormData.email.trim() || undefined,
+        phone: editFormData.phone.trim() || undefined,
         role: editFormData.roles[0],
         roles: editFormData.roles,
         branch: editFormData.branch,
@@ -597,6 +522,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             </span>
           </div>
         </div>
+
       </div>
 
       {/* Success Notification Alert (Auto dismiss after 5s) */}
@@ -842,40 +768,51 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       </div>
                     </td>
 
-                    {/* Email */}
+                    {/* Email & Phone */}
                     <td style={{ padding: '14px', color: '#cbd5e1' }}>
-                      {u.email || <span style={{ color: '#64748b' }}>Chưa có</span>}
+                      <div>{u.email || <span style={{ color: '#64748b' }}>Chưa có email</span>}</div>
+                      {u.phone && (
+                        <div style={{ fontSize: '12px', color: '#38bdf8', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>📞</span>
+                          <span>{u.phone}</span>
+                        </div>
+                      )}
                     </td>
 
                     {/* Vai trò */}
                     <td style={{ padding: '14px' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {((u.roles && u.roles.length > 0) ? u.roles : [u.role]).map((rCode) => {
-                          const rMeta = ROLES_LIST.find((item) => item.role === rCode);
-                          const color = rMeta?.badgeColor || u.badge_color || '#64748b';
-                          const title = rMeta?.title || rCode;
-                          return (
-                            <span
-                              key={rCode}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                padding: '3px 8px',
-                                borderRadius: '6px',
-                                background: `${color}22`,
-                                color: color,
-                                fontWeight: '600',
-                                fontSize: '12px',
-                                border: `1px solid ${color}44`,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }}></span>
-                              {title}
-                            </span>
-                          );
-                        })}
+                        {(() => {
+                          const allRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
+                          const nonCustomerRoles = allRoles.filter((r) => r !== 'customer');
+                          const displayRoles = nonCustomerRoles.length > 0 ? nonCustomerRoles : ['customer'];
+                          return displayRoles.map((rCode) => {
+                            const rMeta = ROLES_LIST.find((item) => item.role === rCode);
+                            const color = rMeta?.badgeColor || u.badge_color || '#64748b';
+                            const title = rMeta?.title || (rCode === 'customer' ? 'Chờ cấp quyền' : rCode);
+                            return (
+                              <span
+                                key={rCode}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  background: `${color}22`,
+                                  color: color,
+                                  fontWeight: '600',
+                                  fontSize: '12px',
+                                  border: `1px solid ${color}44`,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }}></span>
+                                {title}
+                              </span>
+                            );
+                          });
+                        })()}
                       </div>
                     </td>
 
@@ -1200,382 +1137,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         )}
       </div>
 
-      {/* POPUP 1 (Giữa màn hình): Thêm người dùng mới */}
-      {isCreateModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(11, 17, 32, 0.82)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
-          <div style={{
-            background: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '18px',
-            width: '100%',
-            maxWidth: '560px',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)',
-            overflow: 'hidden',
-            color: '#f8fafc',
-          }}>
-            {/* Header Modal */}
-            <div style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid #334155',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              background: 'rgba(15, 23, 42, 0.6)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '20px' }}>✨</span>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>
-                  Thêm Người Dùng Mới
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsCreateModalOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#94a3b8',
-                  fontSize: '20px',
-                  cursor: 'pointer',
-                  padding: '4px'
-                }}
-              >
-                ✕
-              </button>
-            </div>
 
-            {/* Form Create */}
-            <form onSubmit={handleCreateUser} style={{ padding: '24px' }}>
-              {createModalError && (
-                <div style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  color: '#fca5a5',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  fontSize: '13px',
-                  marginBottom: '18px'
-                }}>
-                  ⚠️ {createModalError}
-                </div>
-              )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Họ và tên */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
-                    Họ và tên <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="full_name"
-                    required
-                    placeholder="Ví dụ: Nguyễn Văn An"
-                    value={createFormData.full_name}
-                    onChange={handleCreateChange}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid #475569',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      fontSize: '14px',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
 
-                {/* Email và Tên đăng nhập */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
-                      Email <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      required
-                      placeholder="an.nguyen@congty.vn"
-                      value={createFormData.email}
-                      onChange={handleCreateChange}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        border: '1px solid #475569',
-                        background: '#0f172a',
-                        color: '#f8fafc',
-                        fontSize: '14px',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
-                      Tên đăng nhập (Username)
-                    </label>
-                    <input
-                      type="text"
-                      name="username"
-                      placeholder="an.nguyen (tự động)"
-                      value={createFormData.username}
-                      onChange={handleCreateChange}
-                      style={{
-                        width: '100%',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        border: '1px solid #475569',
-                        background: '#0f172a',
-                        color: '#f8fafc',
-                        fontSize: '14px',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Mật khẩu khởi tạo */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
-                    Mật khẩu đăng nhập ban đầu <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    required
-                    placeholder="Nhập mật khẩu (tối thiểu 3 ký tự, ví dụ: 123)"
-                    value={createFormData.password}
-                    onChange={handleCreateChange}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid #475569',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      fontSize: '14px',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                  <span style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
-                    💡 Người dùng có thể đăng nhập bằng Username hoặc Email và tự đổi mật khẩu sau.
-                  </span>
-                </div>
-
-                {/* Chọn nhiều Vai trò (Trong 7 vai trò hệ thống) */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#cbd5e1' }}>
-                      Vai trò hệ thống (Một người dùng có thể giữ nhiều vai trò) <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                      Đã chọn: <strong style={{ color: '#38bdf8' }}>{createFormData.roles?.length || 0}</strong> vai trò
-                    </span>
-                  </div>
-
-                  <div
-                    className="roles-grid-scroll"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                      gap: '10px',
-                      background: '#0f172a',
-                      border: '1px solid #334155',
-                      borderRadius: '10px',
-                      padding: '12px',
-                      maxHeight: '230px',
-                      overflowY: 'auto',
-                      scrollbarWidth: 'none',
-                      msOverflowStyle: 'none',
-                    }}
-                  >
-                    {ROLES_LIST.map((r) => {
-                      const currentRoles = createFormData.roles || [];
-                      const isChecked = currentRoles.includes(r.role);
-
-                      return (
-                        <label
-                          key={r.role}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: '10px',
-                            padding: '8px 10px',
-                            borderRadius: '8px',
-                            border: `1px solid ${isChecked ? r.badgeColor : '#334155'}`,
-                            background: isChecked ? `${r.badgeColor}18` : 'rgba(30, 41, 59, 0.4)',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              const checked = e.target.checked;
-                              let nextRoles: string[];
-                              if (checked) {
-                                nextRoles = [...currentRoles.filter(code => code !== r.role), r.role];
-                              } else {
-                                nextRoles = currentRoles.filter((code) => code !== r.role);
-                              }
-                              setCreateFormData({
-                                ...createFormData,
-                                role: nextRoles[0] || 'sales',
-                                roles: nextRoles,
-                              });
-                            }}
-                            style={{ marginTop: '3px', cursor: 'pointer', accentColor: r.badgeColor }}
-                          />
-                          <div style={{ fontSize: '12.5px', lineHeight: '1.4' }}>
-                            <div style={{ fontWeight: '700', color: isChecked ? r.badgeColor : '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {r.title}
-                              {r.role === 'admin' && isChecked && (
-                                <span style={{ fontSize: '10.5px', color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)', padding: '1px 5px', borderRadius: '4px' }}>
-                                  Toàn quyền
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                              {r.role === 'admin' ? '(Toàn quyền cấu hình, quản trị và kiểm soát mọi nghiệp vụ trong hệ thống)' : r.description}
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-
-                  {/* Thông báo giải thích nếu đã chọn vai trò Admin */}
-                  {(createFormData.roles || []).includes('admin') && (
-                    <div style={{
-                      marginTop: '8px',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
-                      fontSize: '12px',
-                      color: '#fca5a5',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      <span>⚡</span>
-                      <span><strong>Quản trị hệ thống:</strong> Vai trò Admin đã sở hữu toàn quyền cao nhất (Superuser *), không cần chọn thêm các vai trò bên cạnh.</span>
-                    </div>
-                  )}
-
-                  {/* Cảnh báo ràng buộc kho nếu có chọn vai trò kho */}
-                  {hasWarehouseRole(createFormData.roles || []) && (
-                    <div style={{
-                      marginTop: '8px',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
-                      fontSize: '12px',
-                      color: '#6ee7b7',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      <span>📦</span>
-                      <span><strong>Ràng buộc Kho:</strong> Bạn đã chọn vai trò Kho (Thủ kho hoặc Quản lý kho). Bắt buộc phải gắn tài khoản này với ít nhất 1 kho cụ thể bên dưới.</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Kho / Địa bàn phụ trách */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
-                    Kho / Địa bàn phụ trách <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
-                    name="branch"
-                    value={createFormData.branch}
-                    onChange={handleCreateChange}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid #475569',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      fontSize: '14px',
-                      boxSizing: 'border-box',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {BRANCH_OPTIONS.map((branch) => (
-                      <option key={branch} value={branch}>
-                        📍 {branch}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Actions Footer */}
-              <div style={{
-                marginTop: '24px',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '12px',
-                borderTop: '1px solid #334155',
-                paddingTop: '18px'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  style={{
-                    background: '#334155',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#e2e8f0',
-                    padding: '10px 18px',
-                    fontSize: '13.5px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingCreate}
-                  id="btn-submit-user"
-                  style={{
-                    background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#ffffff',
-                    padding: '10px 22px',
-                    fontSize: '13.5px',
-                    fontWeight: '700',
-                    cursor: isSubmittingCreate ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.4)',
-                  }}
-                >
-                  {isSubmittingCreate ? 'Đang lưu vào DB...' : 'Lưu người dùng vào Database'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* POPUP 2 (Giữa màn hình): Chỉnh sửa thông tin nhân viên */}
       {userToEdit && (
@@ -1758,6 +1322,29 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       }}
                     />
                   </div>
+                </div>
+
+                {/* Số điện thoại */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+                    Số điện thoại liên hệ
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: 0987654321"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #475569',
+                      background: '#0f172a',
+                      color: '#f8fafc',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
                 </div>
 
 

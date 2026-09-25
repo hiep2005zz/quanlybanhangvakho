@@ -3,6 +3,7 @@ import { getProductsApi, ProductItem, User } from '../services/api';
 import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
+import CreateCustomerModal from './CreateCustomerModal';
 import './dashboard.css';
 
 interface DashboardProps {
@@ -29,6 +30,7 @@ export default function DashboardPage({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [isCreateAccountModalOpen, setIsCreateAccountModalOpen] = useState(false);
 
   // Timer điều khiển di chuột vào mở rộng, di chuột ra tự động đóng
   const menuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,8 +87,19 @@ export default function DashboardPage({
   const remainingSeconds = sessionInfo.remainingSeconds;
   const isWarningZone = remainingSeconds > 0 && remainingSeconds <= 120;
 
-  // Tải dữ liệu sản phẩm từ Backend
+  // Xác định các vai trò chính thức (lọc bỏ 'customer' nếu đã có vai trò chính thức)
+  const officialRoles = (user.roles && user.roles.length > 0 ? user.roles : [user.role]).filter(
+    (r) => r && r !== 'customer'
+  );
+  // Tài khoản chỉ bị xem là 'Chờ cấp quyền' khi CHƯA có bất kỳ vai trò nghiệp vụ chính thức nào
+  const isPendingCustomer = officialRoles.length === 0;
+
   useEffect(() => {
+    if (isPendingCustomer) {
+      setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
     setIsLoading(true);
     getProductsApi(token)
@@ -107,7 +120,7 @@ export default function DashboardPage({
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, isPendingCustomer]);
 
   // Tính toán số liệu thống kê
   const totalStock = products.reduce((acc, p) => acc + p.stock, 0);
@@ -126,6 +139,7 @@ export default function DashboardPage({
     warehouse_manager: 'Quản Lý Kho',
     accountant: 'Kế Toán',
     purchasing: 'Nhân Viên Mua Hàng',
+    customer: 'Chờ Cấp Quyền',
   };
 
   const roleBadgeColorMap: Record<string, string> = {
@@ -136,17 +150,19 @@ export default function DashboardPage({
     warehouse_manager: '#059669',
     accountant: '#f59e0b',
     purchasing: '#06b6d4',
+    customer: '#94a3b8',
   };
 
-  const currentBadgeColor = roleBadgeColorMap[user.role] || '#64748b';
+  const primaryRole = officialRoles[0] || user.role;
+  const currentBadgeColor = roleBadgeColorMap[primaryRole] || '#64748b';
 
   return (
     <div className="dashboard-main-container">
       {/* Top Navbar */}
       <header className="dashboard-header-bar">
-        {/* Khối bên trái: Nút 3 gạch (chỉ ở trang chủ) + Logo + Tên hệ thống */}
+        {/* Khối bên trái: Nút 3 gạch (chỉ ở trang chủ và không phải tài khoản chờ duyệt) + Logo + Tên hệ thống */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {activeTab === 'inventory' && (
+          {activeTab === 'inventory' && !isPendingCustomer && (
             <button
               onMouseEnter={handleMouseEnterMenu}
               onMouseLeave={handleMouseLeaveMenu}
@@ -303,7 +319,7 @@ export default function DashboardPage({
                     {user.full_name}
                   </h4>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {((user.roles && user.roles.length > 0) ? user.roles : [user.role]).map((rCode) => {
+                    {(officialRoles.length > 0 ? officialRoles : ['customer']).map((rCode) => {
                       const color = roleBadgeColorMap[rCode] || '#64748b';
                       const label = roleLabelMap[rCode] || rCode;
                       return (
@@ -421,6 +437,64 @@ export default function DashboardPage({
                       </svg>
                     </div>
                     <span>Phân quyền</span>
+                  </button>
+                )}
+
+                {/* Nút Tạo tài khoản (Ảnh 2) - Chỉ hiện khi tài khoản là Admin */}
+                {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setIsCreateAccountModalOpen(true);
+                    }}
+                    id="btn-popover-create-account"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '11px 16px',
+                      borderRadius: '12px',
+                      background: 'rgba(30, 41, 59, 0.65)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      color: '#f8fafc',
+                      fontSize: '13.5px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.2))';
+                      e.currentTarget.style.borderColor = 'rgba(52, 211, 153, 0.6)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.color = '#ffffff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(30, 41, 59, 0.65)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.color = '#f8fafc';
+                    }}
+                    title="Tạo tài khoản mới và gửi email kích hoạt"
+                  >
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#34d399',
+                    }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="8.5" cy="7" r="4" />
+                        <line x1="20" y1="8" x2="20" y2="14" />
+                        <line x1="23" y1="11" x2="17" y2="11" />
+                      </svg>
+                    </div>
+                    <span>Tạo tài khoản</span>
                   </button>
                 )}
 
@@ -636,6 +710,28 @@ export default function DashboardPage({
               <span>Phân quyền</span>
             </div>
           )}
+
+          {/* Mục Tạo tài khoản (Ảnh 3) - CHỈ hiển thị nếu là Admin */}
+          {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
+            <div
+              className="sidebar-menu-item"
+              id="btn-sidebar-create-account"
+              onClick={() => {
+                handleCloseMenu();
+                setIsCreateAccountModalOpen(true);
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', opacity: 0.9, color: '#34d399' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <line x1="20" y1="8" x2="20" y2="14" />
+                  <line x1="23" y1="11" x2="17" y2="11" />
+                </svg>
+              </span>
+              <span>Tạo tài khoản</span>
+            </div>
+          )}
         </div>
 
         {/* Nút Đăng xuất ở cuối sidebar */}
@@ -668,13 +764,169 @@ export default function DashboardPage({
         </div>
       </aside>
 
-      {/* Main Content: Switch between User Management and Inventory */}
+      {/* Main Content: Switch between User Management, Inventory and Pending Authorization */}
       {activeTab === 'users' ? (
         <UserManagementView
           currentUser={user}
           token={token}
           onBackToHome={() => setActiveTab('inventory')}
         />
+      ) : isPendingCustomer ? (
+        /* GIAO DIỆN THÔNG BÁO CHO TÀI KHOẢN CHƯA ĐƯỢC ADMIN CẤP QUYỀN */
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '40px 20px',
+          minHeight: '60vh',
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95))',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '20px',
+            padding: '40px 32px',
+            maxWidth: '560px',
+            width: '100%',
+            textAlign: 'center',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(16px)',
+          }}>
+            {/* Icon Trạng Thái Chờ */}
+            <div style={{
+              width: '72px',
+              height: '72px',
+              borderRadius: '20px',
+              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.35))',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '32px',
+              margin: '0 auto 20px auto',
+              boxShadow: '0 10px 25px rgba(245, 158, 11, 0.25)',
+            }}>
+              ⏳
+            </div>
+
+            <h2 style={{
+              fontSize: '22px',
+              fontWeight: '800',
+              color: '#ffffff',
+              marginBottom: '12px',
+              letterSpacing: '-0.01em',
+            }}>
+              Tài Khoản Đang Chờ Quản Trị Viên Cấp Quyền
+            </h2>
+
+            <p style={{
+              fontSize: '14.5px',
+              color: '#94a3b8',
+              lineHeight: '1.6',
+              marginBottom: '24px',
+            }}>
+              Xin chào <strong style={{ color: '#f8fafc' }}>{user.full_name || user.username}</strong>! Tài khoản của bạn đã được khởi tạo thành công trên hệ thống. 
+              Hiện tại tài khoản chưa được Quản trị viên phân bổ vai trò nghiệp vụ (Bán hàng, Kho, Mua hàng...) và phân công chi nhánh.
+            </p>
+
+            {/* Khung Thông Tin Tài Khoản */}
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.6)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '12px',
+              padding: '16px 20px',
+              marginBottom: '26px',
+              textAlign: 'left',
+              fontSize: '13.5px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <span style={{ color: '#64748b' }}>Tên đăng nhập:</span>
+                <span style={{ color: '#38bdf8', fontWeight: '600' }}>@{user.username}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <span style={{ color: '#64748b' }}>Trạng thái tài khoản:</span>
+                <span style={{
+                  color: '#fbbf24',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }}>
+                  Chờ Quản trị viên phê duyệt
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                <span style={{ color: '#64748b' }}>Chi nhánh / Kho:</span>
+                <span style={{ color: '#94a3b8' }}>Chưa phân công</span>
+              </div>
+            </div>
+
+            {/* Gợi ý hành động */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}>
+              <button
+                onClick={async () => {
+                  try {
+                    const fresh = await sessionManager.syncCurrentProfile();
+                    if (!fresh || (fresh.role === 'customer' && (!fresh.roles || fresh.roles.every(r => r === 'customer')))) {
+                      window.location.reload();
+                    }
+                  } catch {
+                    window.location.reload();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(59, 130, 246, 0.35)',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+              >
+                🔄 Kiểm tra lại trạng thái quyền hạn
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (isLoggingOut) return;
+                  setIsLoggingOut(true);
+                  try {
+                    await onLogout();
+                  } finally {
+                    setIsLoggingOut(false);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: 'rgba(30, 41, 59, 0.8)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '10px',
+                  color: '#cbd5e1',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#cbd5e1')}
+              >
+                {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất tài khoản'}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           {/* Main Dashboard Content */}
@@ -1073,6 +1325,13 @@ export default function DashboardPage({
         token={token}
         username={user.username}
         onTokenUpdated={onTokenUpdated}
+      />
+
+      {/* Modal Tạo Tài Khoản (Kích hoạt từ Popover Avatar hoặc Sidebar Drawer) */}
+      <CreateCustomerModal
+        isOpen={isCreateAccountModalOpen}
+        onClose={() => setIsCreateAccountModalOpen(false)}
+        token={token}
       />
     </div>
   );

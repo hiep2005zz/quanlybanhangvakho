@@ -7,7 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from fastapi import HTTPException, status
-from app.models.user import USERS_DB
+from app.models.user import USERS_DB, save_users_db, load_users_db
 from app.core.config import settings
 from app.core.security import get_password_hash
 
@@ -23,17 +23,20 @@ class PasswordResetService:
         self._tokens: dict[str, tuple[str, datetime]] = {}
 
     def request_reset(self, email: str) -> str:
+        # Nạp lại dữ liệu mới nhất từ file JSON để đảm bảo email vừa sửa/tạo được nhận ngay
+        load_users_db()
         normalized_email = email.strip().lower()
         
-        # Tìm người dùng tương ứng trong USERS_DB
+        # Tìm người dùng tương ứng trong USERS_DB (hỗ trợ nhập email hoặc username)
         matched_user = None
         for u in USERS_DB.values():
-            if (u.email and u.email.lower() == normalized_email) or (u.username.lower() == normalized_email.split('@')[0]):
+            if (u.email and u.email.lower() == normalized_email) or (u.username.lower() == normalized_email) or (u.username.lower() == normalized_email.split('@')[0]):
                 matched_user = u
                 break
 
         # Anti-enumeration: Nếu email không tồn tại hoặc tài khoản bị khóa, vẫn trả về cùng 1 thông báo
         if not matched_user or not matched_user.is_active:
+            print(f"[FORGOT PASSWORD] Không tìm thấy user hoặc tài khoản bị khóa cho input: '{normalized_email}'", flush=True)
             return RESET_MESSAGE
 
         token = secrets.token_urlsafe(32)
@@ -43,24 +46,25 @@ class PasswordResetService:
 
         reset_token = token
         link_str = f"http://localhost:5173/reset-password?token={reset_token}"
-        # In link ra terminal backend để tiện debug
+        # In link ra terminal backend an toan cho Windows Console
         print("\n==========================================", flush=True)
-        try:
-            print(f"🔑 [RESET PASSWORD LINK]: {link_str}", flush=True)
-        except UnicodeEncodeError:
-            print(f"[RESET PASSWORD LINK]: {link_str}", flush=True)
+        print(f"[RESET PASSWORD LINK]: {link_str}", flush=True)
         print("==========================================\n", flush=True)
+
+        recipient_email = matched_user.email if matched_user.email else normalized_email
 
         # Gửi email qua Gmail SMTP bằng thư viện smtplib và email.mime
         try:
             self._send_email(
-                to_email=normalized_email,
+                to_email=recipient_email,
                 token=reset_token,
                 recipient_name=matched_user.full_name or matched_user.username
             )
+            print(f"[GMAIL SENT OK] Da gui email dat lai mat khau thanh cong toi: {recipient_email}", flush=True)
         except Exception as e:
             # Ghi log lỗi rõ ràng trên server nhưng không để lộ exception ra ngoài frontend
-            logger.error("Lỗi khi gửi email đặt lại mật khẩu tới %s: %s", normalized_email, e, exc_info=True)
+            print(f"[GMAIL SEND ERROR] Loi gui email toi {recipient_email}: {e}", flush=True)
+            logger.error("Loi khi gui email dat lai mat khau toi %s: %s", recipient_email, e, exc_info=True)
 
         return RESET_MESSAGE
 
@@ -85,6 +89,7 @@ class PasswordResetService:
         # Cập nhật mật khẩu mã hóa mới và tăng token_version để thu hồi các phiên cũ
         user.hashed_password = get_password_hash(new_password)
         user.token_version = getattr(user, 'token_version', 1) + 1
+        save_users_db()
         return 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập với mật khẩu mới.'
 
     @staticmethod
