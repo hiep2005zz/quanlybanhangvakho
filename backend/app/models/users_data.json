@@ -7,9 +7,10 @@
     "phone": null,
     "role": "admin",
     "roles": [
-      "admin"
+      "admin",
+      "sales_manager"
     ],
-    "hashed_password": "$2b$12$K.u77.z7Tpw88iV5s2GYdOjmmHSVLzbcFabbZMiTWmQviUXGYkQOi",
+    "hashed_password": "$2b$12$9gItNjFXXrXaYa6cjvKy8.p7jbSZnsQtKoQtcsCqGo88jCmyct2g6",
     "branch": "Toàn quốc",
     "is_active": true,
     "status": "ACTIVE",
@@ -17,7 +18,7 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 5
+    "token_version": 7
   },
   "sales_manager": {
     "id": 2,
@@ -29,7 +30,7 @@
     "roles": [
       "sales_manager"
     ],
-    "hashed_password": "$2b$12$qooDAwZcrT8IiimMIYxPCOYIPPFvQ3WOU6hcUynjknyavaDp6Bjg.",
+    "hashed_password": "$2b$12$9gItNjFXXrXaYa6cjvKy8.p7jbSZnsQtKoQtcsCqGo88jCmyct2g6",
     "branch": "Toàn quốc",
     "is_active": true,
     "status": "ACTIVE",
@@ -49,7 +50,7 @@
     "roles": [
       "sales"
     ],
-    "hashed_password": "$2b$12$qooDAwZcrT8IiimMIYxPCOYIPPFvQ3WOU6hcUynjknyavaDp6Bjg.",
+    "hashed_password": "$2b$12$9gItNjFXXrXaYa6cjvKy8.p7jbSZnsQtKoQtcsCqGo88jCmyct2g6",
     "branch": "Khu vực Miền Bắc",
     "is_active": true,
     "status": "ACTIVE",
@@ -57,7 +58,7 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 1
+    "token_version": 8
   },
   "kho": {
     "id": 4,
@@ -69,7 +70,7 @@
     "roles": [
       "warehouse"
     ],
-    "hashed_password": "$2b$12$qooDAwZcrT8IiimMIYxPCOYIPPFvQ3WOU6hcUynjknyavaDp6Bjg.",
+    "hashed_password": "$2b$12$9gItNjFXXrXaYa6cjvKy8.p7jbSZnsQtKoQtcsCqGo88jCmyct2g6",
     "branch": "Kho Tổng Hà Nội",
     "is_active": true,
     "status": "ACTIVE",
@@ -77,7 +78,7 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 1
+    "token_version": 6
   },
   "warehouse_mgr": {
     "id": 5,
@@ -89,7 +90,7 @@
     "roles": [
       "warehouse_manager"
     ],
-    "hashed_password": "$2b$12$sEhzeigMLRJWvlhMo8V7COdnEl7/5OBF9J6CKYfDqziM0yfMQaQfO",
+    "hashed_password": "$2b$12$9gItNjFXXrXaYa6cjvKy8.p7jbSZnsQtKoQtcsCqGo88jCmyct2g6",
     "branch": "Kho Tổng Hà Nội",
     "is_active": true,
     "status": "ACTIVE",
@@ -109,7 +110,7 @@
     "roles": [
       "accountant"
     ],
-    "hashed_password": "$2b$12$qooDAwZcrT8IiimMIYxPCOYIPPFvQ3WOU6hcUynjknyavaDp6Bjg.",
+    "hashed_password": "$2b$12$9gItNjFXXrXaYa6cjvKy8.p7jbSZnsQtKoQtcsCqGo88jCmyct2g6",
     "branch": "Trụ sở chính",
     "is_active": true,
     "status": "ACTIVE",
@@ -129,7 +130,7 @@
     "roles": [
       "purchasing"
     ],
-    "hashed_password": "$2b$12$qooDAwZcrT8IiimMIYxPCOYIPPFvQ3WOU6hcUynjknyavaDp6Bjg.",
+    "hashed_password": "$2b$12$9gItNjFXXrXaYa6cjvKy8.p7jbSZnsQtKoQtcsCqGo88jCmyct2g6",
     "branch": "Trụ sở chính",
     "is_active": true,
     "status": "ACTIVE",
@@ -138,26 +139,6 @@
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 1
-  },
-  "hihi": {
-    "id": 8,
-    "username": "hihi",
-    "full_name": "sdfdsf",
-    "email": "hiep2005zz@gmail.com",
-    "phone": "342345235",
-    "role": "sales_manager",
-    "roles": [
-      "sales_manager"
-    ],
-    "hashed_password": "$2b$12$4IDQRqrglbY0qGGTgu4Y6etsF22NHLoMwtk6WAjkIolcJAAuSq9Ju",
-    "branch": "Kho Tổng Hà Nội",
-    "is_active": true,
-    "status": "ACTIVE",
-    "lock_reason": null,
-    "locked_at": null,
-    "failed_attempts": 0,
-    "locked_until": null,
-    "token_version": 2
   },
   "kaka": {
     "id": 9,
@@ -169,8 +150,8 @@
     "roles": [
       "sales_manager"
     ],
-    "hashed_password": "$2b$12$OTnMTYcXgbqmmUP4BRbNOu9SF6XEF2pNt6Xe1QlYj2tzSqOdh9EKK",
-    "branch": "Kho Tổng Hà Nội",
+    "hashed_password": "$2b$12$vNj76k3QDhGeAug9hhwXxeqYrAXtktRa6eM0LA89mgOi9JEzUfBi6",
+    "branch": "Kho T?ng Hà N?i",
     "is_active": true,
     "status": "ACTIVE",
     "lock_reason": null,

@@ -83,6 +83,13 @@ def test_ac3_dealers_marked_needing_handover_and_block_orders():
     """
     admin_token = get_token("admin")
 
+    # Đảm bảo tài khoản sales ở trạng thái LOCKED để kiểm tra quy trình bàn giao
+    client.put(
+        "/api/v1/users/sales",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "LOCKED", "lock_reason": "Nghỉ việc, cần bàn giao đại lý."}
+    )
+
     # 1. Kiểm tra danh sách đại lý của sales
     dealers_resp = client.get(
         "/api/v1/users/sales/dealers",

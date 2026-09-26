@@ -178,6 +178,8 @@ def get_roles_matrix():
     items = []
     for role_enum in Role:
         role_key = role_enum.value
+        if role_key == Role.CUSTOMER.value:
+            continue
         info = ROLE_DETAILS.get(role_key, {})
         items.append(
             RoleInfoItem(

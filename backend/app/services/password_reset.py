@@ -5,6 +5,7 @@ import smtplib
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.header import Header
 
 from fastapi import HTTPException, status
 from app.models.user import USERS_DB, save_users_db, load_users_db
@@ -123,65 +124,75 @@ class PasswordResetService:
             "Trân trọng,\nHệ Thống Quản Lý Bán Hàng & Kho"
         )
 
-        # Bản nội dung HTML giao diện đẹp mắt
+        # Bản nội dung HTML giao diện cao cấp, chuẩn hoá UTF-8
         html_content = f"""<!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{subject}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 30px 10px;">
+<body style="margin: 0; padding: 0; background-color: #0b1120; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0b1120; padding: 40px 15px;">
         <tr>
             <td align="center">
-                <table width="100%" max-width="580" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); border: 1px solid #e2e8f0;">
-                    <!-- Header -->
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #0f172a; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <!-- Brand Header -->
                     <tr>
-                        <td style="background-color: #285b4d; padding: 26px 30px; text-align: center;">
-                            <h1 style="color: #ffffff; font-size: 20px; margin: 0; font-weight: 700; letter-spacing: 0.5px;">HỆ THỐNG QUẢN LÝ KHO & BÁN HÀNG</h1>
+                        <td style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px 30px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+                            <div style="display: inline-block; width: 48px; height: 48px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%); border-radius: 14px; margin-bottom: 12px; line-height: 48px; text-align: center; box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);">
+                                <span style="font-size: 22px; color: #ffffff;">📦</span>
+                            </div>
+                            <h1 style="color: #ffffff; font-size: 19px; margin: 0; font-weight: 700; letter-spacing: 0.5px;">HỆ THỐNG QUẢN LÝ KHO & BÁN HÀNG</h1>
+                            <p style="color: #94a3b8; font-size: 13px; margin: 6px 0 0 0; font-weight: 500;">Yêu cầu cấp lại mật khẩu truy cập hệ thống</p>
                         </td>
                     </tr>
-                    <!-- Body Content -->
+                    <!-- Main Body -->
                     <tr>
-                        <td style="padding: 35px 30px 25px 30px; color: #334155; font-size: 15px; line-height: 1.6;">
-                            <p style="margin-top: 0; font-size: 16px; font-weight: 600; color: #0f172a;">
-                                Xin chào <strong>{recipient_name}</strong>,
+                        <td style="padding: 36px 32px 28px 32px; color: #cbd5e1; font-size: 15px; line-height: 1.65;">
+                            <p style="margin-top: 0; font-size: 17px; font-weight: 600; color: #f8fafc;">
+                                Xin chào <span style="color: #818cf8;">{recipient_name}</span>,
                             </p>
-                            <p style="margin: 12px 0;">
-                                Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn tại hệ thống.
+                            <p style="margin: 14px 0; color: #94a3b8;">
+                                Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn tại hệ thống quản lý. Để tiếp tục, bạn vui lòng nhấp vào nút xác nhận bên dưới:
                             </p>
-                            <p style="margin: 12px 0;">
-                                Nhấp vào nút bên dưới để tiến hành thiết lập mật khẩu mới:
-                            </p>
-                            <!-- Action Button -->
-                            <table border="0" cellspacing="0" cellpadding="0" style="margin: 28px auto;">
+
+                            <!-- Primary Action Button -->
+                            <table border="0" cellspacing="0" cellpadding="0" style="margin: 32px auto; width: 100%;">
                                 <tr>
-                                    <td align="center" style="border-radius: 6px; background-color: #285b4d;">
-                                        <a href="{reset_link}" target="_blank" style="display: inline-block; padding: 13px 32px; font-size: 15px; color: #ffffff; text-decoration: none; font-weight: 600; border-radius: 6px;">
-                                            Đặt Lại Mật Khẩu
+                                    <td align="center">
+                                        <a href="{reset_link}" target="_blank" style="display: inline-block; padding: 14px 38px; font-size: 15px; color: #ffffff; text-decoration: none; font-weight: 600; border-radius: 10px; background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); box-shadow: 0 10px 22px rgba(79, 70, 229, 0.4); letter-spacing: 0.3px;">
+                                            🔒 Đặt Lại Mật Khẩu Mới
                                         </a>
                                     </td>
                                 </tr>
                             </table>
-                            <p style="font-size: 13px; color: #64748b; margin-top: 20px;">
-                                Hoặc copy trực tiếp liên kết sau vào trình duyệt:
-                            </p>
-                            <p style="font-size: 13px; word-break: break-all; margin: 6px 0;">
-                                <a href="{reset_link}" target="_blank" style="color: #2563eb; text-decoration: underline;">{reset_link}</a>
-                            </p>
-                            <!-- Notice Box -->
-                            <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; margin-top: 25px; border-radius: 4px;">
-                                <p style="margin: 0; font-size: 13px; color: #92400e;">
-                                    ⏱️ <strong>Lưu ý:</strong> Liên kết này có hiệu lực trong vòng <strong>30 phút</strong> và chỉ sử dụng được <strong>một lần duy nhất</strong>. Nếu bạn không gửi yêu cầu này, vui lòng bỏ qua email.
+
+                            <div style="background-color: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 16px; margin: 26px 0 16px 0;">
+                                <p style="margin: 0 0 8px 0; font-size: 12.5px; color: #94a3b8; font-weight: 500;">
+                                    Hoặc sao chép liên kết bên dưới vào trình duyệt của bạn:
+                                </p>
+                                <p style="margin: 0; font-size: 12.5px; word-break: break-all;">
+                                    <a href="{reset_link}" target="_blank" style="color: #818cf8; text-decoration: none; border-bottom: 1px dotted #818cf8;">{reset_link}</a>
+                                </p>
+                            </div>
+
+                            <!-- Security Warning Alert -->
+                            <div style="background-color: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; padding: 13px 16px; margin-top: 24px; border-radius: 6px;">
+                                <p style="margin: 0; font-size: 13px; color: #fde68a; line-height: 1.5;">
+                                    ⏱️ <strong>Bảo mật:</strong> Liên kết có hiệu lực trong vòng <strong>30 phút</strong> và chỉ sử dụng được <strong>01 lần duy nhất</strong>. Nếu bạn không gửi yêu cầu này, xin vui lòng bỏ qua thư và tài khoản vẫn an toàn tuyệt đối.
                                 </p>
                             </div>
                         </td>
                     </tr>
                     <!-- Footer -->
                     <tr>
-                        <td style="background-color: #f8fafc; padding: 18px 30px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
-                            Email tự động gửi từ Hệ Thống Quản Lý Bán Hàng & Kho. Vui lòng không trả lời thư này.
+                        <td style="background-color: #0b1120; padding: 22px 30px; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 12px; color: #64748b; line-height: 1.5;">
+                            Email tự động gửi từ <strong>Hệ Thống Quản Lý Kho & Bán Hàng</strong>.<br />
+                            Vui lòng không phản hồi thư này.
                         </td>
                     </tr>
                 </table>
@@ -192,7 +203,7 @@ class PasswordResetService:
 </html>"""
 
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
+        msg["Subject"] = Header(subject, "utf-8")
         msg["From"] = mail_from
         msg["To"] = to_email
 
