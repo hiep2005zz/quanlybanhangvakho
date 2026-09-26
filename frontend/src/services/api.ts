@@ -613,3 +613,15 @@ export async function handoverDealersApi(
   return data;
 }
 
+export async function getAdminContactApi(): Promise<{ admin_email: string; admin_name: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/admin-contact`);
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch {
+    // fallback
+  }
+  return { admin_email: 'daongochiep645@gmail.com', admin_name: 'Nguyễn Quản Trị' };
+}
+

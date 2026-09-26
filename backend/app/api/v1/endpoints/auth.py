@@ -193,3 +193,14 @@ def get_roles_matrix():
             )
         )
     return RoleMatrixResponse(roles=items, total_roles=len(items))
+
+@router.get("/admin-contact")
+def get_admin_contact():
+    """
+    Lấy email liên hệ chính thức của Quản trị viên hệ thống (Admin).
+    Dữ liệu lấy trực tiếp từ tài khoản Admin trong hệ thống hoặc cấu hình mail hệ thống.
+    """
+    admin_user = USERS_DB.get("admin")
+    admin_email = (admin_user.email if admin_user and admin_user.email else None) or settings.MAIL_FROM or "daongochiep645@gmail.com"
+    admin_name = admin_user.full_name if admin_user else "Nguyễn Quản Trị"
+    return {"admin_email": admin_email, "admin_name": admin_name}

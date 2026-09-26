@@ -472,6 +472,23 @@ def handover_dealers(
             d.assigned_sale_id = new_user.id
             transferred_count += 1
 
+    try:
+        from app.core.database import SessionLocal
+        from app.models.entities import DealerEntity
+        db = SessionLocal()
+        try:
+            db.query(DealerEntity).filter(DealerEntity.assigned_sale_id == old_user.id).update(
+                {DealerEntity.assigned_sale_id: new_user.id}
+            )
+            db.commit()
+        except Exception as sql_err:
+            db.rollback()
+            print(f"SQL Server handover update note: {sql_err}")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"Error connecting to SQL Server on handover: {e}")
+
     return {
         "status": "success",
         "message": f"Đã bàn giao thành công {transferred_count} đại lý từ '{old_user.full_name}' sang '{new_user.full_name}'.",

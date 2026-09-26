@@ -4,6 +4,7 @@ import { sessionManager, SessionState } from '../services/sessionManager';
 import SecurityModal from './SecurityModal';
 import { UserManagementView } from './UserManagementView';
 import CreateCustomerModal from './CreateCustomerModal';
+import { AccessDeniedView } from './AccessDeniedView';
 import './dashboard.css';
 
 interface DashboardProps {
@@ -20,7 +21,52 @@ export default function DashboardPage({
   onLogout,
   onTokenUpdated,
 }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'users'>('inventory');
+  const [activeTab, setActiveTabState] = useState<'inventory' | 'users'>(() => {
+    const pathname = window.location.pathname.toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = (params.get('view') || params.get('tab') || '').toLowerCase();
+    const hash = window.location.hash.replace('#', '').toLowerCase();
+    const isAdminOrUsersPath = pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/users' || pathname.startsWith('/users/');
+    if (viewParam === 'users' || viewParam === 'admin' || hash === 'users' || hash === 'admin' || isAdminOrUsersPath) {
+      return 'users';
+    }
+    return 'inventory';
+  });
+
+  const setActiveTab = (tab: 'inventory' | 'users') => {
+    setActiveTabState(tab);
+    try {
+      if (tab === 'users') {
+        window.history.pushState({}, '', '/?tab=users');
+      } else {
+        // Đưa đường dẫn về sạch gốc trang chủ (/), xóa bỏ /admin hoặc param thừa trên URL
+        window.history.pushState({}, '', '/');
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const pathname = window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = (params.get('view') || params.get('tab') || '').toLowerCase();
+      const hash = window.location.hash.replace('#', '').toLowerCase();
+      const isAdminOrUsersPath = pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/users' || pathname.startsWith('/users/');
+      if (viewParam === 'users' || viewParam === 'admin' || hash === 'users' || hash === 'admin' || isAdminOrUsersPath) {
+        setActiveTabState('users');
+      } else {
+        setActiveTabState('inventory');
+      }
+    };
+    window.addEventListener('popstate', syncFromUrl);
+    window.addEventListener('hashchange', syncFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncFromUrl);
+      window.removeEventListener('hashchange', syncFromUrl);
+    };
+  }, []);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [isCostVisible, setIsCostVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -93,6 +139,7 @@ export default function DashboardPage({
   );
   // Tài khoản chỉ bị xem là 'Chờ cấp quyền' khi CHƯA có bất kỳ vai trò nghiệp vụ chính thức nào
   const isPendingCustomer = officialRoles.length === 0;
+  const isAdmin = user.role === 'admin' || (user.roles && user.roles.includes('admin'));
 
   useEffect(() => {
     if (isPendingCustomer) {
@@ -766,11 +813,20 @@ export default function DashboardPage({
 
       {/* Main Content: Switch between User Management, Inventory and Pending Authorization */}
       {activeTab === 'users' ? (
-        <UserManagementView
-          currentUser={user}
-          token={token}
-          onBackToHome={() => setActiveTab('inventory')}
-        />
+        isAdmin ? (
+          <UserManagementView
+            currentUser={user}
+            token={token}
+            onBackToHome={() => setActiveTab('inventory')}
+          />
+        ) : (
+          <AccessDeniedView
+            currentUser={user}
+            requiredPermission="Quản trị hệ thống (Admin)"
+            onBackToWorkflow={() => setActiveTab('inventory')}
+            onLogout={onLogout}
+          />
+        )
       ) : isPendingCustomer ? (
         /* GIAO DIỆN THÔNG BÁO CHO TÀI KHOẢN CHƯA ĐƯỢC ADMIN CẤP QUYỀN */
         <div style={{
@@ -824,7 +880,7 @@ export default function DashboardPage({
               lineHeight: '1.6',
               marginBottom: '24px',
             }}>
-              Xin chào <strong style={{ color: '#f8fafc' }}>{user.full_name || user.username}</strong>! Tài khoản của bạn đã được khởi tạo thành công trên hệ thống. 
+              Xin chào <strong style={{ color: '#f8fafc' }}>{user.full_name || user.username}</strong>! Tài khoản của bạn đã được khởi tạo thành công trên hệ thống.
               Hiện tại tài khoản chưa được Quản trị viên phân bổ vai trò nghiệp vụ (Bán hàng, Kho, Mua hàng...) và phân công chi nhánh.
             </p>
 
@@ -931,353 +987,353 @@ export default function DashboardPage({
         <>
           {/* Main Dashboard Content */}
 
-      {error && (
-        <div style={{
-          background: 'rgba(239, 68, 68, 0.2)',
-          border: '1px solid #ef4444',
-          color: '#fca5a5',
-          padding: '12px 16px',
-          borderRadius: '10px',
-          marginBottom: '20px'
-        }}>
-          ⚠️ {error}
-        </div>
-      )}
-
-      {/* KPI Cards (Luxury Tech Glassmorphism) */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-        gap: '20px',
-        marginBottom: '28px'
-      }}>
-        {/* Thẻ 1: Tổng số sản phẩm */}
-        <div className="kpi-stat-card kpi-card-blue">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Mặt Hàng Trong Kho</span>
+          {error && (
             <div style={{
-              width: '32px',
-              height: '32px',
+              background: 'rgba(239, 68, 68, 0.2)',
+              border: '1px solid #ef4444',
+              color: '#fca5a5',
+              padding: '12px 16px',
               borderRadius: '10px',
-              background: 'rgba(56, 189, 248, 0.15)',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#38bdf8'
+              marginBottom: '20px'
             }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
+              ⚠️ {error}
             </div>
-          </div>
-          <div style={{
-            fontSize: '28px',
-            fontWeight: '800',
-            letterSpacing: '-0.02em',
-            background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>
-            {isLoading ? '...' : `${products.length} mã SP`}
-          </div>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '12.5px',
-            color: '#38bdf8',
-            marginTop: '8px',
-            background: 'rgba(56, 189, 248, 0.1)',
-            padding: '2px 8px',
-            borderRadius: '6px',
-            fontWeight: '600'
-          }}>
-            <span>📦 Tổng số lượng: {totalStock} cái</span>
-          </div>
-        </div>
+          )}
 
-        {/* Thẻ 2: Giá trị niêm yết bán */}
-        <div className="kpi-stat-card kpi-card-green">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Tổng Giá Trị Bán Dự Kiến</span>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '10px',
-              background: 'rgba(52, 211, 153, 0.15)',
-              border: '1px solid rgba(52, 211, 153, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#34d399'
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            </div>
-          </div>
+          {/* KPI Cards (Luxury Tech Glassmorphism) */}
           <div style={{
-            fontSize: '28px',
-            fontWeight: '800',
-            letterSpacing: '-0.02em',
-            color: '#34d399',
-            textShadow: '0 0 20px rgba(52, 211, 153, 0.3)'
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+            gap: '20px',
+            marginBottom: '28px'
           }}>
-            {isLoading ? '...' : `${totalSellValue.toLocaleString()} đ`}
-          </div>
-          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '8px' }}>Dựa trên giá niêm yết</div>
-        </div>
-
-        {/* Thẻ 3: Tổng Giá Vốn (Chỉ Quản lý kinh doanh & Admin) */}
-        {isCostVisible && isCostAvailable && (
-          <div className="kpi-stat-card kpi-card-red">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Tổng Giá Vốn Tồn Kho</span>
+            {/* Thẻ 1: Tổng số sản phẩm */}
+            <div className="kpi-stat-card kpi-card-blue">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Mặt Hàng Trong Kho</span>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '10px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#38bdf8'
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                  </svg>
+                </div>
+              </div>
               <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '10px',
-                background: 'rgba(248, 113, 113, 0.15)',
-                border: '1px solid rgba(248, 113, 113, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#f87171'
+                fontSize: '28px',
+                fontWeight: '800',
+                letterSpacing: '-0.02em',
+                background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
               }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
+                {isLoading ? '...' : `${products.length} mã SP`}
+              </div>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12.5px',
+                color: '#38bdf8',
+                marginTop: '8px',
+                background: 'rgba(56, 189, 248, 0.1)',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                fontWeight: '600'
+              }}>
+                <span>📦 Tổng số lượng: {totalStock} cái</span>
               </div>
             </div>
-            <div style={{
-              fontSize: '28px',
-              fontWeight: '800',
-              letterSpacing: '-0.02em',
-              color: '#f87171',
-              textShadow: '0 0 20px rgba(248, 113, 113, 0.3)'
-            }}>
-              {isLoading ? '...' : `${totalCostValue.toLocaleString()} đ`}
-            </div>
-            <div style={{ fontSize: '12px', color: '#fca5a5', marginTop: '8px' }}>Dữ liệu nội bộ bảo mật từ Server</div>
-          </div>
-        )}
 
-        {/* Thẻ 4: Lợi Nhuận Dự Kiến (Chỉ Quản lý kinh doanh & Admin) */}
-        {isCostVisible && isCostAvailable && (
-          <div className="kpi-stat-card kpi-card-amber">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Lợi Nhuận Gộp Dự Kiến</span>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '10px',
-                background: 'rgba(251, 191, 36, 0.15)',
-                border: '1px solid rgba(251, 191, 36, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fbbf24'
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                  <polyline points="17 6 23 6 23 12" />
-                </svg>
+            {/* Thẻ 2: Giá trị niêm yết bán */}
+            <div className="kpi-stat-card kpi-card-green">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Tổng Giá Trị Bán Dự Kiến</span>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '10px',
+                  background: 'rgba(52, 211, 153, 0.15)',
+                  border: '1px solid rgba(52, 211, 153, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#34d399'
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                </div>
               </div>
+              <div style={{
+                fontSize: '28px',
+                fontWeight: '800',
+                letterSpacing: '-0.02em',
+                color: '#34d399',
+                textShadow: '0 0 20px rgba(52, 211, 153, 0.3)'
+              }}>
+                {isLoading ? '...' : `${totalSellValue.toLocaleString()} đ`}
+              </div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '8px' }}>Dựa trên giá niêm yết</div>
             </div>
-            <div style={{
-              fontSize: '28px',
-              fontWeight: '800',
-              letterSpacing: '-0.02em',
-              color: '#fbbf24',
-              textShadow: '0 0 20px rgba(251, 191, 36, 0.35)'
-            }}>
-              {isLoading ? '...' : `+${totalProfit.toLocaleString()} đ`}
-            </div>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '12px',
-              color: '#fde68a',
-              marginTop: '8px',
-              background: 'rgba(251, 191, 36, 0.12)',
-              padding: '2px 8px',
-              borderRadius: '6px',
-              fontWeight: '700'
-            }}>
-              Biên lãi: +{totalSellValue && totalCostValue ? Math.round(((totalSellValue - totalCostValue) / totalSellValue) * 100) : 0}%
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Main Products Table (Glassmorphism Luxury Container) */}
-      <div className="premium-table-card roles-grid-scroll" style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '4px', height: '20px', borderRadius: '4px', background: 'linear-gradient(180deg, #6366f1 0%, #a855f7 100%)' }} />
-            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#f8fafc', letterSpacing: '-0.01em' }}>
-              Danh Sách Hàng Hóa Trong Kho
-            </h2>
-          </div>
-          <span style={{ fontSize: '12.5px', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-            Tổng số: <strong style={{ color: '#38bdf8' }}>{products.length}</strong> mặt hàng
-          </span>
-        </div>
-
-        {isLoading ? (
-          <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>
-            <div style={{ fontSize: '28px', marginBottom: '10px' }}>⏳</div>
-            <div>Đang tải dữ liệu từ máy chủ Backend...</div>
-          </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 6px', fontSize: '14px', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ color: '#94a3b8', background: 'rgba(15, 23, 42, 0.6)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <th style={{ padding: '14px 18px', fontWeight: '700', borderTopLeftRadius: '12px', borderBottomLeftRadius: '12px' }}>Mã SP</th>
-                <th style={{ padding: '14px 18px', fontWeight: '700' }}>Tên Sản Phẩm</th>
-                <th style={{ padding: '14px 18px', fontWeight: '700' }}>Danh Mục</th>
-                <th style={{ padding: '14px 18px', fontWeight: '700' }}>Số Lượng Tồn</th>
-                <th style={{ padding: '14px 18px', fontWeight: '700' }}>Giá Niêm Yết (Bán)</th>
-                {/* CỘT GIÁ VỐN & BIÊN LỢI NHUẬN - CHỈ HIỆN KHI SERVER CHO PHÉP (QUẢN LÝ KINH DOANH / ADMIN) */}
-                {isCostVisible && (
-                  <>
-                    <th style={{ padding: '14px 18px', fontWeight: '700', color: '#f87171' }}>Giá Vốn Nhập Kho</th>
-                    <th style={{ padding: '14px 18px', fontWeight: '700', color: '#fbbf24', borderTopRightRadius: '12px', borderBottomRightRadius: '12px' }}>Biên Lợi Nhuận (%)</th>
-                  </>
-                )}
-                {!isCostVisible && (
-                  <th style={{ borderTopRightRadius: '12px', borderBottomRightRadius: '12px' }} />
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((item, idx) => (
-                <tr
-                  key={item.id}
-                  className="inventory-row"
-                  style={{
-                    background: idx % 2 === 0 ? 'rgba(30, 41, 59, 0.45)' : 'rgba(15, 23, 42, 0.55)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                  }}
-                >
-                  {/* Mã SP */}
-                  <td style={{
-                    padding: '16px 18px',
-                    color: '#e2e8f0',
-                    fontWeight: '700',
-                    fontSize: '13.5px',
-                    borderTopLeftRadius: '10px',
-                    borderBottomLeftRadius: '10px',
+            {/* Thẻ 3: Tổng Giá Vốn (Chỉ Quản lý kinh doanh & Admin) */}
+            {isCostVisible && isCostAvailable && (
+              <div className="kpi-stat-card kpi-card-red">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Tổng Giá Vốn Tồn Kho</span>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    background: 'rgba(248, 113, 113, 0.15)',
+                    border: '1px solid rgba(248, 113, 113, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#f87171'
                   }}>
-                    <span style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      letterSpacing: '0.02em',
-                      color: '#93c5fd'
-                    }}>
-                      {item.code}
-                    </span>
-                  </td>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: '28px',
+                  fontWeight: '800',
+                  letterSpacing: '-0.02em',
+                  color: '#f87171',
+                  textShadow: '0 0 20px rgba(248, 113, 113, 0.3)'
+                }}>
+                  {isLoading ? '...' : `${totalCostValue.toLocaleString()} đ`}
+                </div>
+                <div style={{ fontSize: '12px', color: '#fca5a5', marginTop: '8px' }}>Dữ liệu nội bộ bảo mật từ Server</div>
+              </div>
+            )}
 
-                  {/* Tên Sản Phẩm */}
-                  <td style={{ padding: '16px 18px', fontWeight: '600', color: '#ffffff', fontSize: '14.5px' }}>
-                    {item.name}
-                  </td>
+            {/* Thẻ 4: Lợi Nhuận Dự Kiến (Chỉ Quản lý kinh doanh & Admin) */}
+            {isCostVisible && isCostAvailable && (
+              <div className="kpi-stat-card kpi-card-amber">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Lợi Nhuận Gộp Dự Kiến</span>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    background: 'rgba(251, 191, 36, 0.15)',
+                    border: '1px solid rgba(251, 191, 36, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fbbf24'
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                      <polyline points="17 6 23 6 23 12" />
+                    </svg>
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: '28px',
+                  fontWeight: '800',
+                  letterSpacing: '-0.02em',
+                  color: '#fbbf24',
+                  textShadow: '0 0 20px rgba(251, 191, 36, 0.35)'
+                }}>
+                  {isLoading ? '...' : `+${totalProfit.toLocaleString()} đ`}
+                </div>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '12px',
+                  color: '#fde68a',
+                  marginTop: '8px',
+                  background: 'rgba(251, 191, 36, 0.12)',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  fontWeight: '700'
+                }}>
+                  Biên lãi: +{totalSellValue && totalCostValue ? Math.round(((totalSellValue - totalCostValue) / totalSellValue) * 100) : 0}%
+                </div>
+              </div>
+            )}
+          </div>
 
-                  {/* Danh Mục */}
-                  <td style={{ padding: '16px 18px' }}>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '4px 10px',
-                      background: 'rgba(99, 102, 241, 0.15)',
-                      border: '1px solid rgba(129, 140, 248, 0.35)',
-                      color: '#c7d2fe',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: '600'
-                    }}>
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#818cf8' }} />
-                      {item.category}
-                    </span>
-                  </td>
+          {/* Main Products Table (Glassmorphism Luxury Container) */}
+          <div className="premium-table-card roles-grid-scroll" style={{ overflowX: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '4px', height: '20px', borderRadius: '4px', background: 'linear-gradient(180deg, #6366f1 0%, #a855f7 100%)' }} />
+                <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+                  Danh Sách Hàng Hóa Trong Kho
+                </h2>
+              </div>
+              <span style={{ fontSize: '12.5px', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                Tổng số: <strong style={{ color: '#38bdf8' }}>{products.length}</strong> mặt hàng
+              </span>
+            </div>
 
-                  {/* Số Lượng Tồn */}
-                  <td style={{ padding: '16px 18px', fontWeight: '600' }}>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      color: item.stock < 50 ? '#fbbf24' : '#34d399',
-                      background: item.stock < 50 ? 'rgba(245, 158, 11, 0.14)' : 'rgba(16, 185, 129, 0.14)',
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      border: item.stock < 50 ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)',
-                    }}>
-                      <span style={{
-                        width: '6px',
-                        height: '6px',
-                        borderRadius: '50%',
-                        background: item.stock < 50 ? '#fbbf24' : '#34d399',
-                        boxShadow: item.stock < 50 ? '0 0 6px #fbbf24' : '0 0 6px #34d399'
-                      }} />
-                      {item.stock} cái
-                    </span>
-                  </td>
-
-                  {/* Giá Niêm Yết */}
-                  <td style={{ padding: '16px 18px', color: '#38bdf8', fontWeight: '700', fontSize: '14.5px' }}>
-                    {item.sell_price.toLocaleString()} đ
-                  </td>
-
-                  {/* GIÁ VỐN & BIÊN LỢI NHUẬN TỪ SERVER */}
-                  {isCostVisible && (
-                    <>
-                      <td style={{ padding: '16px 18px', color: '#f87171', fontWeight: '700', fontSize: '14.5px' }}>
-                        {item.cost_price ? `${item.cost_price.toLocaleString()} đ` : 'N/A'}
-                      </td>
+            {isLoading ? (
+              <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>
+                <div style={{ fontSize: '28px', marginBottom: '10px' }}>⏳</div>
+                <div>Đang tải dữ liệu từ máy chủ Backend...</div>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 6px', fontSize: '14px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ color: '#94a3b8', background: 'rgba(15, 23, 42, 0.6)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <th style={{ padding: '14px 18px', fontWeight: '700', borderTopLeftRadius: '12px', borderBottomLeftRadius: '12px' }}>Mã SP</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700' }}>Tên Sản Phẩm</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700' }}>Danh Mục</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700' }}>Số Lượng Tồn</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700' }}>Giá Niêm Yết (Bán)</th>
+                    {/* CỘT GIÁ VỐN & BIÊN LỢI NHUẬN - CHỈ HIỆN KHI SERVER CHO PHÉP (QUẢN LÝ KINH DOANH / ADMIN) */}
+                    {isCostVisible && (
+                      <>
+                        <th style={{ padding: '14px 18px', fontWeight: '700', color: '#f87171' }}>Giá Vốn Nhập Kho</th>
+                        <th style={{ padding: '14px 18px', fontWeight: '700', color: '#fbbf24', borderTopRightRadius: '12px', borderBottomRightRadius: '12px' }}>Biên Lợi Nhuận (%)</th>
+                      </>
+                    )}
+                    {!isCostVisible && (
+                      <th style={{ borderTopRightRadius: '12px', borderBottomRightRadius: '12px' }} />
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((item, idx) => (
+                    <tr
+                      key={item.id}
+                      className="inventory-row"
+                      style={{
+                        background: idx % 2 === 0 ? 'rgba(30, 41, 59, 0.45)' : 'rgba(15, 23, 42, 0.55)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                      }}
+                    >
+                      {/* Mã SP */}
                       <td style={{
                         padding: '16px 18px',
-                        borderTopRightRadius: '10px',
-                        borderBottomRightRadius: '10px',
+                        color: '#e2e8f0',
+                        fontWeight: '700',
+                        fontSize: '13.5px',
+                        borderTopLeftRadius: '10px',
+                        borderBottomLeftRadius: '10px',
                       }}>
+                        <span style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          letterSpacing: '0.02em',
+                          color: '#93c5fd'
+                        }}>
+                          {item.code}
+                        </span>
+                      </td>
+
+                      {/* Tên Sản Phẩm */}
+                      <td style={{ padding: '16px 18px', fontWeight: '600', color: '#ffffff', fontSize: '14.5px' }}>
+                        {item.name}
+                      </td>
+
+                      {/* Danh Mục */}
+                      <td style={{ padding: '16px 18px' }}>
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          background: 'rgba(52, 211, 153, 0.12)',
-                          color: '#34d399',
-                          fontWeight: '800',
-                          fontSize: '13px',
-                          border: '1px solid rgba(52, 211, 153, 0.3)'
+                          gap: '5px',
+                          padding: '4px 10px',
+                          background: 'rgba(99, 102, 241, 0.15)',
+                          border: '1px solid rgba(129, 140, 248, 0.35)',
+                          color: '#c7d2fe',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '600'
                         }}>
-                          {item.profit_margin !== undefined && item.profit_margin !== null
-                            ? `${item.profit_margin >= 0 ? '+' : ''}${item.profit_margin}%`
-                            : 'N/A'}
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#818cf8' }} />
+                          {item.category}
                         </span>
                       </td>
-                    </>
-                  )}
-                  {!isCostVisible && (
-                    <td style={{ borderTopRightRadius: '10px', borderBottomRightRadius: '10px' }} />
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+
+                      {/* Số Lượng Tồn */}
+                      <td style={{ padding: '16px 18px', fontWeight: '600' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          color: item.stock < 50 ? '#fbbf24' : '#34d399',
+                          background: item.stock < 50 ? 'rgba(245, 158, 11, 0.14)' : 'rgba(16, 185, 129, 0.14)',
+                          padding: '4px 10px',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          fontWeight: '700',
+                          border: item.stock < 50 ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)',
+                        }}>
+                          <span style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: item.stock < 50 ? '#fbbf24' : '#34d399',
+                            boxShadow: item.stock < 50 ? '0 0 6px #fbbf24' : '0 0 6px #34d399'
+                          }} />
+                          {item.stock} cái
+                        </span>
+                      </td>
+
+                      {/* Giá Niêm Yết */}
+                      <td style={{ padding: '16px 18px', color: '#38bdf8', fontWeight: '700', fontSize: '14.5px' }}>
+                        {item.sell_price.toLocaleString()} đ
+                      </td>
+
+                      {/* GIÁ VỐN & BIÊN LỢI NHUẬN TỪ SERVER */}
+                      {isCostVisible && (
+                        <>
+                          <td style={{ padding: '16px 18px', color: '#f87171', fontWeight: '700', fontSize: '14.5px' }}>
+                            {item.cost_price ? `${item.cost_price.toLocaleString()} đ` : 'N/A'}
+                          </td>
+                          <td style={{
+                            padding: '16px 18px',
+                            borderTopRightRadius: '10px',
+                            borderBottomRightRadius: '10px',
+                          }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(52, 211, 153, 0.12)',
+                              color: '#34d399',
+                              fontWeight: '800',
+                              fontSize: '13px',
+                              border: '1px solid rgba(52, 211, 153, 0.3)'
+                            }}>
+                              {item.profit_margin !== undefined && item.profit_margin !== null
+                                ? `${item.profit_margin >= 0 ? '+' : ''}${item.profit_margin}%`
+                                : 'N/A'}
+                            </span>
+                          </td>
+                        </>
+                      )}
+                      {!isCostVisible && (
+                        <td style={{ borderTopRightRadius: '10px', borderBottomRightRadius: '10px' }} />
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </>
       )}
 
