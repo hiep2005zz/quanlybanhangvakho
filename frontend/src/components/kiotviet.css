@@ -1,0 +1,657 @@
+/* frontend/src/components/kiotviet.css */
+/* KiotViet Professional Retail & Warehouse Layout */
+
+.kiotviet-app {
+  background-color: #eef2f6;
+  color: #2b3648;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+.kiotviet-app * {
+  box-sizing: border-box;
+}
+
+/* 1. TOP HEADER (White Utility Bar) */
+.kv-topbar {
+  background: #ffffff;
+  height: 44px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 50;
+}
+
+.kv-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kv-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.kv-logo-icon {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #0070e0 0%, #00b4d8 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 112, 224, 0.3);
+}
+
+.kv-logo-text {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0060c4;
+  letter-spacing: -0.03em;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+
+.kv-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #556987;
+  font-size: 12.5px;
+}
+
+.kv-top-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #4a5568;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.kv-top-link:hover {
+  color: #0060c4;
+  background: #f1f5f9;
+}
+
+.kv-branch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.kv-branch-badge:hover {
+  border-color: #0060c4;
+  color: #0060c4;
+}
+
+.kv-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: all 0.15s;
+}
+
+.kv-icon-btn:hover {
+  background: #f1f5f9;
+  color: #0060c4;
+}
+
+.kv-user-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.kv-user-pill:hover {
+  background: #f1f5f9;
+}
+
+.kv-user-avatar-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #0060c4;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kv-btn-pos {
+  background: #0060c4;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 96, 196, 0.25);
+  transition: background 0.15s;
+}
+
+.kv-btn-pos:hover {
+  background: #004da0;
+}
+
+/* 2. MAIN BLUE NAVIGATION BAR */
+.kv-navbar {
+  background: #0060c4;
+  height: 42px;
+  display: flex;
+  align-items: stretch;
+  padding: 0 16px;
+  position: relative;
+  z-index: 40;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.kv-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #ffffff;
+  padding: 0 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  position: relative;
+  transition: background 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.kv-nav-item:hover,
+.kv-nav-item.active {
+  background: #004b99;
+}
+
+.kv-nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #ffcc00;
+}
+
+/* Dropdown Menu on Nav item (Hàng hóa -> Danh mục, Thiết lập giá...) */
+.kv-nav-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 190px;
+  background: #004b99;
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  z-index: 100;
+  animation: kvFadeDown 0.15s ease;
+}
+
+@keyframes kvFadeDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.kv-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  color: #f1f5f9;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s;
+  text-decoration: none;
+}
+
+.kv-dropdown-item:hover,
+.kv-dropdown-item.active {
+  background: #00366f;
+  color: #ffffff;
+}
+
+/* 3. SUBBAR (Page Title & Action Buttons) */
+.kv-subbar {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.kv-page-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kv-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kv-btn-green {
+  background: #00a65a;
+  color: #ffffff;
+  border: 1px solid #008d4c;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.kv-btn-green:hover {
+  background: #008d4c;
+}
+
+.kv-btn-outline {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.kv-btn-outline:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+/* 4. MAIN BODY 2-COLUMN LAYOUT */
+.kv-body-layout {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  flex: 1;
+  align-items: flex-start;
+}
+
+/* Cột trái: Bộ lọc */
+.kv-sidebar-filter {
+  width: 250px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border: 1px solid #dce1e8;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.kv-filter-section {
+  border-bottom: 1px solid #eef2f6;
+  padding: 12px 14px;
+}
+
+.kv-filter-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.kv-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #475569;
+  cursor: pointer;
+  margin-bottom: 7px;
+  user-select: none;
+}
+
+.kv-checkbox-label input[type="checkbox"] {
+  accent-color: #0060c4;
+  cursor: pointer;
+}
+
+.kv-tree-item {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.12s;
+}
+
+.kv-tree-item:hover {
+  background: #f1f5f9;
+  color: #0060c4;
+}
+
+.kv-tree-item.active {
+  background: #e0f2fe;
+  color: #0284c7;
+  font-weight: 700;
+}
+
+/* Cột phải: Bảng dữ liệu */
+.kv-content-panel {
+  flex: 1;
+  min-width: 0;
+  background: #ffffff;
+  border: 1px solid #dce1e8;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Thanh tổng hợp số liệu (Header Summary Row) */
+.kv-summary-strip {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.kv-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+}
+
+.kv-summary-value {
+  font-weight: 700;
+  color: #0060c4;
+}
+
+/* Bảng sản phẩm */
+.kv-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.kv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.kv-table thead th {
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-bottom: 1px solid #cbd5e1;
+  border-right: 1px solid #e2e8f0;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.kv-table thead th:last-child {
+  border-right: none;
+}
+
+.kv-table tbody tr {
+  border-bottom: 1px solid #eef2f6;
+  transition: background 0.1s;
+}
+
+.kv-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.kv-table tbody td {
+  padding: 10px 12px;
+  color: #1e293b;
+  border-right: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.kv-table tbody td:last-child {
+  border-right: none;
+}
+
+.kv-code-link {
+  color: #0060c4;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.kv-code-link:hover {
+  text-decoration: underline;
+}
+
+.kv-tag-cat {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 11.5px;
+  color: #475569;
+}
+
+.kv-stock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.kv-stock-good {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.kv-stock-low {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+/* 5. FOOTER (KiotViet Signature Dark Blue Strip) */
+.kv-footer {
+  background: #004b99;
+  color: #ffffff;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-top: auto;
+}
+
+.kv-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.kv-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.kv-footer a {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.kv-footer a:hover {
+  text-decoration: underline;
+}
+
+/* 6. TOAST NOTIFICATION: TÍNH NĂNG ĐANG PHÁT TRIỂN */
+.kv-toast-container {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.kv-toast {
+  pointer-events: auto;
+  background: #1e293b;
+  color: #f8fafc;
+  border-left: 4px solid #38bdf8;
+  border-radius: 6px;
+  padding: 12px 18px;
+  min-width: 320px;
+  max-width: 440px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: kvToastSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes kvToastSlide {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.kv-toast-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.kv-toast-body {
+  flex: 1;
+}
+
+.kv-toast-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+.kv-toast-msg {
+  font-size: 12.5px;
+  color: #94a3b8;
+}
+
+.kv-toast-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.kv-toast-close:hover {
+  color: #ffffff;
+}
+
+/* User Popover Menu in Topbar */
+.kv-user-popover {
+  position: absolute;
+  top: 100%;
+  right: 16px;
+  width: 300px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  z-index: 1000;
+  color: #1e293b;
+  animation: kvFadeDown 0.15s ease;
+}

@@ -4,6 +4,7 @@ import smtplib
 import string
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.header import Header
 
 from app.core.config import settings
 
@@ -33,16 +34,19 @@ def generate_temporary_password() -> str:
 def send_customer_credentials(email: str, full_name: str, username: str, password: str, phone: str) -> bool:
     login_url = settings.FRONTEND_URL.rstrip('/')
     
-    # In ra terminal server backend de admin co the kiem tra truc tiep
-    print("\n==========================================", flush=True)
-    print(f"[TAO TAI KHOAN KINH DOANH MOI]", flush=True)
-    print(f"Ho ten: {full_name}", flush=True)
-    print(f"Username: {username}", flush=True)
-    print(f"Email: {email}", flush=True)
-    print(f"Phone: {phone}", flush=True)
-    print(f"Mat khau tam thoi: {password}", flush=True)
-    print(f"Dang nhap tai: {login_url}", flush=True)
-    print("==========================================\n", flush=True)
+    # In ra terminal server backend de admin co the kiem tra truc tiep (tránh UnicodeEncodeError trên Windows cp1252)
+    try:
+        print("\n==========================================", flush=True)
+        print("[TAO TAI KHOAN KINH DOANH MOI]", flush=True)
+        print(f"Ho ten: {full_name}".encode('ascii', errors='backslashreplace').decode('ascii'), flush=True)
+        print(f"Username: {username}", flush=True)
+        print(f"Email: {email}", flush=True)
+        print(f"Phone: {phone}", flush=True)
+        print(f"Mat khau tam thoi: {password}", flush=True)
+        print(f"Dang nhap tai: {login_url}", flush=True)
+        print("==========================================\n", flush=True)
+    except Exception:
+        pass
 
     if not settings.MAIL_SERVER or not settings.MAIL_USERNAME or not settings.MAIL_PASSWORD:
         logger.warning("SMTP is not configured; cannot send customer credentials to %s. Temporary password logged for development: %s", email, password)
@@ -149,7 +153,7 @@ def send_customer_credentials(email: str, full_name: str, username: str, passwor
 </html>"""
 
     message = MIMEMultipart("alternative")
-    message["Subject"] = subject
+    message["Subject"] = Header(subject, "utf-8")
     message["From"] = settings.MAIL_FROM or settings.MAIL_USERNAME
     message["To"] = email
     message.attach(MIMEText(text_content, "plain", "utf-8"))
@@ -161,8 +165,10 @@ def send_customer_credentials(email: str, full_name: str, username: str, passwor
                 server.starttls()
             server.login(settings.MAIL_USERNAME, settings.MAIL_PASSWORD)
             server.send_message(message)
+        print(f"[GMAIL SENT OK] Da gui email thong tin tai khoan toi: {email}", flush=True)
         logger.info("Customer account credentials email sent to %s", email)
         return True
-    except (OSError, smtplib.SMTPException):
-        logger.exception("Unable to send customer credentials email to %s", email)
+    except Exception as e:
+        print(f"[GMAIL SEND ERROR] Loi gui email tai khoan toi {email}: {e}", flush=True)
+        logger.exception("Unable to send customer credentials email to %s: %s", email, e)
         return False
