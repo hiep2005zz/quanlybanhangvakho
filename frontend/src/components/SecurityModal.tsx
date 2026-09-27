@@ -155,9 +155,9 @@ export default function SecurityModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(15, 23, 42, 0.75)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        background: 'rgba(15, 23, 42, 0.45)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
         padding: '20px',
       }}
       onClick={(e) => {
@@ -170,13 +170,14 @@ export default function SecurityModal({
         style={{
           width: '100%',
           maxWidth: '460px',
-          background: '#1e293b',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          borderRadius: '18px',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '16px',
           padding: '28px',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.2)',
-          color: '#f8fafc',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          color: '#0f172a',
           position: 'relative',
+          animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         {/* Nút đóng [✕] */}
@@ -189,7 +190,7 @@ export default function SecurityModal({
             right: '20px',
             background: 'none',
             border: 'none',
-            color: '#94a3b8',
+            color: '#64748b',
             fontSize: '18px',
             cursor: isLoading ? 'not-allowed' : 'pointer',
             padding: '4px 8px',
@@ -208,12 +209,12 @@ export default function SecurityModal({
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: 'rgba(56, 189, 248, 0.15)',
-              border: '1px solid rgba(56, 189, 248, 0.35)',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#38bdf8',
+              color: '#2563eb',
             }}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -222,10 +223,10 @@ export default function SecurityModal({
             </svg>
           </div>
           <div>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#f8fafc' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>
               Bảo Mật & Đổi Mật Khẩu
             </h3>
-            <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: '#94a3b8' }}>
+            <p style={{ margin: '2px 0 0', fontSize: '12.5px', color: '#64748b' }}>
               Chủ động bảo vệ tài khoản sau khi được cấp mật khẩu tạm
             </p>
           </div>
@@ -236,11 +237,11 @@ export default function SecurityModal({
           style={{
             margin: '18px 0 20px',
             padding: '10px 14px',
-            background: 'rgba(59, 130, 246, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.25)',
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
             borderRadius: '10px',
             fontSize: '12.5px',
-            color: '#93c5fd',
+            color: '#1d4ed8',
             lineHeight: '1.5',
             display: 'flex',
             alignItems: 'flex-start',
@@ -259,11 +260,11 @@ export default function SecurityModal({
             style={{
               marginBottom: '16px',
               padding: '10px 14px',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
+              background: '#fee2e2',
+              border: '1px solid #fecaca',
               borderRadius: '10px',
               fontSize: '13px',
-              color: '#fca5a5',
+              color: '#b91c1c',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -280,11 +281,11 @@ export default function SecurityModal({
             style={{
               marginBottom: '16px',
               padding: '12px 14px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
+              background: '#dcfce7',
+              border: '1px solid #bbf7d0',
               borderRadius: '10px',
               fontSize: '13px',
-              color: '#6ee7b7',
+              color: '#15803d',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -299,7 +300,7 @@ export default function SecurityModal({
         <form onSubmit={handleSubmit}>
           {/* Ô 1: Mật khẩu hiện tại */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
               Mật khẩu hiện tại <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
@@ -313,17 +314,17 @@ export default function SecurityModal({
                 style={{
                   width: '100%',
                   padding: '11px 40px 11px 14px',
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: '10px',
-                  color: '#f8fafc',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#0f172a',
                   fontSize: '14px',
                   outline: 'none',
                   boxSizing: 'border-box',
                   transition: 'border-color 0.2s',
                 }}
-                onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
-                onBlur={(e) => (e.target.style.borderColor = '#334155')}
+                onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
               />
               <button
                 type="button"
@@ -349,7 +350,7 @@ export default function SecurityModal({
 
           {/* Ô 2: Mật khẩu mới */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
               Mật khẩu mới <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
@@ -363,17 +364,17 @@ export default function SecurityModal({
                 style={{
                   width: '100%',
                   padding: '11px 40px 11px 14px',
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: '10px',
-                  color: '#f8fafc',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#0f172a',
                   fontSize: '14px',
                   outline: 'none',
                   boxSizing: 'border-box',
                   transition: 'border-color 0.2s',
                 }}
-                onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
-                onBlur={(e) => (e.target.style.borderColor = '#334155')}
+                onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
               />
               <button
                 type="button"
@@ -406,13 +407,13 @@ export default function SecurityModal({
                 fontSize: '12px',
               }}
             >
-              <span style={{ color: hasMinLength ? '#34d399' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ color: hasMinLength ? '#15803d' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: hasMinLength ? '600' : 'normal' }}>
                 {hasMinLength ? '✓' : '○'} Tối thiểu 8 ký tự
               </span>
-              <span style={{ color: hasLetter ? '#34d399' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ color: hasLetter ? '#15803d' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: hasLetter ? '600' : 'normal' }}>
                 {hasLetter ? '✓' : '○'} Có chữ cái (A-Z)
               </span>
-              <span style={{ color: hasNumber ? '#34d399' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ color: hasNumber ? '#15803d' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: hasNumber ? '600' : 'normal' }}>
                 {hasNumber ? '✓' : '○'} Có chữ số (0-9)
               </span>
             </div>
@@ -420,7 +421,7 @@ export default function SecurityModal({
 
           {/* Ô 3: Xác nhận mật khẩu mới */}
           <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
               Xác nhận mật khẩu mới <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <div style={{ position: 'relative' }}>
@@ -434,17 +435,17 @@ export default function SecurityModal({
                 style={{
                   width: '100%',
                   padding: '11px 40px 11px 14px',
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: '10px',
-                  color: '#f8fafc',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#0f172a',
                   fontSize: '14px',
                   outline: 'none',
                   boxSizing: 'border-box',
                   transition: 'border-color 0.2s',
                 }}
-                onFocus={(e) => (e.target.style.borderColor = '#38bdf8')}
-                onBlur={(e) => (e.target.style.borderColor = '#334155')}
+                onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
+                onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
               />
               <button
                 type="button"
@@ -467,7 +468,7 @@ export default function SecurityModal({
               </button>
             </div>
             {confirmPassword.length > 0 && !isMatch && (
-              <span style={{ display: 'block', marginTop: '6px', fontSize: '12px', color: '#f87171' }}>
+              <span style={{ display: 'block', marginTop: '6px', fontSize: '12px', color: '#dc2626' }}>
                 ✕ Mật khẩu xác nhận chưa khớp
               </span>
             )}
@@ -481,10 +482,10 @@ export default function SecurityModal({
               disabled={isLoading}
               style={{
                 padding: '10px 18px',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: '#cbd5e1',
-                borderRadius: '10px',
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                color: '#475569',
+                borderRadius: '8px',
                 fontSize: '13.5px',
                 fontWeight: '600',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
@@ -500,18 +501,18 @@ export default function SecurityModal({
               style={{
                 padding: '10px 22px',
                 background: isFormValid && !isLoading
-                  ? 'linear-gradient(135deg, #0284c7, #2563eb)'
-                  : 'rgba(100, 116, 139, 0.3)',
+                  ? 'linear-gradient(135deg, #2563eb, #1d4ed8)'
+                  : '#cbd5e1',
                 border: 'none',
-                color: isFormValid && !isLoading ? '#ffffff' : '#64748b',
-                borderRadius: '10px',
+                color: isFormValid && !isLoading ? '#ffffff' : '#94a3b8',
+                borderRadius: '8px',
                 fontSize: '13.5px',
                 fontWeight: '600',
                 cursor: isFormValid && !isLoading ? 'pointer' : 'not-allowed',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                boxShadow: isFormValid && !isLoading ? '0 4px 15px rgba(2, 132, 199, 0.4)' : 'none',
+                boxShadow: isFormValid && !isLoading ? '0 2px 6px rgba(37, 99, 235, 0.3)' : 'none',
                 transition: 'all 0.2s',
               }}
             >

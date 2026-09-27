@@ -68,6 +68,8 @@ export default function DashboardPage({
     };
   }, []);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [isCostVisible, setIsCostVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,6 +180,14 @@ export default function DashboardPage({
   const totalCostValue = isCostAvailable ? products.reduce((acc, p) => acc + (p.cost_price || 0) * p.stock, 0) : 0;
   const totalProfit = totalSellValue - totalCostValue;
 
+  // Lọc sản phẩm theo Toolbar (Search và Category)
+  const filteredProducts = products.filter((p) => {
+    const q = productSearchTerm.trim().toLowerCase();
+    const matchQuery = !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
+    const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
+    return matchQuery && matchCat;
+  });
+
   const roleLabelMap: Record<string, string> = {
     admin: 'Quản Trị Hệ Thống',
     sales_manager: 'Quản Lý Kinh Doanh',
@@ -219,32 +229,31 @@ export default function DashboardPage({
               className="hamburger-left-btn"
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                <span style={{ width: '18px', height: '2px', background: '#f8fafc', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#f8fafc', borderRadius: '2px' }}></span>
-                <span style={{ width: '18px', height: '2px', background: '#f8fafc', borderRadius: '2px' }}></span>
+                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
+                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
+                <span style={{ width: '18px', height: '2px', background: '#334155', borderRadius: '2px' }}></span>
               </div>
             </button>
           )}
 
           <div
-            onClick={() => setActiveTab('inventory')}
             className="brand-logo-animated"
             style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: '#fff',
-              border: '1px solid rgba(255, 255, 255, 0.25)',
-              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
+              cursor: 'default',
+              userSelect: 'none',
               flexShrink: 0
             }}
-            title="Trang chủ Quản lý kho hàng"
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
               <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
               <line x1="12" y1="22.08" x2="12" y2="12" />
@@ -252,85 +261,97 @@ export default function DashboardPage({
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <h1 className="brand-title-shimmer" style={{ fontSize: '18px', margin: 0 }}>
+              <h1 className="brand-title-shimmer" style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a', letterSpacing: '-0.02em' }}>
                 Hệ Thống Quản Lý Kho & Bán Hàng
               </h1>
               <span
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  fontSize: '12px',
-                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(56, 189, 248, 0.2))',
-                  border: '1px solid rgba(168, 85, 247, 0.4)',
-                  padding: '1px 7px',
-                  borderRadius: '10px',
-                  color: '#e9d5ff',
+                  fontSize: '11px',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  padding: '1.5px 7px',
+                  borderRadius: '999px',
+                  color: '#1d4ed8',
                   fontWeight: '700',
-                  letterSpacing: '0.3px',
                 }}
               >
-                PRO ✨
+                PRO
               </span>
             </div>
           </div>
         </div>
 
-        {/* Khối bên phải: Avatar người dùng (Click để mở popup thông tin) */}
+        {/* Khối bên phải: Header User pill (Avatar chữ cái đầu + Tên + Badge vai trò + Kho) */}
         <div style={{ position: 'relative', zIndex: 501 }}>
           <button
             onClick={() => setIsUserMenuOpen((prev) => !prev)}
             style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '50%',
-              background: 'transparent',
-              border: isUserMenuOpen ? '2px solid #38bdf8' : '2px solid rgba(255, 255, 255, 0.2)',
-              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               padding: '2px',
-              transition: 'all 0.2s',
-              boxShadow: isUserMenuOpen ? '0 0 14px rgba(56, 189, 248, 0.4)' : 'none',
+              borderRadius: '50%',
+              background: 'transparent',
+              border: isUserMenuOpen ? '2px solid #2563eb' : '2px solid transparent',
+              cursor: 'pointer',
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+              boxShadow: isUserMenuOpen ? '0 0 0 3px rgba(37, 99, 235, 0.2)' : 'none',
             }}
-            title="Tài khoản người dùng"
+            title={`${user.full_name || user.username} (${roleLabelMap[primaryRole] || primaryRole}) - Nhấp để mở menu`}
             aria-label="Tài khoản người dùng"
           >
-            <div style={{
-              width: '100%',
-              height: '100%',
-              borderRadius: '50%',
-              background: currentBadgeColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden'
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="#ffffff">
-                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-              </svg>
+            {/* Avatar tròn với chữ cái đầu & Online status indicator */}
+            <div style={{ position: 'relative', width: '36px', height: '36px', flexShrink: 0 }}>
+              <div style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: '50%',
+                background: `linear-gradient(135deg, ${currentBadgeColor} 0%, #2563eb 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                fontWeight: '700',
+                fontSize: '15px',
+                boxShadow: '0 2px 5px rgba(0, 0, 0, 0.15)',
+              }}>
+                {(user.full_name || user.username).charAt(0).toUpperCase()}
+              </div>
+              <span
+                style={{
+                  position: 'absolute',
+                  bottom: '-1px',
+                  right: '-1px',
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: '#16a34a',
+                  border: '2px solid #ffffff',
+                }}
+                title="Đang hoạt động"
+              />
             </div>
           </button>
 
-          {/* Popover thông tin người dùng (Glassmorphism Dark Theme Đỉnh Cao) */}
+          {/* Popover thông tin người dùng (Clean Light Theme) */}
           {isUserMenuOpen && (
             <div
               className="header-popover-menu"
               style={{
                 position: 'absolute',
-                top: 'calc(100% + 14px)',
+                top: 'calc(100% + 10px)',
                 right: 0,
                 width: '330px',
-                background: 'rgba(15, 23, 42, 0.92)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                color: '#f8fafc',
-                borderRadius: '20px',
-                padding: '22px',
-                boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(99, 102, 241, 0.25)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
+                background: '#ffffff',
+                color: '#0f172a',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.04)',
+                border: '1px solid #e2e8f0',
                 zIndex: 1000,
-                animation: 'fadeInCard 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
               }}
             >
               {/* Phần trên: Avatar + Tên + Role Badge */}
@@ -378,12 +399,11 @@ export default function DashboardPage({
                             gap: '5px',
                             padding: '3px 9px',
                             borderRadius: '999px',
-                            background: `${color}22`,
+                            background: `${color}18`,
                             color: color,
                             fontSize: '11px',
                             fontWeight: '700',
-                            border: `1px solid ${color}55`,
-                            boxShadow: `0 2px 8px ${color}20`,
+                            border: `1px solid ${color}35`,
                           }}
                         >
                           <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: color }} />
@@ -395,33 +415,33 @@ export default function DashboardPage({
                 </div>
               </div>
 
-              {/* Thông tin tài khoản Glass Card */}
+              {/* Thông tin tài khoản Light Card */}
               <div style={{
-                background: 'rgba(30, 41, 59, 0.65)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '14px',
-                padding: '12px 16px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '12px 14px',
                 marginBottom: '16px',
                 fontSize: '13px',
-                color: '#94a3b8',
-                lineHeight: '1.7',
+                color: '#64748b',
+                lineHeight: '1.6',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '4px',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Tài khoản:</span>
-                  <strong style={{ color: '#f8fafc', fontFamily: 'monospace', fontSize: '13px' }}>{user.username}</strong>
+                  <strong style={{ color: '#0f172a', fontFamily: 'monospace', fontSize: '13px' }}>{user.username}</strong>
                 </div>
                 {user.branch && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Kho / Địa bàn:</span>
-                    <strong style={{ color: '#e2e8f0' }}>📍 {user.branch}</strong>
+                    <strong style={{ color: '#334155' }}>📍 {user.branch}</strong>
                   </div>
                 )}
               </div>
 
-              {/* Danh sách hành động (Interactive Buttons with Hover Glow) */}
+              {/* Danh sách hành động (Interactive Buttons for Light Theme) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
                   <button
@@ -429,52 +449,44 @@ export default function DashboardPage({
                       setIsUserMenuOpen(false);
                       setActiveTab('users');
                     }}
+                    id="btn-popover-roles-and-create"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '12px',
                       width: '100%',
-                      padding: '11px 16px',
-                      borderRadius: '12px',
-                      background: activeTab === 'users'
-                        ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(168, 85, 247, 0.3))'
-                        : 'rgba(30, 41, 59, 0.65)',
-                      border: activeTab === 'users'
-                        ? '1px solid rgba(99, 102, 241, 0.6)'
-                        : '1px solid rgba(255, 255, 255, 0.08)',
-                      color: activeTab === 'users' ? '#c7d2fe' : '#f8fafc',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: activeTab === 'users' ? '#eff6ff' : '#f8fafc',
+                      border: activeTab === 'users' ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                      color: activeTab === 'users' ? '#1d4ed8' : '#1e293b',
                       fontSize: '13.5px',
                       fontWeight: '600',
                       cursor: 'pointer',
-                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                      boxShadow: activeTab === 'users' ? '0 4px 14px rgba(99, 102, 241, 0.3)' : 'none',
+                      transition: 'all 0.18s ease',
+                      boxShadow: 'none',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.2))';
-                      e.currentTarget.style.borderColor = 'rgba(129, 140, 248, 0.6)';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.color = '#ffffff';
+                      e.currentTarget.style.background = '#eff6ff';
+                      e.currentTarget.style.borderColor = '#93c5fd';
+                      e.currentTarget.style.color = '#1d4ed8';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = activeTab === 'users'
-                        ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(168, 85, 247, 0.3))'
-                        : 'rgba(30, 41, 59, 0.65)';
-                      e.currentTarget.style.borderColor = activeTab === 'users'
-                        ? 'rgba(99, 102, 241, 0.6)'
-                        : 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.color = activeTab === 'users' ? '#c7d2fe' : '#f8fafc';
+                      e.currentTarget.style.background = activeTab === 'users' ? '#eff6ff' : '#f8fafc';
+                      e.currentTarget.style.borderColor = activeTab === 'users' ? '#bfdbfe' : '#e2e8f0';
+                      e.currentTarget.style.color = activeTab === 'users' ? '#1d4ed8' : '#1e293b';
                     }}
+                    title="Truy cập trang Phân quyền & Quản lý người dùng"
                   >
                     <div style={{
                       width: '28px',
                       height: '28px',
                       borderRadius: '8px',
-                      background: 'rgba(99, 102, 241, 0.2)',
+                      background: '#dbeafe',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#818cf8',
+                      color: '#2563eb',
                     }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -483,65 +495,7 @@ export default function DashboardPage({
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                       </svg>
                     </div>
-                    <span>Phân quyền</span>
-                  </button>
-                )}
-
-                {/* Nút Tạo tài khoản (Ảnh 2) - Chỉ hiện khi tài khoản là Admin */}
-                {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      setIsCreateAccountModalOpen(true);
-                    }}
-                    id="btn-popover-create-account"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      width: '100%',
-                      padding: '11px 16px',
-                      borderRadius: '12px',
-                      background: 'rgba(30, 41, 59, 0.65)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      color: '#f8fafc',
-                      fontSize: '13.5px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.2))';
-                      e.currentTarget.style.borderColor = 'rgba(52, 211, 153, 0.6)';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.color = '#ffffff';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(30, 41, 59, 0.65)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.color = '#f8fafc';
-                    }}
-                    title="Tạo tài khoản mới và gửi email kích hoạt"
-                  >
-                    <div style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '8px',
-                      background: 'rgba(16, 185, 129, 0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#34d399',
-                    }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="8.5" cy="7" r="4" />
-                        <line x1="20" y1="8" x2="20" y2="14" />
-                        <line x1="23" y1="11" x2="17" y2="11" />
-                      </svg>
-                    </div>
-                    <span>Tạo tài khoản</span>
+                    <span>Phân quyền & Tạo tài khoản</span>
                   </button>
                 )}
 
@@ -555,36 +509,37 @@ export default function DashboardPage({
                     alignItems: 'center',
                     gap: '12px',
                     width: '100%',
-                    padding: '11px 16px',
-                    borderRadius: '12px',
-                    background: 'rgba(30, 41, 59, 0.65)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    color: '#f8fafc',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    color: '#1e293b',
                     fontSize: '13.5px',
                     fontWeight: '600',
                     cursor: 'pointer',
-                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    transition: 'all 0.18s ease',
+                    boxShadow: 'none',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(51, 65, 85, 0.8)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.background = '#f0f9ff';
+                    e.currentTarget.style.borderColor = '#bae6fd';
+                    e.currentTarget.style.color = '#0284c7';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(30, 41, 59, 0.65)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.color = '#1e293b';
                   }}
                 >
                   <div style={{
                     width: '28px',
                     height: '28px',
                     borderRadius: '8px',
-                    background: 'rgba(56, 189, 248, 0.18)',
+                    background: '#e0f2fe',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#38bdf8',
+                    color: '#0284c7',
                   }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -610,39 +565,38 @@ export default function DashboardPage({
                     alignItems: 'center',
                     gap: '12px',
                     width: '100%',
-                    padding: '11px 16px',
-                    borderRadius: '12px',
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    color: '#f87171',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    color: '#dc2626',
                     fontSize: '13.5px',
                     fontWeight: '600',
                     cursor: isLoggingOut ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    transition: 'all 0.18s ease',
+                    boxShadow: 'none',
                     marginTop: '2px',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.22)';
-                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.color = '#fca5a5';
+                    e.currentTarget.style.background = '#fee2e2';
+                    e.currentTarget.style.borderColor = '#fca5a5';
+                    e.currentTarget.style.color = '#b91c1c';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
-                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.color = '#f87171';
+                    e.currentTarget.style.background = '#fef2f2';
+                    e.currentTarget.style.borderColor = '#fecaca';
+                    e.currentTarget.style.color = '#dc2626';
                   }}
                 >
                   <div style={{
                     width: '28px',
                     height: '28px',
                     borderRadius: '8px',
-                    background: 'rgba(239, 68, 68, 0.2)',
+                    background: '#fee2e2',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#ef4444',
+                    color: '#dc2626',
                   }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -689,27 +643,38 @@ export default function DashboardPage({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '16px 18px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          background: 'rgba(15, 23, 42, 0.5)'
+          borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+          background: 'rgba(255, 255, 255, 0.05)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#f8fafc', fontWeight: '600', fontSize: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#ffffff', fontWeight: '600', fontSize: '15px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ width: '18px', height: '2px', background: '#94a3b8', borderRadius: '2px' }}></span>
-              <span style={{ width: '18px', height: '2px', background: '#94a3b8', borderRadius: '2px' }}></span>
-              <span style={{ width: '18px', height: '2px', background: '#94a3b8', borderRadius: '2px' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#93c5fd', borderRadius: '2px' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#93c5fd', borderRadius: '2px' }}></span>
+              <span style={{ width: '18px', height: '2px', background: '#93c5fd', borderRadius: '2px' }}></span>
             </div>
             <span>Mở rộng menu</span>
           </div>
           <button
             onClick={handleCloseMenu}
             style={{
-              background: 'none',
-              border: 'none',
-              color: '#94a3b8',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              color: '#ffffff',
               cursor: 'pointer',
-              fontSize: '18px',
-              padding: '4px 8px',
-              borderRadius: '6px'
+              fontSize: '14px',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '8px',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
             }}
             title="Đóng menu"
           >
@@ -727,56 +692,34 @@ export default function DashboardPage({
               handleCloseMenu();
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', opacity: activeTab === 'inventory' ? 1 : 0.8 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <div className="sidebar-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                 <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
                 <line x1="12" y1="22.08" x2="12" y2="12" />
               </svg>
-            </span>
-            <span>Quản lý kho hàng</span>
+            </div>
+            <span style={{ fontWeight: activeTab === 'inventory' ? '700' : '500', fontSize: '14.5px' }}>Quản lý kho hàng</span>
           </div>
 
-          {/* Mục Phân quyền nhân viên (RBAC) - CHỈ hiển thị nếu là Admin */}
+          {/* Mục Phân quyền & Tạo tài khoản - CHỈ hiển thị nếu là Admin */}
           {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
             <div
               className={`sidebar-menu-item ${activeTab === 'users' ? 'active' : ''}`}
+              id="btn-sidebar-roles-and-create"
               onClick={() => {
                 setActiveTab('users');
                 handleCloseMenu();
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', opacity: activeTab === 'users' ? 1 : 0.8 }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              <div className="sidebar-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M12 8v4" />
+                  <path d="M12 16h.01" />
                 </svg>
-              </span>
-              <span>Phân quyền</span>
-            </div>
-          )}
-
-          {/* Mục Tạo tài khoản (Ảnh 3) - CHỈ hiển thị nếu là Admin */}
-          {(user.role === 'admin' || (user.roles && user.roles.includes('admin'))) && (
-            <div
-              className="sidebar-menu-item"
-              id="btn-sidebar-create-account"
-              onClick={() => {
-                handleCloseMenu();
-                setIsCreateAccountModalOpen(true);
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', opacity: 0.9, color: '#34d399' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="8.5" cy="7" r="4" />
-                  <line x1="20" y1="8" x2="20" y2="14" />
-                  <line x1="23" y1="11" x2="17" y2="11" />
-                </svg>
-              </span>
-              <span>Tạo tài khoản</span>
+              </div>
+              <span style={{ fontWeight: activeTab === 'users' ? '700' : '500', fontSize: '14.5px' }}>Phân quyền & Tạo tài khoản</span>
             </div>
           )}
         </div>
@@ -784,8 +727,8 @@ export default function DashboardPage({
         {/* Nút Đăng xuất ở cuối sidebar */}
         <div style={{
           padding: '16px',
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          background: 'rgba(15, 23, 42, 0.7)'
+          borderTop: '1px solid rgba(255, 255, 255, 0.12)',
+          background: 'rgba(0, 0, 0, 0.15)'
         }}>
           <button
             className="sidebar-logout-btn"
@@ -801,12 +744,14 @@ export default function DashboardPage({
             }}
             disabled={isLoggingOut}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
+            <div className="sidebar-logout-icon-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </div>
+            <span>{isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}</span>
           </button>
         </div>
       </aside>
@@ -818,6 +763,7 @@ export default function DashboardPage({
             currentUser={user}
             token={token}
             onBackToHome={() => setActiveTab('inventory')}
+            onCreateAccount={() => setIsCreateAccountModalOpen(true)}
           />
         ) : (
           <AccessDeniedView
@@ -1000,29 +946,32 @@ export default function DashboardPage({
             </div>
           )}
 
-          {/* KPI Cards (Luxury Tech Glassmorphism) */}
+          {/* 4 Thẻ KPI Dashboard (Metric Card chuẩn Stripe / Linear Enterprise Minimalist) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-            gap: '20px',
-            marginBottom: '28px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '16px',
+            marginBottom: '24px'
           }}>
-            {/* Thẻ 1: Tổng số sản phẩm */}
-            <div className="kpi-stat-card kpi-card-blue">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Mặt Hàng Trong Kho</span>
+            {/* Thẻ 1: Mặt hàng trong kho */}
+            <div className="kpi-stat-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div>
+                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Mặt hàng trong kho</span>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Danh mục sản phẩm lưu hành</div>
+                </div>
                 <div style={{
                   width: '32px',
                   height: '32px',
-                  borderRadius: '10px',
-                  background: 'rgba(56, 189, 248, 0.15)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  borderRadius: '8px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#38bdf8'
+                  color: '#64748b',
                 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
                     <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
                     <line x1="12" y1="22.08" x2="12" y2="12" />
@@ -1030,303 +979,493 @@ export default function DashboardPage({
                 </div>
               </div>
               <div style={{
-                fontSize: '28px',
-                fontWeight: '800',
+                fontSize: '24px',
+                fontWeight: '700',
                 letterSpacing: '-0.02em',
-                background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                color: '#0f172a',
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1.2,
+                marginTop: '4px'
               }}>
                 {isLoading ? '...' : `${products.length} mã SP`}
               </div>
               <div style={{
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                fontSize: '12.5px',
-                color: '#38bdf8',
-                marginTop: '8px',
-                background: 'rgba(56, 189, 248, 0.1)',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                fontWeight: '600'
+                gap: '5px',
+                fontSize: '12px',
+                color: '#64748b',
+                marginTop: '12px',
+                fontWeight: '500'
               }}>
-                <span>📦 Tổng số lượng: {totalStock} cái</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                </svg>
+                <span>Tổng lưu kho: <strong style={{ color: '#0f172a', fontWeight: '600' }}>{totalStock.toLocaleString()}</strong> đơn vị</span>
               </div>
             </div>
 
-            {/* Thẻ 2: Giá trị niêm yết bán */}
-            <div className="kpi-stat-card kpi-card-green">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Tổng Giá Trị Bán Dự Kiến</span>
+            {/* Thẻ 2: Giá trị bán niêm yết */}
+            <div className="kpi-stat-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div>
+                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Tổng giá trị bán niêm yết</span>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Dự kiến toàn bộ tồn kho</div>
+                </div>
                 <div style={{
                   width: '32px',
                   height: '32px',
-                  borderRadius: '10px',
-                  background: 'rgba(52, 211, 153, 0.15)',
-                  border: '1px solid rgba(52, 211, 153, 0.3)',
+                  borderRadius: '8px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#34d399'
+                  color: '#64748b',
                 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="1" x2="12" y2="23" />
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                   </svg>
                 </div>
               </div>
               <div style={{
-                fontSize: '28px',
-                fontWeight: '800',
+                fontSize: '24px',
+                fontWeight: '700',
                 letterSpacing: '-0.02em',
-                color: '#34d399',
-                textShadow: '0 0 20px rgba(52, 211, 153, 0.3)'
+                color: '#0f172a',
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1.2,
+                marginTop: '4px'
               }}>
-                {isLoading ? '...' : `${totalSellValue.toLocaleString()} đ`}
+                {isLoading ? '...' : `${totalSellValue.toLocaleString('vi-VN')} đ`}
               </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '8px' }}>Dựa trên giá niêm yết</div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '12px',
+                color: '#64748b',
+                marginTop: '12px',
+                fontWeight: '500'
+              }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                  <polyline points="17 6 23 6 23 12" />
+                </svg>
+                <span>Giá niêm yết bán lẻ · Đã gồm VAT</span>
+              </div>
             </div>
 
             {/* Thẻ 3: Tổng Giá Vốn (Chỉ Quản lý kinh doanh & Admin) */}
             {isCostVisible && isCostAvailable && (
-              <div className="kpi-stat-card kpi-card-red">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Tổng Giá Vốn Tồn Kho</span>
+              <div className="kpi-stat-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Tổng giá vốn tồn kho</span>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Dữ liệu nội bộ bảo mật</div>
+                  </div>
                   <div style={{
                     width: '32px',
                     height: '32px',
-                    borderRadius: '10px',
-                    background: 'rgba(248, 113, 113, 0.15)',
-                    border: '1px solid rgba(248, 113, 113, 0.3)',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#f87171'
+                    color: '#64748b',
                   }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                   </div>
                 </div>
                 <div style={{
-                  fontSize: '28px',
-                  fontWeight: '800',
+                  fontSize: '24px',
+                  fontWeight: '700',
                   letterSpacing: '-0.02em',
-                  color: '#f87171',
-                  textShadow: '0 0 20px rgba(248, 113, 113, 0.3)'
+                  color: '#0f172a',
+                  fontVariantNumeric: 'tabular-nums',
+                  lineHeight: 1.2,
+                  marginTop: '4px'
                 }}>
-                  {isLoading ? '...' : `${totalCostValue.toLocaleString()} đ`}
+                  {isLoading ? '...' : `${totalCostValue.toLocaleString('vi-VN')} đ`}
                 </div>
-                <div style={{ fontSize: '12px', color: '#fca5a5', marginTop: '8px' }}>Dữ liệu nội bộ bảo mật từ Server</div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontSize: '12px',
+                  color: '#64748b',
+                  marginTop: '12px',
+                  fontWeight: '500'
+                }}>
+                  <span style={{ color: '#0284c7' }}>🔒</span>
+                  <span>Quyền xem: Quản lý kinh doanh / Admin</span>
+                </div>
               </div>
             )}
 
             {/* Thẻ 4: Lợi Nhuận Dự Kiến (Chỉ Quản lý kinh doanh & Admin) */}
             {isCostVisible && isCostAvailable && (
-              <div className="kpi-stat-card kpi-card-amber">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>Lợi Nhuận Gộp Dự Kiến</span>
+              <div className="kpi-stat-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Lợi nhuận gộp dự kiến</span>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '1px' }}>Biên lãi chênh lệch giá</div>
+                  </div>
                   <div style={{
                     width: '32px',
                     height: '32px',
-                    borderRadius: '10px',
-                    background: 'rgba(251, 191, 36, 0.15)',
-                    border: '1px solid rgba(251, 191, 36, 0.3)',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fbbf24'
+                    color: '#64748b',
                   }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
                       <polyline points="17 6 23 6 23 12" />
                     </svg>
                   </div>
                 </div>
                 <div style={{
-                  fontSize: '28px',
-                  fontWeight: '800',
+                  fontSize: '24px',
+                  fontWeight: '700',
                   letterSpacing: '-0.02em',
-                  color: '#fbbf24',
-                  textShadow: '0 0 20px rgba(251, 191, 36, 0.35)'
+                  color: '#0f172a',
+                  fontVariantNumeric: 'tabular-nums',
+                  lineHeight: 1.2,
+                  marginTop: '4px'
                 }}>
-                  {isLoading ? '...' : `+${totalProfit.toLocaleString()} đ`}
+                  {isLoading ? '...' : `+${totalProfit.toLocaleString('vi-VN')} đ`}
                 </div>
                 <div style={{
-                  display: 'inline-flex',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  gap: '5px',
                   fontSize: '12px',
-                  color: '#fde68a',
-                  marginTop: '8px',
-                  background: 'rgba(251, 191, 36, 0.12)',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  fontWeight: '700'
+                  color: '#15803d',
+                  marginTop: '12px',
+                  fontWeight: '600'
                 }}>
-                  Biên lãi: +{totalSellValue && totalCostValue ? Math.round(((totalSellValue - totalCostValue) / totalSellValue) * 100) : 0}%
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                    <polyline points="17 6 23 6 23 12" />
+                  </svg>
+                  <span>Biên lợi nhuận: +{totalSellValue && totalCostValue ? Math.round(((totalSellValue - totalCostValue) / totalSellValue) * 100) : 0}%</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Main Products Table (Glassmorphism Luxury Container) */}
-          <div className="premium-table-card roles-grid-scroll" style={{ overflowX: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '4px', height: '20px', borderRadius: '4px', background: 'linear-gradient(180deg, #6366f1 0%, #a855f7 100%)' }} />
-                <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#f8fafc', letterSpacing: '-0.01em' }}>
-                  Danh Sách Hàng Hóa Trong Kho
-                </h2>
+          {/* Clean Enterprise Data Table Container */}
+          <div className="premium-table-card roles-grid-scroll" style={{ overflowX: 'auto', padding: '0', borderRadius: '12px' }}>
+            {/* Toolbar trên bảng theo chuẩn Stripe / Linear Enterprise */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 20px',
+              borderBottom: '1px solid #e2e8f0',
+              gap: '12px',
+              background: '#ffffff'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', flex: 1 }}>
+                {/* Search Input với icon kính lúp */}
+                <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
+                  <span style={{ position: 'absolute', left: '10px', top: '9px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Tìm theo mã hoặc tên sản phẩm..."
+                    value={productSearchTerm}
+                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '7px 12px 7px 32px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '13px',
+                      color: '#0f172a',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                {/* Dropdown Lọc danh mục */}
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  style={{
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    color: '#334155',
+                    background: '#ffffff',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="all">Tất cả danh mục ({products.length})</option>
+                  {Array.from(new Set(products.map((p) => p.category).filter(Boolean))).map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <span style={{ fontSize: '12.5px', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                Tổng số: <strong style={{ color: '#38bdf8' }}>{products.length}</strong> mặt hàng
-              </span>
+
+              {/* Nút Xuất file & Làm mới chuyên nghiệp */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '12.5px', color: '#64748b', marginRight: '4px' }}>
+                  Hiển thị <strong style={{ color: '#0f172a' }}>{filteredProducts.length}</strong> / {products.length} SP
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Xuất file chuẩn định dạng Excel (.xls - HTML XML Spreadsheet)
+                    // Cách này đảm bảo:
+                    // 1. Phân chia đúng 100% từng cột ô trong Excel mà không phụ thuộc vào Regional Settings (dấu phẩy hay chấm phẩy).
+                    // 2. Không bao giờ bị lỗi phông chữ tiếng Việt có dấu.
+                    // 3. Có định dạng tiêu đề, canh lề số và viền bảng chỉn chu.
+                    const excelTemplate = `
+                      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                      <head>
+                        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+                        <!--[if gte mso 9]>
+                        <xml>
+                          <x:ExcelWorkbook>
+                            <x:ExcelWorksheets>
+                              <x:ExcelWorksheet>
+                                <x:Name>Danh Sách Hàng Hóa</x:Name>
+                                <x:WorksheetOptions>
+                                  <x:DisplayGridlines/>
+                                </x:WorksheetOptions>
+                              </x:ExcelWorksheet>
+                            </x:ExcelWorksheets>
+                          </x:ExcelWorkbook>
+                        </xml>
+                        <![endif]-->
+                        <style>
+                          table { border-collapse: collapse; font-family: Calibri, sans-serif; }
+                          th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+                          td { border: 1px solid #e2e8f0; padding: 8px 10px; color: #334155; }
+                          .text-center { text-align: center; }
+                          .text-right { text-align: right; }
+                        </style>
+                      </head>
+                      <body>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th style="width: 100px;">Mã SP</th>
+                              <th style="width: 250px;">Tên sản phẩm</th>
+                              <th style="width: 140px;" class="text-center">Danh mục</th>
+                              <th style="width: 110px;" class="text-right">Số lượng tồn</th>
+                              <th style="width: 150px;" class="text-right">Giá niêm yết (VNĐ)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            ${filteredProducts.map((p) => `
+                              <tr>
+                                <td style="mso-number-format:'\\@'; font-weight: 600;">${p.code}</td>
+                                <td>${p.name}</td>
+                                <td class="text-center">${p.category}</td>
+                                <td class="text-right">${p.stock}</td>
+                                <td class="text-right">${p.sell_price.toLocaleString('vi-VN')}</td>
+                              </tr>
+                            `).join('')}
+                          </tbody>
+                        </table>
+                      </body>
+                      </html>
+                    `;
+                    const blob = new Blob(['\uFEFF' + excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `danh_sach_hang_hoa_${new Date().toISOString().slice(0, 10)}.xls`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12.5px',
+                    fontWeight: '600',
+                    color: '#334155',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.borderColor = '#94a3b8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                  }}
+                  title="Xuất danh sách sản phẩm dạng CSV"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>Xuất file</span>
+                </button>
+              </div>
             </div>
 
             {isLoading ? (
-              <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>
-                <div style={{ fontSize: '28px', marginBottom: '10px' }}>⏳</div>
-                <div>Đang tải dữ liệu từ máy chủ Backend...</div>
+              <div style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>⏳</div>
+                <div style={{ fontSize: '14px', fontWeight: '500' }}>Đang tải dữ liệu từ máy chủ Backend...</div>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div style={{ padding: '48px', textAlign: 'center', color: '#64748b', fontSize: '13.5px' }}>
+                Không tìm thấy sản phẩm nào phù hợp với điều kiện tìm kiếm.
               </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 6px', fontSize: '14px', textAlign: 'left' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
                 <thead>
-                  <tr style={{ color: '#94a3b8', background: 'rgba(15, 23, 42, 0.6)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    <th style={{ padding: '14px 18px', fontWeight: '700', borderTopLeftRadius: '12px', borderBottomLeftRadius: '12px' }}>Mã SP</th>
-                    <th style={{ padding: '14px 18px', fontWeight: '700' }}>Tên Sản Phẩm</th>
-                    <th style={{ padding: '14px 18px', fontWeight: '700' }}>Danh Mục</th>
-                    <th style={{ padding: '14px 18px', fontWeight: '700' }}>Số Lượng Tồn</th>
-                    <th style={{ padding: '14px 18px', fontWeight: '700' }}>Giá Niêm Yết (Bán)</th>
+                  <tr style={{
+                    color: '#64748b',
+                    background: '#f8fafc',
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    borderBottom: '1px solid #e2e8f0',
+                  }}>
+                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Mã SP</th>
+                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Tên Sản Phẩm</th>
+                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Danh Mục</th>
+                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Số Lượng Tồn</th>
+                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Niêm Yết (Bán)</th>
                     {/* CỘT GIÁ VỐN & BIÊN LỢI NHUẬN - CHỈ HIỆN KHI SERVER CHO PHÉP (QUẢN LÝ KINH DOANH / ADMIN) */}
                     {isCostVisible && (
                       <>
-                        <th style={{ padding: '14px 18px', fontWeight: '700', color: '#f87171' }}>Giá Vốn Nhập Kho</th>
-                        <th style={{ padding: '14px 18px', fontWeight: '700', color: '#fbbf24', borderTopRightRadius: '12px', borderBottomRightRadius: '12px' }}>Biên Lợi Nhuận (%)</th>
+                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Vốn Nhập Kho</th>
+                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Biên Lợi Nhuận</th>
                       </>
                     )}
                     {!isCostVisible && (
-                      <th style={{ borderTopRightRadius: '12px', borderBottomRightRadius: '12px' }} />
+                      <th style={{ width: '16px' }} />
                     )}
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((item, idx) => (
+                  {filteredProducts.map((item, idx) => (
                     <tr
                       key={item.id}
                       className="inventory-row"
                       style={{
-                        background: idx % 2 === 0 ? 'rgba(30, 41, 59, 0.45)' : 'rgba(15, 23, 42, 0.55)',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                        background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
+                        borderBottom: '1px solid #f1f5f9',
                       }}
                     >
-                      {/* Mã SP */}
+                      {/* Mã SP: font monospace thanh mảnh, Slate đậm, không bọc khung giả nút bấm */}
                       <td style={{
-                        padding: '16px 18px',
-                        color: '#e2e8f0',
-                        fontWeight: '700',
-                        fontSize: '13.5px',
-                        borderTopLeftRadius: '10px',
-                        borderBottomLeftRadius: '10px',
+                        padding: '13px 18px',
+                        textAlign: 'left',
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: '#334155',
                       }}>
-                        <span style={{
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          border: '1px solid rgba(255, 255, 255, 0.12)',
-                          letterSpacing: '0.02em',
-                          color: '#93c5fd'
-                        }}>
-                          {item.code}
-                        </span>
+                        {item.code}
                       </td>
 
                       {/* Tên Sản Phẩm */}
-                      <td style={{ padding: '16px 18px', fontWeight: '600', color: '#ffffff', fontSize: '14.5px' }}>
+                      <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
                         {item.name}
                       </td>
 
-                      {/* Danh Mục */}
-                      <td style={{ padding: '16px 18px' }}>
+                      {/* Danh Mục: Text gọn gàng */}
+                      <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
+                        {item.category}
+                      </td>
+
+                      {/* Số Lượng Tồn: Số kèm đơn vị bình thường, màu chữ tối chuẩn đồng nhất */}
+                      <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '4px 10px',
-                          background: 'rgba(99, 102, 241, 0.15)',
-                          border: '1px solid rgba(129, 140, 248, 0.35)',
-                          color: '#c7d2fe',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                          fontWeight: '600'
+                          fontWeight: '600',
+                          color: '#0f172a',
                         }}>
-                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#818cf8' }} />
-                          {item.category}
+                          {item.stock.toLocaleString()} cái
                         </span>
                       </td>
 
-                      {/* Số Lượng Tồn */}
-                      <td style={{ padding: '16px 18px', fontWeight: '600' }}>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          color: item.stock < 50 ? '#fbbf24' : '#34d399',
-                          background: item.stock < 50 ? 'rgba(245, 158, 11, 0.14)' : 'rgba(16, 185, 129, 0.14)',
-                          padding: '4px 10px',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          fontWeight: '700',
-                          border: item.stock < 50 ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(16, 185, 129, 0.35)',
-                        }}>
-                          <span style={{
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            background: item.stock < 50 ? '#fbbf24' : '#34d399',
-                            boxShadow: item.stock < 50 ? '0 0 6px #fbbf24' : '0 0 6px #34d399'
-                          }} />
-                          {item.stock} cái
-                        </span>
+                      {/* Giá Niêm Yết: Màu chữ tối chuẩn #0f172a, tabular-nums */}
+                      <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                        {item.sell_price.toLocaleString('vi-VN')} đ
                       </td>
 
-                      {/* Giá Niêm Yết */}
-                      <td style={{ padding: '16px 18px', color: '#38bdf8', fontWeight: '700', fontSize: '14.5px' }}>
-                        {item.sell_price.toLocaleString()} đ
-                      </td>
-
-                      {/* GIÁ VỐN & BIÊN LỢI NHUẬN TỪ SERVER */}
+                      {/* GIÁ VỐN & BIÊN LỢI NHUẬN TỪ SERVER: Chuyển từ đỏ tươi sang màu tối bình thường kèm tag bảo mật nhỏ */}
                       {isCostVisible && (
                         <>
-                          <td style={{ padding: '16px 18px', color: '#f87171', fontWeight: '700', fontSize: '14.5px' }}>
-                            {item.cost_price ? `${item.cost_price.toLocaleString()} đ` : 'N/A'}
+                          <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                              <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
+                                {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
+                              </span>
+                              <span style={{ fontSize: '10.5px', color: '#94a3b8', letterSpacing: '-0.01em' }}>
+                                Chỉ Quản lý
+                              </span>
+                            </div>
                           </td>
-                          <td style={{
-                            padding: '16px 18px',
-                            borderTopRightRadius: '10px',
-                            borderBottomRightRadius: '10px',
-                          }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              background: 'rgba(52, 211, 153, 0.12)',
-                              color: '#34d399',
-                              fontWeight: '800',
-                              fontSize: '13px',
-                              border: '1px solid rgba(52, 211, 153, 0.3)'
-                            }}>
-                              {item.profit_margin !== undefined && item.profit_margin !== null
-                                ? `${item.profit_margin >= 0 ? '+' : ''}${item.profit_margin}%`
-                                : 'N/A'}
-                            </span>
+                          <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                            {item.profit_margin !== undefined && item.profit_margin !== null ? (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                color: item.profit_margin >= 0 ? '#15803d' : '#dc2626',
+                                fontWeight: '600',
+                                fontSize: '13px',
+                              }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  {item.profit_margin >= 0 ? (
+                                    <>
+                                      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                      <polyline points="17 6 23 6 23 12" />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+                                      <polyline points="17 18 23 18 23 12" />
+                                    </>
+                                  )}
+                                </svg>
+                                <span>{item.profit_margin >= 0 ? '+' : ''}{item.profit_margin}%</span>
+                              </span>
+                            ) : (
+                              <span style={{ color: '#94a3b8' }}>—</span>
+                            )}
                           </td>
                         </>
                       )}
                       {!isCostVisible && (
-                        <td style={{ borderTopRightRadius: '10px', borderBottomRightRadius: '10px' }} />
+                        <td />
                       )}
                     </tr>
                   ))}

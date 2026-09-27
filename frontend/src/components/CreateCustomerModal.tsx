@@ -108,8 +108,9 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
         left: 0,
         width: '100vw',
         height: '100vh',
-        background: 'rgba(11, 17, 32, 0.82)',
-        backdropFilter: 'blur(8px)',
+        background: 'rgba(15, 23, 42, 0.45)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -125,15 +126,15 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
     >
       <div
         style={{
-          background: '#1e293b',
-          border: '1px solid #334155',
-          borderRadius: '18px',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '16px',
           width: '100%',
-          maxWidth: '520px',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.65)',
+          maxWidth: '540px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           overflow: 'hidden',
-          color: '#f8fafc',
-          animation: 'fadeIn 0.2s ease-out',
+          color: '#0f172a',
+          animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -141,11 +142,11 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
         <div
           style={{
             padding: '20px 24px',
-            borderBottom: '1px solid #334155',
+            borderBottom: '1px solid #e2e8f0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(15, 23, 42, 0.8))',
+            background: '#f8fafc',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -154,21 +155,21 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                 width: '38px',
                 height: '38px',
                 borderRadius: '10px',
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                background: '#ecfdf5',
+                border: '1px solid #a7f3d0',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '18px',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
               }}
             >
               ✉️
             </div>
             <div>
-              <h3 style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#f8fafc' }}>
+              <h3 style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#0f172a' }}>
                 Tạo Tài Khoản
               </h3>
-              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+              <span style={{ fontSize: '12px', color: '#64748b' }}>
                 Tự sinh mật khẩu bảo mật và gửi thông tin qua Email
               </span>
             </div>
@@ -178,7 +179,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
             style={{
               background: 'none',
               border: 'none',
-              color: '#94a3b8',
+              color: '#64748b',
               fontSize: '20px',
               cursor: 'pointer',
               padding: '4px',
@@ -194,9 +195,9 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
           {error && (
             <div
               style={{
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#fca5a5',
+                background: '#fee2e2',
+                border: '1px solid #fecaca',
+                color: '#b91c1c',
                 padding: '10px 14px',
                 borderRadius: '10px',
                 fontSize: '13px',
@@ -215,7 +216,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   display: 'block',
                   fontSize: '13px',
                   fontWeight: '600',
-                  color: '#cbd5e1',
+                  color: '#334155',
                   marginBottom: '6px',
                 }}
               >
@@ -231,14 +232,14 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid #475569',
-                  background: '#0f172a',
-                  color: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#0f172a',
                   fontSize: '14px',
                   boxSizing: 'border-box',
                 }}
               />
-              <span style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+              <span style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px', display: 'block' }}>
                 Chỉ nhập chữ cái tiếng Việt hoặc tiếng Anh, không chứa chữ số.
               </span>
             </div>
@@ -250,7 +251,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   display: 'block',
                   fontSize: '13px',
                   fontWeight: '600',
-                  color: '#cbd5e1',
+                  color: '#334155',
                   marginBottom: '6px',
                 }}
               >
@@ -266,9 +267,9 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid #475569',
-                  background: '#0f172a',
-                  color: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#0f172a',
                   fontSize: '14px',
                   boxSizing: 'border-box',
                 }}
@@ -282,7 +283,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   display: 'block',
                   fontSize: '13px',
                   fontWeight: '600',
-                  color: '#cbd5e1',
+                  color: '#334155',
                   marginBottom: '6px',
                 }}
               >
@@ -298,14 +299,14 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid #475569',
-                  background: '#0f172a',
-                  color: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#0f172a',
                   fontSize: '14px',
                   boxSizing: 'border-box',
                 }}
               />
-              <span style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+              <span style={{ fontSize: '11.5px', color: '#64748b', marginTop: '4px', display: 'block' }}>
                 Định dạng: 10 chữ số bắt đầu bằng 03, 05, 07, 08, 09 (hoặc đầu số bàn 02).
               </span>
             </div>
@@ -317,12 +318,12 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   display: 'block',
                   fontSize: '13px',
                   fontWeight: '600',
-                  color: '#cbd5e1',
+                  color: '#334155',
                   marginBottom: '6px',
                 }}
               >
                 Tên đăng nhập mong muốn{' '}
-                <span style={{ color: '#94a3b8', fontWeight: 'normal' }}>
+                <span style={{ color: '#64748b', fontWeight: 'normal' }}>
                   (Để trống hệ thống sẽ tự sinh)
                 </span>
               </label>
@@ -335,9 +336,9 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                   width: '100%',
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid #475569',
-                  background: '#0f172a',
-                  color: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#0f172a',
                   fontSize: '14px',
                   boxSizing: 'border-box',
                 }}
@@ -347,12 +348,12 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
             {/* Thông báo nghiệp vụ */}
             <div
               style={{
-                background: 'rgba(56, 189, 248, 0.1)',
-                border: '1px solid rgba(56, 189, 248, 0.25)',
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
                 borderRadius: '10px',
                 padding: '12px 14px',
                 fontSize: '12.5px',
-                color: '#7dd3fc',
+                color: '#1d4ed8',
                 lineHeight: '1.5',
               }}
             >
@@ -366,10 +367,10 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
               type="button"
               onClick={onClose}
               style={{
-                background: '#334155',
-                border: 'none',
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
                 borderRadius: '8px',
-                color: '#e2e8f0',
+                color: '#475569',
                 padding: '10px 18px',
                 fontSize: '13.5px',
                 fontWeight: '600',
@@ -391,7 +392,7 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
                 fontSize: '13.5px',
                 fontWeight: '700',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)',
               }}
             >
               {isSubmitting ? 'Đang tạo & gửi mail...' : 'Tạo tài khoản & Gửi Email'}

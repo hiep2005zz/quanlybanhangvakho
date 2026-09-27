@@ -67,7 +67,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
       maxWidth: '920px',
       margin: '20px auto 60px auto',
       padding: '0 16px',
-      animation: 'fadeInCard 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+      animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
     }}>
       {/* 1. Breadcrumb điều hướng */}
       <nav
@@ -77,17 +77,17 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
           alignItems: 'center',
           gap: '10px',
           fontSize: '13.5px',
-          color: '#94a3b8',
+          color: '#64748b',
           fontWeight: '500',
         }}
       >
         <button
           onClick={onBackToWorkflow}
           style={{
-            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
             borderRadius: '20px',
-            color: '#38bdf8',
+            color: '#2563eb',
             cursor: 'pointer',
             padding: '6px 14px',
             fontSize: '13px',
@@ -95,18 +95,16 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
-            boxShadow: '0 3px 10px rgba(0, 0, 0, 0.3)',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+            transition: 'all 0.15s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.7)';
-            e.currentTarget.style.color = '#7dd3fc';
+            e.currentTarget.style.borderColor = '#93c5fd';
+            e.currentTarget.style.background = '#eff6ff';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.35)';
-            e.currentTarget.style.color = '#38bdf8';
+            e.currentTarget.style.borderColor = '#cbd5e1';
+            e.currentTarget.style.background = '#ffffff';
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
@@ -114,47 +112,34 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
           </svg>
           <span>Quay lại trang làm việc</span>
         </button>
-        <span style={{ color: '#475569', fontSize: '14px' }}>/</span>
-        <span style={{ color: '#ef4444', fontWeight: '600', fontSize: '13.5px' }}>403 Không có quyền truy cập</span>
+        <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
+        <span style={{ color: '#dc2626', fontWeight: '600', fontSize: '13.5px' }}>403 Không có quyền truy cập</span>
       </nav>
 
-      {/* 2. Thẻ lỗi trung tâm Glassmorphism sang trọng */}
+      {/* 2. Thẻ lỗi trung tâm Enterprise Card */}
       <div style={{
-        background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%)',
-        border: '1px solid rgba(239, 68, 68, 0.35)',
-        borderRadius: '24px',
+        background: '#ffffff',
+        border: '1px solid #fee2e2',
+        borderRadius: '20px',
         padding: '44px 36px',
-        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(239, 68, 68, 0.15)',
-        backdropFilter: 'blur(20px)',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02)',
         position: 'relative',
         overflow: 'hidden',
         textAlign: 'center',
       }}>
-        {/* Vệt sáng mờ nền */}
-        <div style={{
-          position: 'absolute',
-          top: '-80px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '320px',
-          height: '200px',
-          background: 'radial-gradient(ellipse at center, rgba(239, 68, 68, 0.25) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* Khối Icon Khiên Bị Khóa 3D */}
+        {/* Khối Icon Khiên Bị Khóa */}
         <div style={{
           width: '84px',
           height: '84px',
           borderRadius: '24px',
-          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.35) 100%)',
-          border: '1px solid rgba(248, 113, 113, 0.5)',
+          background: '#fee2e2',
+          border: '1px solid #fca5a5',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           margin: '0 auto 22px auto',
-          boxShadow: '0 12px 30px rgba(239, 68, 68, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-          color: '#f87171',
+          boxShadow: '0 8px 20px rgba(239, 68, 68, 0.15)',
+          color: '#dc2626',
         }}>
           <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -167,24 +152,24 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
           display: 'inline-flex',
           alignItems: 'center',
           gap: '8px',
-          background: 'rgba(239, 68, 68, 0.15)',
-          border: '1px solid rgba(239, 68, 68, 0.35)',
+          background: '#fee2e2',
+          border: '1px solid #fecaca',
           padding: '4px 14px',
           borderRadius: '999px',
-          color: '#fca5a5',
+          color: '#b91c1c',
           fontSize: '12.5px',
           fontWeight: '700',
           letterSpacing: '0.05em',
           marginBottom: '16px',
         }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px #ef4444' }} />
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#dc2626' }} />
           MÃ LỖI 403: TRUY CẬP BỊ TỪ CHỐI (ZERO-TRUST)
         </div>
 
         <h1 style={{
           fontSize: '28px',
           fontWeight: '800',
-          color: '#ffffff',
+          color: '#0f172a',
           letterSpacing: '-0.02em',
           margin: '0 0 14px 0',
         }}>
@@ -193,20 +178,20 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
 
         <p style={{
           fontSize: '15px',
-          color: '#94a3b8',
+          color: '#64748b',
           lineHeight: '1.7',
           maxWidth: '640px',
           margin: '0 auto 28px auto',
         }}>
           Chức năng <strong>Phân quyền & Quản lý người dùng</strong> yêu cầu quyền hạn cấp cao{' '}
-          <span style={{ color: '#f87171', fontWeight: '700' }}>{requiredPermission}</span>.
+          <span style={{ color: '#b91c1c', fontWeight: '700' }}>{requiredPermission}</span>.
           Tài khoản của bạn hiện không thuộc danh sách được phân quyền thực thi nghiệp vụ này.
         </p>
 
         {/* Khung chi tiết tài khoản hiện tại */}
         <div style={{
-          background: 'rgba(15, 23, 42, 0.65)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
           borderRadius: '16px',
           padding: '18px 24px',
           maxWidth: '560px',
@@ -219,7 +204,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#64748b' }}>Tài khoản đang đăng nhập:</span>
-            <strong style={{ color: '#f8fafc', fontFamily: 'monospace' }}>@{currentUser.username} ({currentUser.full_name})</strong>
+            <strong style={{ color: '#0f172a', fontFamily: 'monospace' }}>@{currentUser.username} ({currentUser.full_name})</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#64748b' }}>Vai trò hiện tại:</span>
@@ -229,10 +214,10 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
               gap: '6px',
               padding: '3px 10px',
               borderRadius: '999px',
-              background: `${badgeColor}22`,
+              background: `${badgeColor}15`,
               color: badgeColor,
               fontWeight: '700',
-              border: `1px solid ${badgeColor}55`,
+              border: `1px solid ${badgeColor}35`,
             }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: badgeColor }} />
               {roleName}
@@ -241,16 +226,16 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
           {currentUser.branch && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#64748b' }}>Khu vực / Chi nhánh:</span>
-              <span style={{ color: '#cbd5e1' }}>📍 {currentUser.branch}</span>
+              <span style={{ color: '#334155' }}>📍 {currentUser.branch}</span>
             </div>
           )}
         </div>
 
         {/* 3. KHỐI HÀNH ĐỘNG QUAY LẠI LUỒNG LÀM VIỆC */}
         <div style={{
-          background: 'rgba(30, 41, 59, 0.45)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          borderRadius: '18px',
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: '16px',
           padding: '24px',
           maxWidth: '680px',
           margin: '0 auto',
@@ -269,23 +254,23 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
                 gap: '12px',
                 padding: '14px 18px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                 border: 'none',
                 color: '#ffffff',
                 fontSize: '14px',
                 fontWeight: '700',
                 cursor: 'pointer',
                 textAlign: 'left',
-                boxShadow: '0 6px 20px rgba(37, 99, 235, 0.35)',
-                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                transition: 'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 10px 25px rgba(37, 99, 235, 0.5)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 99, 235, 0.35)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(37, 99, 235, 0.35)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.25)';
               }}
             >
               <div style={{
@@ -319,36 +304,37 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
                   gap: '12px',
                   padding: '14px 18px',
                   borderRadius: '12px',
-                  background: 'rgba(15, 23, 42, 0.75)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  color: '#e2e8f0',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  color: '#334155',
                   fontSize: '14px',
                   fontWeight: '600',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                  boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.background = 'rgba(30, 41, 59, 0.9)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.background = '#f8fafc';
+                  e.currentTarget.style.borderColor = '#94a3b8';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.background = 'rgba(15, 23, 42, 0.75)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.borderColor = '#cbd5e1';
                 }}
               >
                 <div style={{
                   width: '36px',
                   height: '36px',
                   borderRadius: '10px',
-                  background: 'rgba(239, 68, 68, 0.15)',
+                  background: '#fee2e2',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
-                  color: '#f87171',
+                  color: '#dc2626',
                 }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
@@ -357,8 +343,8 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
                   </svg>
                 </div>
                 <div>
-                  <div style={{ color: '#f8fafc' }}>Đổi tài khoản khác</div>
-                  <div style={{ fontSize: '12px', color: '#94a3b8' }}>Đăng nhập tài khoản Quản trị viên</div>
+                  <div style={{ color: '#0f172a' }}>Đổi tài khoản khác</div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>Đăng nhập tài khoản Quản trị viên</div>
                 </div>
               </button>
             )}
@@ -368,7 +354,7 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
           <div style={{
             marginTop: '16px',
             paddingTop: '14px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+            borderTop: '1px solid #e2e8f0',
             fontSize: '12.5px',
             color: '#64748b',
             display: 'flex',
@@ -380,14 +366,12 @@ export const AccessDeniedView: React.FC<AccessDeniedViewProps> = ({
             <a
               href={`mailto:${adminEmail}`}
               style={{
-                color: '#38bdf8',
+                color: '#2563eb',
                 fontWeight: '700',
                 textDecoration: 'none',
-                borderBottom: '1px dashed rgba(56, 189, 248, 0.5)',
+                borderBottom: '1px dashed #93c5fd',
                 transition: 'color 0.2s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#7dd3fc')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#38bdf8')}
               title={`Gửi email đến Quản trị viên: ${adminEmail}`}
             >
               {adminEmail}

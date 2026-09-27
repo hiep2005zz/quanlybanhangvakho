@@ -17,6 +17,7 @@ interface UserManagementViewProps {
   currentUser: User;
   token: string;
   onBackToHome?: () => void;
+  onCreateAccount?: () => void;
 }
 
 const ROLES_LIST = [
@@ -93,15 +94,19 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   currentUser,
   token,
   onBackToHome,
+  onCreateAccount,
 }) => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Filter & Search
+  // Filter, Search & Pagination (S1-08 / S1-10: 20 dòng/trang mặc định)
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(20);
 
 
   // Modal Edit State
@@ -382,20 +387,36 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     }
   };
 
-  // Filtered users
+  // Filtered users (Tìm kiếm tên/email/phone, filter vai trò, filter trạng thái)
   const filteredUsers = users.filter((u) => {
+    const term = searchTerm.toLowerCase().trim();
     const matchesSearch =
-      u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (u.email && u.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (u.branch && u.branch.toLowerCase().includes(searchTerm.toLowerCase()));
+      !term ||
+      u.full_name.toLowerCase().includes(term) ||
+      u.username.toLowerCase().includes(term) ||
+      (u.email && u.email.toLowerCase().includes(term)) ||
+      (u.phone && u.phone.toLowerCase().includes(term)) ||
+      (u.branch && u.branch.toLowerCase().includes(term));
 
     const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.role];
     const matchesRole =
       selectedRoleFilter === 'all' || userRoles.includes(selectedRoleFilter);
 
-    return matchesSearch && matchesRole;
+    const isActive = u.is_active && u.status !== 'LOCKED';
+    const matchesStatus =
+      selectedStatusFilter === 'all' ||
+      (selectedStatusFilter === 'active' && isActive) ||
+      (selectedStatusFilter === 'locked' && !isActive) ||
+      (selectedStatusFilter === 'handover' && (u.dealers_needing_handover || 0) > 0);
+
+    return matchesSearch && matchesRole && matchesStatus;
   });
+
+  // Reset về page 1 khi bộ lọc thay đổi
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + pageSize);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -407,7 +428,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           alignItems: 'center',
           gap: '10px',
           fontSize: '13.5px',
-          color: '#94a3b8',
+          color: '#64748b',
           fontWeight: '500',
           padding: '2px 4px',
         }}
@@ -415,40 +436,27 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         <button
           onClick={onBackToHome}
           style={{
-            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
             borderRadius: '20px',
-            color: '#38bdf8',
+            color: '#2563eb',
             cursor: 'pointer',
-            padding: '6px 14px',
+            padding: '5px 14px',
             fontSize: '13px',
             fontWeight: '600',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
-            boxShadow: '0 3px 10px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            backdropFilter: 'blur(8px)',
+            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+            transition: 'all 0.18s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(30, 41, 59, 0.95))';
-            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.7)';
-            e.currentTarget.style.color = '#7dd3fc';
-            e.currentTarget.style.boxShadow = '0 6px 16px rgba(56, 189, 248, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)';
+            e.currentTarget.style.borderColor = '#2563eb';
+            e.currentTarget.style.background = '#eff6ff';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.background = 'linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))';
-            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.35)';
-            e.currentTarget.style.color = '#38bdf8';
-            e.currentTarget.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)';
-          }}
-          onMouseDown={(e) => {
-            e.currentTarget.style.transform = 'translateY(0) scale(0.96)';
-          }}
-          onMouseUp={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px) scale(1)';
+            e.currentTarget.style.borderColor = '#cbd5e1';
+            e.currentTarget.style.background = '#ffffff';
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -457,82 +465,118 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           </svg>
           <span>Trang chủ</span>
         </button>
-        <span style={{ color: '#475569', fontSize: '14px' }}>/</span>
-        <span style={{ color: '#f8fafc', fontWeight: '600', fontSize: '13.5px' }}>Quản lý người dùng</span>
+        <span style={{ color: '#cbd5e1', fontSize: '14px' }}>/</span>
+        <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>Quản lý người dùng</span>
       </nav>
 
       {/* 2. Tiêu đề: Quản Lý Phân Quyền Vai Trò */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '16px',
-        padding: '20px 24px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '14px',
+        padding: '16px 22px',
+        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.05)',
         display: 'flex',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: '16px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          {/* Icon Khiên Phân Quyền Hiện Đại Gradient */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)',
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 18px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)',
             flexShrink: 0
           }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               <path d="M9 12l2 2 4-4" />
             </svg>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <h2 style={{
-              fontSize: '24px',
-              fontWeight: '800',
+              fontSize: '20px',
+              fontWeight: '700',
               margin: 0,
-              color: '#ffffff',
+              color: '#0f172a',
               letterSpacing: '-0.02em',
-              background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
             }}>
-              Phân Quyền
+              Phân Quyền & Quản Lý Người Dùng
             </h2>
             <span style={{
-              background: 'rgba(99, 102, 241, 0.15)',
-              color: '#a5b4fc',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
+              background: '#eff6ff',
+              color: '#1d4ed8',
+              border: '1px solid #bfdbfe',
               borderRadius: '999px',
-              padding: '3px 12px',
-              fontSize: '12px',
+              padding: '2px 10px',
+              fontSize: '11.5px',
               fontWeight: '600',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px'
             }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#6366f1' }}></span>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#2563eb' }}></span>
               Quản trị viên
             </span>
           </div>
         </div>
 
+        {/* Nút Tạo tài khoản đặt ở trên góc phải, thẳng phía trên chữ Làm mới */}
+        {onCreateAccount && (
+          <button
+            type="button"
+            onClick={onCreateAccount}
+            id="btn-userview-create-account"
+            style={{
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              border: 'none',
+              borderRadius: '9px',
+              color: '#ffffff',
+              padding: '9px 16px',
+              fontSize: '13.5px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '7px',
+              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.35)',
+              transition: 'all 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1.5px)';
+              e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.45)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.35)';
+            }}
+            title="Tạo tài khoản mới và gửi email kích hoạt"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <line x1="20" y1="8" x2="20" y2="14" />
+              <line x1="23" y1="11" x2="17" y2="11" />
+            </svg>
+            <span>Tạo tài khoản</span>
+          </button>
+        )}
       </div>
 
-      {/* Success Notification Alert (Auto dismiss after 5s) */}
+      {/* Success Notification Alert */}
       {successMessage && (
         <div style={{
-          background: 'rgba(16, 185, 129, 0.12)',
-          border: '1px solid rgba(16, 185, 129, 0.35)',
-          color: '#6ee7b7',
-          padding: '14px 18px',
-          borderRadius: '12px',
+          background: '#dcfce7',
+          border: '1px solid #bbf7d0',
+          color: '#15803d',
+          padding: '12px 16px',
+          borderRadius: '10px',
           fontSize: '14px',
           display: 'flex',
           alignItems: 'center',
@@ -542,7 +586,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           <div>{successMessage}</div>
           <button
             onClick={() => setSuccessMessage(null)}
-            style={{ background: 'none', border: 'none', color: '#6ee7b7', cursor: 'pointer', fontSize: '16px' }}
+            style={{ background: 'none', border: 'none', color: '#15803d', cursor: 'pointer', fontSize: '16px' }}
           >
             ✕
           </button>
@@ -552,67 +596,78 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       {/* Error Alert */}
       {error && (
         <div style={{
-          background: 'rgba(239, 68, 68, 0.15)',
-          border: '1px solid rgba(239, 68, 68, 0.4)',
-          color: '#fca5a5',
-          padding: '14px 18px',
-          borderRadius: '12px',
+          background: '#fee2e2',
+          border: '1px solid #fecaca',
+          color: '#b91c1c',
+          padding: '12px 16px',
+          borderRadius: '10px',
           fontSize: '14px',
         }}>
           ⚠️ {error}
         </div>
       )}
 
-      {/* 3. Filter Bar: [ Tìm theo tên, email... ]  [ Lọc theo vai trò (v) ]  [ 🔄 Làm mới ] */}
+      {/* 3. Filter Bar: [ Tìm kiếm tên/email/SĐT... ]  [ Lọc vai trò ]  [ Lọc trạng thái ]  [ 🔄 Làm mới ] */}
       <div style={{
-        background: '#1e293b',
-        border: '1px solid #334155',
-        borderRadius: '14px',
-        padding: '16px 20px',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '12px',
+        boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.05)',
+        padding: '14px 18px',
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '16px'
+        gap: '12px'
       }}>
         {/* Search Input */}
         <div style={{ position: 'relative', minWidth: '280px', flex: '1' }}>
-          <span style={{ position: 'absolute', left: '14px', top: '10px', color: '#64748b' }}>
-            🔍
+          <span style={{ position: 'absolute', left: '12px', top: '10px', color: '#64748b', display: 'flex', alignItems: 'center' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
           </span>
           <input
             type="text"
-            placeholder="Tìm theo tên, email..."
+            placeholder="Tìm theo tên, email, số điện thoại, kho..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
             style={{
               width: '100%',
-              padding: '10px 14px 10px 40px',
-              borderRadius: '10px',
-              border: '1px solid #475569',
-              background: '#0f172a',
-              color: '#f8fafc',
-              fontSize: '14px',
+              padding: '9px 12px 9px 36px',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              background: '#ffffff',
+              color: '#0f172a',
+              fontSize: '13.5px',
               outline: 'none',
               boxSizing: 'border-box'
             }}
           />
         </div>
 
-        {/* Right side controls: Role filter + Refresh button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ fontSize: '13.5px', color: '#94a3b8', fontWeight: '500' }}>Lọc theo vai trò:</label>
+        {/* Right side controls: Role filter + Status Filter + Refresh button */}
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          {/* Lọc vai trò */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '13px', color: '#64748b', fontWeight: '500', whiteSpace: 'nowrap' }}>Vai trò:</label>
             <select
               value={selectedRoleFilter}
-              onChange={(e) => setSelectedRoleFilter(e.target.value)}
+              onChange={(e) => {
+                setSelectedRoleFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               style={{
-                padding: '10px 14px',
-                borderRadius: '10px',
-                border: '1px solid #475569',
-                background: '#0f172a',
-                color: '#f8fafc',
-                fontSize: '13.5px',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#0f172a',
+                fontSize: '13px',
                 outline: 'none',
                 cursor: 'pointer'
               }}
@@ -626,514 +681,658 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             </select>
           </div>
 
+          {/* Lọc trạng thái (Hoạt động / Tạm khóa / Cần bàn giao) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ fontSize: '13px', color: '#64748b', fontWeight: '500', whiteSpace: 'nowrap' }}>Trạng thái:</label>
+            <select
+              value={selectedStatusFilter}
+              onChange={(e) => {
+                setSelectedStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#0f172a',
+                fontSize: '13px',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="all">Tất cả trạng thái</option>
+              <option value="active">🟢 Đang hoạt động</option>
+              <option value="locked">🔴 Tạm khóa / Đã nghỉ</option>
+              <option value="handover">⚠️ Cần bàn giao đại lý</option>
+            </select>
+          </div>
+
           <button
-            onClick={loadUsers}
+            onClick={() => {
+              loadUsers();
+              setCurrentPage(1);
+            }}
             style={{
-              background: '#334155',
-              border: '1px solid #475569',
-              borderRadius: '10px',
-              color: '#f8fafc',
-              padding: '10px 16px',
-              fontSize: '13.5px',
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              transition: 'all 0.18s ease',
+              borderRadius: '8px',
+              color: '#334155',
+              padding: '8px 14px',
+              fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              transition: 'all 0.15s ease'
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#475569')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#334155')}
-            title="Làm mới danh sách"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#eff6ff';
+              e.currentTarget.style.borderColor = '#93c5fd';
+              e.currentTarget.style.color = '#1d4ed8';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#f8fafc';
+              e.currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.color = '#334155';
+            }}
+            title="Làm mới danh sách nhân viên"
           >
-            🔄 Làm mới
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+            <span>Làm mới</span>
           </button>
         </div>
       </div>
 
-      {/* 4. Users Table */}
+      {/* 4. Users Table & Pagination Chuẩn Enterprise */}
       <div
-        className="roles-grid-scroll"
+        className="premium-table-card roles-grid-scroll"
         style={{
-          background: '#1e293b',
-          border: '1px solid #334155',
-          borderRadius: '16px',
-          padding: '20px 24px',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
           position: 'relative',
+          overflowX: 'auto',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <div>
-            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#f8fafc' }}>
-              Danh Sách Nhân Viên ({filteredUsers.length})
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '4px', height: '20px', borderRadius: '4px', background: 'linear-gradient(180deg, #6366f1 0%, #a855f7 100%)' }} />
+            <h2 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+              Danh Sách Nhân Viên
             </h2>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12.5px', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.05)', padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              Kết quả: <strong style={{ color: '#38bdf8' }}>{filteredUsers.length}</strong> / {users.length} nhân viên
+            </span>
           </div>
         </div>
 
         {isLoading ? (
-          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94a3b8' }}>
-            <div style={{ fontSize: '24px', marginBottom: '8px' }}>⏳</div>
-            <div>Đang tải danh sách nhân viên...</div>
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+            <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
+            <div style={{ fontSize: '14px', fontWeight: '500' }}>Đang tải danh sách nhân viên từ Backend...</div>
           </div>
         ) : filteredUsers.length === 0 ? (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
-            <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔍</div>
-            <div style={{ fontSize: '15px', color: '#cbd5e1', fontWeight: '600' }}>Không tìm thấy nhân viên nào</div>
-            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Hãy thử thay đổi từ khóa tìm kiếm hoặc chọn lọc vai trò khác</div>
+            <div style={{ fontSize: '36px', marginBottom: '12px' }}>🔍</div>
+            <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: '700' }}>Không tìm thấy nhân viên nào phù hợp</div>
+            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>Hãy thử điều chỉnh từ khóa tìm kiếm hoặc đặt lại bộ lọc vai trò / trạng thái</div>
           </div>
         ) : (
-          <div style={{ borderRadius: '12px', border: '1px solid rgba(51, 65, 85, 0.7)', overflow: 'visible' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: 'rgba(15, 23, 42, 0.7)', borderBottom: '1px solid #334155', color: '#94a3b8' }}>
-                  <th style={{ padding: '14px 16px', fontWeight: '600', width: '60px' }}>ID</th>
-                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Họ và tên / Tài khoản</th>
-                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Email</th>
-                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Vai trò hệ thống</th>
-                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Kho / Địa bàn</th>
-                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Trạng thái</th>
-                  <th style={{ padding: '14px 16px', fontWeight: '600' }}>Quyền hạn</th>
-                  <th style={{ padding: '14px 16px', fontWeight: '600', textAlign: 'center', width: '90px' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((u, idx) => {
-                  const isCurrentSelf = (u.username.toLowerCase() === currentUser.username.toLowerCase());
-                  const isDropdownOpen = activeDropdownUserId === u.id;
-                  return (
-                    <tr
-                      key={u.id}
-                      style={{
-                        borderBottom: idx === filteredUsers.length - 1 ? 'none' : '1px solid rgba(51, 65, 85, 0.5)',
-                        background: isDropdownOpen
-                          ? 'rgba(30, 41, 59, 0.85)'
-                          : idx % 2 === 0 ? 'rgba(30, 41, 59, 0.35)' : 'rgba(15, 23, 42, 0.4)',
-                        transition: 'background 0.15s ease',
-                        position: 'relative',
-                        zIndex: isDropdownOpen ? 30 : 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isDropdownOpen) e.currentTarget.style.background = 'rgba(51, 65, 85, 0.35)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isDropdownOpen) {
-                          e.currentTarget.style.background = idx % 2 === 0 ? 'rgba(30, 41, 59, 0.35)' : 'rgba(15, 23, 42, 0.4)';
-                        }
-                      }}
-                    >
-                    <td style={{ padding: '14px', color: '#64748b', fontWeight: '600' }}>
-                      #{u.id}
-                    </td>
-
-                    {/* Họ tên + Avatar */}
-                    <td style={{ padding: '14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '50%',
-                          background: u.badge_color || '#64748b',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: '700',
-                          fontSize: '15px',
-                          flexShrink: 0
-                        }}>
-                          {u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: '600', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {u.full_name}
-                            {isCurrentSelf && (
-                              <span style={{
-                                background: 'rgba(99, 102, 241, 0.2)',
-                                color: '#a5b4fc',
-                                border: '1px solid rgba(99, 102, 241, 0.4)',
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                fontWeight: '600'
-                              }}>
-                                Tài khoản của bạn
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ fontSize: '12.5px', color: '#94a3b8' }}>
-                            @{u.username}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Email & Phone */}
-                    <td style={{ padding: '14px', color: '#cbd5e1' }}>
-                      <div>{u.email || <span style={{ color: '#64748b' }}>Chưa có email</span>}</div>
-                      {u.phone && (
-                        <div style={{ fontSize: '12px', color: '#38bdf8', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span>📞</span>
-                          <span>{u.phone}</span>
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Vai trò */}
-                    <td style={{ padding: '14px' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {(() => {
-                          const allRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
-                          const nonCustomerRoles = allRoles.filter((r) => r !== 'customer');
-                          const displayRoles = nonCustomerRoles.length > 0 ? nonCustomerRoles : ['customer'];
-                          return displayRoles.map((rCode) => {
-                            const rMeta = ROLES_LIST.find((item) => item.role === rCode);
-                            const color = rMeta?.badgeColor || u.badge_color || '#64748b';
-                            const title = rMeta?.title || (rCode === 'customer' ? 'Chờ cấp quyền' : rCode);
-                            return (
-                              <span
-                                key={rCode}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  padding: '3px 8px',
-                                  borderRadius: '6px',
-                                  background: `${color}22`,
-                                  color: color,
-                                  fontWeight: '600',
-                                  fontSize: '12px',
-                                  border: `1px solid ${color}44`,
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }}></span>
-                                {title}
-                              </span>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </td>
-
-                    {/* Kho / Địa bàn */}
-                    <td style={{ padding: '14px', color: '#e2e8f0', fontSize: '13px' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        📍 {u.branch || 'Kho Tổng Hà Nội'}
-                      </span>
-                    </td>
-
-                    {/* Trạng thái & Cảnh báo bàn giao */}
-                    <td style={{ padding: '14px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
-                        {u.is_active && u.status !== 'LOCKED' ? (
+          <>
+            <div style={{ borderRadius: '12px', border: '1px solid #e2e8f0', background: '#ffffff', overflow: 'visible', boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.05)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{
+                    color: '#64748b',
+                    background: '#f8fafc',
+                    fontSize: '11px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    borderBottom: '1px solid #e2e8f0'
+                  }}>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', width: '60px', textAlign: 'center' }}>ID</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Họ và tên / Tài khoản</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Email & SĐT</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Vai trò hệ thống</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Kho / Địa bàn</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'center' }}>Trạng thái</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Quyền bảo mật</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'center', width: '80px' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedUsers.map((u, idx) => {
+                    const isCurrentSelf = (u.username.toLowerCase() === currentUser.username.toLowerCase());
+                    const isDropdownOpen = activeDropdownUserId === u.id;
+                    const isActive = u.is_active && u.status !== 'LOCKED';
+                    return (
+                      <tr
+                        key={u.id}
+                        className="inventory-row"
+                        style={{
+                          borderBottom: idx === paginatedUsers.length - 1 ? 'none' : '1px solid #f1f5f9',
+                          background: isDropdownOpen
+                            ? '#f1f5f9'
+                            : idx % 2 === 0 ? '#ffffff' : '#fcfcfd',
+                          position: 'relative',
+                          zIndex: isDropdownOpen ? 30 : 1,
+                        }}
+                      >
+                        {/* ID */}
+                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                           <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            color: '#34d399',
-                            fontSize: '12.5px',
-                            fontWeight: '600'
-                          }}>
-                            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34d399' }}></span>
-                            Hoạt động
-                          </span>
-                        ) : (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            color: '#64748b',
+                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
                             fontSize: '12px',
-                            fontWeight: '500'
+                            color: '#475569',
+                            fontWeight: '600',
+                            background: '#f1f5f9',
+                            padding: '2px 6px',
+                            borderRadius: '4px'
                           }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#475569' }}></span>
-                            Tạm dừng
+                            #{u.id}
                           </span>
-                        )}
+                        </td>
 
-                        {/* AC 3: Cảnh báo bàn giao đại lý */}
-                        {u.dealers_needing_handover > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => openHandoverModal(u)}
-                            title={`Có ${u.dealers_needing_handover} đại lý cần bàn giao gấp sang nhân viên mới`}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              background: 'rgba(245, 158, 11, 0.15)',
-                              border: '1px solid rgba(245, 158, 11, 0.4)',
-                              color: '#fbbf24',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              fontSize: '11.5px',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              animation: 'pulse 2s infinite',
-                            }}
-                          >
-                            ⚠️ Có {u.dealers_needing_handover} đại lý cần bàn giao
-                          </button>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Quyền hạn cốt lõi */}
-                    <td style={{ padding: '14px', fontSize: '12.5px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <span style={{ color: u.can_view_cost ? '#10b981' : '#64748b' }}>
-                          {u.can_view_cost ? '✓ Xem giá vốn & lãi' : '✕ Bị chặn xem giá vốn'}
-                        </span>
-                        <span style={{ color: u.can_write_inventory ? '#38bdf8' : '#64748b' }}>
-                          {u.can_write_inventory ? '✓ Nhập/xuất/sửa kho' : '✕ Bị chặn can thiệp kho'}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Thao tác (Nút 3 chấm) */}
-                    <td style={{ padding: '14px', textAlign: 'center', position: 'relative' }}>
-                      <div className="user-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveDropdownUserId((prev) => (prev === u.id ? null : u.id));
-                          }}
-                          title="Tùy chọn thao tác"
-                          style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '10px',
-                            border: activeDropdownUserId === u.id
-                              ? '1px solid rgba(99, 102, 241, 0.7)'
-                              : '1px solid rgba(255, 255, 255, 0.15)',
-                            background: activeDropdownUserId === u.id
-                              ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(168, 85, 247, 0.3))'
-                              : 'rgba(30, 41, 59, 0.85)',
-                            backdropFilter: 'blur(8px)',
-                            color: activeDropdownUserId === u.id ? '#a5b4fc' : '#cbd5e1',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                            boxShadow: activeDropdownUserId === u.id
-                              ? '0 0 16px rgba(99, 102, 241, 0.4)'
-                              : '0 2px 8px rgba(0, 0, 0, 0.25)',
-                          }}
-                          onMouseEnter={(e) => {
-                            if (activeDropdownUserId !== u.id) {
-                              e.currentTarget.style.background = 'rgba(51, 65, 85, 0.95)';
-                              e.currentTarget.style.color = '#ffffff';
-                              e.currentTarget.style.borderColor = 'rgba(129, 140, 248, 0.5)';
-                              e.currentTarget.style.transform = 'scale(1.06)';
-                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.35)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (activeDropdownUserId !== u.id) {
-                              e.currentTarget.style.background = 'rgba(30, 41, 59, 0.85)';
-                              e.currentTarget.style.color = '#cbd5e1';
-                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-                              e.currentTarget.style.transform = 'scale(1)';
-                              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.25)';
-                            }
-                          }}
-                        >
-                          <span
-                            style={{
+                        {/* Họ tên + Avatar */}
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '10px',
+                              background: u.badge_color ? `linear-gradient(135deg, ${u.badge_color} 0%, #2563eb 100%)` : '#2563eb',
+                              color: '#ffffff',
                               display: 'flex',
-                              flexDirection: 'column',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              gap: '3.5px',
-                              pointerEvents: 'none',
-                            }}
-                          >
-                            <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'currentColor', display: 'block' }} />
-                            <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'currentColor', display: 'block' }} />
-                            <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'currentColor', display: 'block' }} />
+                              fontWeight: '800',
+                              fontSize: '15px',
+                              flexShrink: 0,
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              border: '1px solid rgba(255, 255, 255, 0.4)',
+                            }}>
+                              {u.full_name ? u.full_name.charAt(0).toUpperCase() : u.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>{u.full_name}</span>
+                                {isCurrentSelf && (
+                                  <span style={{
+                                    background: '#eff6ff',
+                                    color: '#2563eb',
+                                    border: '1px solid #bfdbfe',
+                                    padding: '1px 7px',
+                                    borderRadius: '999px',
+                                    fontSize: '10.5px',
+                                    fontWeight: '700'
+                                  }}>
+                                    Bạn
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#64748b', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', marginTop: '2px' }}>
+                                @{u.username}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Email & Phone */}
+                        <td style={{ padding: '14px 16px', color: '#334155' }}>
+                          <div style={{ fontSize: '13px', fontWeight: '500' }}>
+                            {u.email || <span style={{ color: '#94a3b8' }}>Chưa cập nhật email</span>}
+                          </div>
+                          {u.phone && (
+                            <div style={{ fontSize: '12px', color: '#0284c7', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span>📞</span>
+                              <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>{u.phone}</span>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Vai trò */}
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {(() => {
+                              const allRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
+                              const nonCustomerRoles = allRoles.filter((r) => r !== 'customer');
+                              const displayRoles = nonCustomerRoles.length > 0 ? nonCustomerRoles : ['customer'];
+                              return displayRoles.map((rCode) => {
+                                const rMeta = ROLES_LIST.find((item) => item.role === rCode);
+                                const color = rMeta?.badgeColor || u.badge_color || '#2563eb';
+                                const title = rMeta?.title || (rCode === 'customer' ? 'Chờ cấp quyền' : rCode);
+                                return (
+                                  <span
+                                    key={rCode}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      padding: '3px 9px',
+                                      borderRadius: '999px',
+                                      background: `${color}14`,
+                                      color: color,
+                                      fontWeight: '700',
+                                      fontSize: '11.5px',
+                                      border: `1px solid ${color}30`,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }} />
+                                    {title}
+                                  </span>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </td>
+
+                        {/* Kho / Địa bàn */}
+                        <td style={{ padding: '14px 16px', color: '#334155', fontSize: '13px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span>📍</span>
+                            <span>{u.branch || 'Kho Tổng Hà Nội'}</span>
                           </span>
-                        </button>
+                        </td>
 
-                        {/* Menu thả xuống - Tự động mở lên trên nếu ở cuối danh sách để không bao giờ bị che */}
-                        {activeDropdownUserId === u.id && (() => {
-                          const openUpward = filteredUsers.length > 3 && idx >= filteredUsers.length - 2;
-                          return (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                right: 0,
-                                ...(openUpward
-                                  ? { bottom: 'calc(100% + 8px)' }
-                                  : { top: 'calc(100% + 8px)' }),
-                                background: '#1e293b',
-                                border: '1px solid #475569',
-                                borderRadius: '12px',
-                                boxShadow: '0 16px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 0, 0, 0.4)',
-                                minWidth: '185px',
-                                zIndex: 9999,
-                                padding: '6px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '4px',
-                                textAlign: 'left',
-                                animation: 'fadeIn 0.15s ease-out',
-                              }}
-                            >
-                              {/* Nút Phân vai trò & Kho/Địa bàn */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveDropdownUserId(null);
-                                  openEditModal(u);
-                                }}
-                              style={{
-                                display: 'flex',
+                        {/* Trạng thái & Cảnh báo bàn giao */}
+                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+                            {isActive ? (
+                              <span style={{
+                                display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '10px',
-                                width: '100%',
-                                padding: '8px 12px',
-                                borderRadius: '6px',
-                                border: 'none',
-                                background: 'transparent',
-                                color: '#e2e8f0',
-                                fontSize: '13px',
-                                fontWeight: '500',
-                                cursor: 'pointer',
-                                transition: 'all 0.12s ease',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)';
-                                e.currentTarget.style.color = '#a5b4fc';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.color = '#e2e8f0';
-                              }}
-                            >
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                              </svg>
-                              <span>Phân vai trò & Kho/Địa bàn</span>
-                            </button>
+                                gap: '5px',
+                                color: '#15803d',
+                                background: '#dcfce7',
+                                border: '1px solid #bbf7d0',
+                                padding: '3px 10px',
+                                borderRadius: '999px',
+                                fontSize: '12px',
+                                fontWeight: '700'
+                              }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }} />
+                                Hoạt động
+                              </span>
+                            ) : (
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                color: '#b91c1c',
+                                background: '#fee2e2',
+                                border: '1px solid #fecaca',
+                                padding: '3px 10px',
+                                borderRadius: '999px',
+                                fontSize: '12px',
+                                fontWeight: '700'
+                              }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626' }} />
+                                Tạm khóa
+                              </span>
+                            )}
 
-                            {/* Nút Bàn giao đại lý (nếu có đại lý cần bàn giao) */}
+                            {/* Cảnh báo bàn giao đại lý (AC 3) */}
                             {u.dealers_needing_handover > 0 && (
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setActiveDropdownUserId(null);
-                                  openHandoverModal(u);
-                                }}
+                                onClick={() => openHandoverModal(u)}
+                                title={`Có ${u.dealers_needing_handover} đại lý cần bàn giao gấp`}
                                 style={{
-                                  display: 'flex',
+                                  display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '10px',
-                                  width: '100%',
-                                  padding: '8px 12px',
+                                  gap: '4px',
+                                  background: '#fef3c7',
+                                  border: '1px solid #fde68a',
+                                  color: '#b45309',
+                                  padding: '2px 8px',
                                   borderRadius: '6px',
-                                  border: 'none',
-                                  background: 'rgba(245, 158, 11, 0.1)',
-                                  color: '#fbbf24',
-                                  fontSize: '13px',
-                                  fontWeight: '600',
+                                  fontSize: '11px',
+                                  fontWeight: '700',
                                   cursor: 'pointer',
-                                  transition: 'all 0.12s ease',
+                                  transition: 'all 0.15s ease',
                                 }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.25)';
-                                  e.currentTarget.style.color = '#fde68a';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'rgba(245, 158, 11, 0.1)';
-                                  e.currentTarget.style.color = '#fbbf24';
-                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = '#fde68a')}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = '#fef3c7')}
                               >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="23 4 23 10 17 10" />
-                                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                                </svg>
-                                <span>Bàn giao đại lý ({u.dealers_needing_handover})</span>
+                                ⚠️ Bàn giao ({u.dealers_needing_handover})
                               </button>
                             )}
+                          </div>
+                        </td>
 
-                            {/* Đường kẻ phân cách */}
-                            <div style={{ height: '1px', background: '#334155', margin: '2px 0' }} />
+                        {/* Quyền hạn bảo mật */}
+                        <td style={{ padding: '14px 16px', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <span style={{ color: u.can_view_cost ? '#15803d' : '#94a3b8', fontWeight: u.can_view_cost ? '600' : 'normal' }}>
+                              {u.can_view_cost ? '✓ Xem giá vốn & lãi' : '— Ẩn giá vốn & lãi'}
+                            </span>
+                            <span style={{ color: u.can_write_inventory ? '#0284c7' : '#94a3b8', fontWeight: u.can_write_inventory ? '600' : 'normal' }}>
+                              {u.can_write_inventory ? '✓ Nhập/xuất/sửa kho' : '— Chặn thao tác kho'}
+                            </span>
+                          </div>
+                        </td>
 
-                            {/* Nút Xóa hoặc Không thể xóa */}
-                            {isCurrentSelf ? (
-                              <div
-                                title="Không được tự xóa tài khoản Admin của chính mình"
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '10px',
-                                  width: '100%',
-                                  padding: '8px 12px',
-                                  borderRadius: '6px',
-                                  color: '#64748b',
-                                  fontSize: '13px',
-                                  cursor: 'not-allowed',
-                                  boxSizing: 'border-box'
-                                }}
-                              >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                </svg>
-                                <span>Không thể xóa</span>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveDropdownUserId(null);
-                                  openDeleteConfirm(u);
-                                }}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '10px',
-                                  width: '100%',
-                                  padding: '8px 12px',
-                                  borderRadius: '6px',
-                                  border: 'none',
-                                  background: 'transparent',
-                                  color: '#f87171',
-                                  fontSize: '13px',
-                                  fontWeight: '500',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.12s ease',
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-                                  e.currentTarget.style.color = '#fca5a5';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'transparent';
-                                  e.currentTarget.style.color = '#f87171';
-                                }}
-                              >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                </svg>
-                                <span>Xóa tài khoản</span>
-                              </button>
-                            )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
+                        {/* Thao tác (Nút 3 chấm) */}
+                        <td style={{ padding: '14px 16px', textAlign: 'center', position: 'relative' }}>
+                          <div className="user-action-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdownUserId((prev) => (prev === u.id ? null : u.id));
+                              }}
+                              title="Tùy chọn thao tác"
+                              style={{
+                                width: '34px',
+                                height: '34px',
+                                borderRadius: '8px',
+                                border: activeDropdownUserId === u.id
+                                  ? '1px solid #2563eb'
+                                  : '1px solid #e2e8f0',
+                                background: activeDropdownUserId === u.id
+                                  ? '#eff6ff'
+                                  : '#ffffff',
+                                color: activeDropdownUserId === u.id ? '#1d4ed8' : '#64748b',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease',
+                                boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                              }}
+                              onMouseEnter={(e) => {
+                                if (activeDropdownUserId !== u.id) {
+                                  e.currentTarget.style.background = '#f8fafc';
+                                  e.currentTarget.style.color = '#0f172a';
+                                  e.currentTarget.style.borderColor = '#cbd5e1';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (activeDropdownUserId !== u.id) {
+                                  e.currentTarget.style.background = '#ffffff';
+                                  e.currentTarget.style.color = '#64748b';
+                                  e.currentTarget.style.borderColor = '#e2e8f0';
+                                }
+                              }}
+                            >
+                              <span style={{ display: 'flex', flexDirection: 'column', gap: '3px', pointerEvents: 'none', margin: 'auto' }}>
+                                <span style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'currentColor' }} />
+                                <span style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'currentColor' }} />
+                                <span style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'currentColor' }} />
+                              </span>
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            {activeDropdownUserId === u.id && (() => {
+                              const openUpward = paginatedUsers.length > 3 && idx >= paginatedUsers.length - 2;
+                              return (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    ...(openUpward
+                                      ? { bottom: 'calc(100% + 8px)' }
+                                      : { top: 'calc(100% + 8px)' }),
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                                    minWidth: '200px',
+                                    zIndex: 9999,
+                                    padding: '6px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '4px',
+                                    textAlign: 'left',
+                                    animation: 'popoverIn 0.15s ease-out',
+                                  }}
+                                >
+                                  {/* Nút Phân vai trò & Kho */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveDropdownUserId(null);
+                                      openEditModal(u);
+                                    }}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '10px',
+                                      width: '100%',
+                                      padding: '9px 12px',
+                                      borderRadius: '8px',
+                                      border: 'none',
+                                      background: 'transparent',
+                                      color: '#334155',
+                                      fontSize: '13px',
+                                      fontWeight: '500',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.15s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = '#eff6ff';
+                                      e.currentTarget.style.color = '#1d4ed8';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'transparent';
+                                      e.currentTarget.style.color = '#334155';
+                                    }}
+                                  >
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                    </svg>
+                                    <span>Phân vai trò & Kho</span>
+                                  </button>
+
+                                  {/* Nút Bàn giao đại lý */}
+                                  {u.dealers_needing_handover > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveDropdownUserId(null);
+                                        openHandoverModal(u);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        width: '100%',
+                                        padding: '9px 12px',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        background: '#fef3c7',
+                                        color: '#b45309',
+                                        fontSize: '13px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = '#fde68a';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = '#fef3c7';
+                                      }}
+                                    >
+                                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="23 4 23 10 17 10" />
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                                      </svg>
+                                      <span>Bàn giao đại lý ({u.dealers_needing_handover})</span>
+                                    </button>
+                                  )}
+
+                                  <div style={{ height: '1px', background: '#e2e8f0', margin: '2px 0' }} />
+
+                                  {/* Nút Xóa / Chặn tự xóa */}
+                                  {isCurrentSelf ? (
+                                    <div
+                                      title="Không được tự xóa tài khoản Admin của chính mình"
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        width: '100%',
+                                        padding: '9px 12px',
+                                        borderRadius: '8px',
+                                        color: '#94a3b8',
+                                        fontSize: '12.5px',
+                                        cursor: 'not-allowed',
+                                        boxSizing: 'border-box'
+                                      }}
+                                    >
+                                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                      </svg>
+                                      <span>Không thể tự xóa</span>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setActiveDropdownUserId(null);
+                                        openDeleteConfirm(u);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        width: '100%',
+                                        padding: '9px 12px',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        background: 'transparent',
+                                        color: '#dc2626',
+                                        fontSize: '13px',
+                                        fontWeight: '500',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.background = '#fee2e2';
+                                        e.currentTarget.style.color = '#b91c1c';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = '#dc2626';
+                                      }}
+                                    >
+                                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="3 6 5 6 21 6" />
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                      </svg>
+                                      <span>Xóa tài khoản</span>
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Phân Trang Chuẩn Enterprise (Mặc định 20 dòng/trang) */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '14px',
+              marginTop: '18px',
+              paddingTop: '16px',
+              borderTop: '1px solid #e2e8f0',
+              fontSize: '13px',
+              color: '#64748b',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span>Hiển thị</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#0f172a',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                  }}
+                >
+                  <option value={10}>10 dòng</option>
+                  <option value={20}>20 dòng</option>
+                  <option value={50}>50 dòng</option>
+                  <option value={100}>100 dòng</option>
+                </select>
+              </div>
+
+              {/* Điều hướng trang: Chỉ hiển thị khi có từ 2 trang trở lên (tức tổng số dòng vượt quá số dòng / trang) */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: safeCurrentPage <= 1 ? '#f8fafc' : '#ffffff',
+                      color: safeCurrentPage <= 1 ? '#94a3b8' : '#0f172a',
+                      cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      transition: 'all 0.15s ease',
+                      boxShadow: safeCurrentPage <= 1 ? 'none' : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                    }}
+                  >
+                    ← Trước
+                  </button>
+
+                  <span style={{ padding: '0 6px', fontWeight: '600', color: '#334155' }}>
+                    Trang {safeCurrentPage} / {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={safeCurrentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      background: safeCurrentPage >= totalPages ? '#f8fafc' : '#ffffff',
+                      color: safeCurrentPage >= totalPages ? '#94a3b8' : '#0f172a',
+                      cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      transition: 'all 0.15s ease',
+                      boxShadow: safeCurrentPage >= totalPages ? 'none' : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                    }}
+                  >
+                    Sau →
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
@@ -1149,8 +1348,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           left: 0,
           width: '100vw',
           height: '100vh',
-          background: 'rgba(11, 17, 32, 0.82)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1158,46 +1358,51 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           padding: '20px'
         }}>
           <div style={{
-            background: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '18px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
             width: '100%',
             maxWidth: '560px',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)',
+            maxHeight: 'calc(100vh - 48px)',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             overflow: 'hidden',
-            color: '#f8fafc',
+            color: '#0f172a',
+            animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}>
             {/* Header Modal Edit */}
             <div style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid #334155',
+              padding: '16px 20px',
+              borderBottom: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              background: 'rgba(15, 23, 42, 0.6)'
+              background: '#f8fafc',
+              flexShrink: 0
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{
-                  width: '38px',
-                  height: '38px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '10px',
-                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.25))',
-                  border: '1px solid rgba(129, 140, 248, 0.4)',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0
                 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                     <path d="M9 12l2 2 4-4" />
                   </svg>
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '17px', fontWeight: '700', margin: 0, color: '#f8fafc' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '700', margin: 0, color: '#0f172a' }}>
                     Phân Vai Trò & Kho/Địa Bàn Phụ Trách
                   </h3>
-                  <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>
                     Tài khoản: @{userToEdit.username} (ID: #{userToEdit.id})
                   </span>
                 </div>
@@ -1205,25 +1410,41 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               <button
                 onClick={() => setUserToEdit(null)}
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#94a3b8',
-                  fontSize: '20px',
+                  background: '#f1f5f9',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '50%',
+                  color: '#64748b',
+                  fontSize: '15px',
                   cursor: 'pointer',
-                  padding: '4px'
+                  width: '30px',
+                  height: '30px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
                 }}
               >
                 ✕
               </button>
             </div>
 
-            {/* Form Edit */}
-            <form onSubmit={handleUpdateUser} style={{ padding: '24px' }}>
+            {/* Form Edit (Ẩn thanh cuộn trực quan nhưng vẫn cuộn/di chuột mượt mà) */}
+            <form
+              onSubmit={handleUpdateUser}
+              className="no-scrollbar-form"
+              style={{
+                padding: '20px',
+                overflowY: 'auto',
+                flex: 1,
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none'
+              }}
+            >
               {editModalError && (
                 <div style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  color: '#fca5a5',
+                  background: '#fee2e2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
                   padding: '10px 14px',
                   borderRadius: '10px',
                   fontSize: '13px',
@@ -1233,29 +1454,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 </div>
               )}
 
-              {/* Ràng buộc bảo vệ Admin */}
-              {userToEdit.username.toLowerCase() === currentUser.username.toLowerCase() && (
-                <div style={{
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  color: '#fde68a',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  fontSize: '12.5px',
-                  marginBottom: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <span>🔒</span>
-                  <span><strong>Bảo vệ hệ thống:</strong> Đây là tài khoản Quản trị viên của bạn. Hệ thống nghiêm cấm tự hạ quyền hoặc tự khóa tài khoản của chính mình.</span>
-                </div>
-              )}
+              {/* Ràng buộc bảo mật: Ngầm thực thi ở checkbox và logic API bên dưới, không cần hiển thị khung cảnh báo */}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {/* Họ và tên */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
                     Họ và tên <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <input
@@ -1265,21 +1469,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     onChange={(e) => setEditFormData({ ...editFormData, full_name: e.target.value })}
                     style={{
                       width: '100%',
-                      padding: '10px 14px',
+                      padding: '8px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #475569',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      fontSize: '14px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      fontSize: '13.5px',
                       boxSizing: 'border-box'
                     }}
                   />
                 </div>
 
                 {/* Email và Username */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#94a3b8', marginBottom: '6px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>
                       Email (Cố định)
                     </label>
                     <input
@@ -1289,12 +1493,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       value={editFormData.email}
                       style={{
                         width: '100%',
-                        padding: '10px 14px',
+                        padding: '8px 12px',
                         borderRadius: '8px',
-                        border: '1px solid #334155',
-                        background: '#1e293b',
+                        border: '1px solid #e2e8f0',
+                        background: '#f8fafc',
                         color: '#64748b',
-                        fontSize: '14px',
+                        fontSize: '13.5px',
                         boxSizing: 'border-box',
                         cursor: 'not-allowed'
                       }}
@@ -1302,7 +1506,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#94a3b8', marginBottom: '6px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#64748b', marginBottom: '4px' }}>
                       Tên đăng nhập (Cố định)
                     </label>
                     <input
@@ -1311,12 +1515,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       value={userToEdit.username}
                       style={{
                         width: '100%',
-                        padding: '10px 14px',
+                        padding: '8px 12px',
                         borderRadius: '8px',
-                        border: '1px solid #334155',
-                        background: '#1e293b',
+                        border: '1px solid #e2e8f0',
+                        background: '#f8fafc',
                         color: '#64748b',
-                        fontSize: '14px',
+                        fontSize: '13.5px',
                         boxSizing: 'border-box',
                         cursor: 'not-allowed'
                       }}
@@ -1326,7 +1530,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                 {/* Số điện thoại */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
                     Số điện thoại liên hệ
                   </label>
                   <input
@@ -1336,116 +1540,107 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
                     style={{
                       width: '100%',
-                      padding: '10px 14px',
+                      padding: '8px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #475569',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      fontSize: '14px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      fontSize: '13.5px',
                       boxSizing: 'border-box'
                     }}
                   />
                 </div>
 
-
                 {/* Chọn nhiều Vai trò (Trong 7 vai trò hệ thống) */}
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#cbd5e1' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
                       Vai trò hệ thống (Gán nhiều vai trò cùng lúc) <span style={{ color: '#ef4444' }}>*</span>
                     </label>
-                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                      Đã chọn: <strong style={{ color: '#38bdf8' }}>{editFormData.roles?.length || 0}</strong> vai trò
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>
+                      Đã chọn: <strong style={{ color: '#2563eb' }}>{editFormData.roles?.length || 0}</strong> vai trò
                     </span>
                   </div>
 
-                  {/* Danh sách vai trò: Admin có quyền cấp quyền Admin cho bất kỳ nhân viên nào */}
-                    <div
-                      className="roles-grid-scroll"
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                        gap: '10px',
-                        background: '#0f172a',
-                        border: '1px solid #334155',
-                        borderRadius: '10px',
-                        padding: '12px',
-                        maxHeight: '230px',
-                        overflowY: 'auto',
-                        scrollbarWidth: 'none',
-                        msOverflowStyle: 'none',
-                      }}
-                    >
-                      {ROLES_LIST.map((r) => {
-                        const currentRoles = editFormData.roles || [];
-                        const isChecked = currentRoles.includes(r.role);
-                        const isSelf = userToEdit.username.toLowerCase() === currentUser.username.toLowerCase();
-                        // Chỉ cấm bỏ tích Admin khi đang sửa chính tài khoản Admin của bản thân
-                        const isSelfAdminRole = isSelf && r.role === 'admin' && (userToEdit.roles || [userToEdit.role]).includes('admin');
-                        const isDisabled = isSelfAdminRole;
+                  {/* Danh sách vai trò */}
+                  <div
+                    className="roles-grid-scroll"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+                      gap: '8px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '10px',
+                      padding: '10px',
+                      maxHeight: '190px',
+                      overflowY: 'auto',
+                      scrollbarWidth: 'none',
+                      msOverflowStyle: 'none',
+                    }}
+                  >
+                    {ROLES_LIST.map((r) => {
+                      const currentRoles = editFormData.roles || [];
+                      const isChecked = currentRoles.includes(r.role);
+                      const isSelf = userToEdit.username.toLowerCase() === currentUser.username.toLowerCase();
+                      const isSelfAdminRole = isSelf && r.role === 'admin' && (userToEdit.roles || [userToEdit.role]).includes('admin');
+                      const isDisabled = isSelfAdminRole;
 
-                        return (
-                          <label
-                            key={r.role}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: '12px',
-                              padding: '10px 12px',
-                              borderRadius: '10px',
-                              border: `1px solid ${isChecked ? r.badgeColor : 'rgba(51, 65, 85, 0.7)'}`,
-                              background: isChecked ? `${r.badgeColor}15` : 'rgba(15, 23, 42, 0.6)',
-                              cursor: isDisabled ? 'not-allowed' : 'pointer',
-                              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                              boxShadow: isChecked ? `0 2px 10px ${r.badgeColor}22` : 'none',
+                      return (
+                        <label
+                          key={r.role}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '12px',
+                            padding: '10px 12px',
+                            borderRadius: '10px',
+                            border: `1px solid ${isChecked ? r.badgeColor : '#e2e8f0'}`,
+                            background: isChecked ? `${r.badgeColor}12` : '#ffffff',
+                            cursor: isDisabled ? 'not-allowed' : 'pointer',
+                            opacity: isDisabled ? 0.85 : 1,
+                            transition: 'all 0.15s ease',
+                            boxShadow: isChecked ? `0 2px 6px ${r.badgeColor}18` : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            disabled={isDisabled}
+                            onChange={(e) => {
+                              if (isDisabled) return;
+                              const checked = e.target.checked;
+                              let nextRoles: string[];
+                              if (checked) {
+                                nextRoles = [...currentRoles.filter((code) => code !== r.role), r.role];
+                              } else {
+                                nextRoles = currentRoles.filter((code) => code !== r.role);
+                              }
+                              setEditFormData({
+                                ...editFormData,
+                                role: nextRoles[0] || 'sales',
+                                roles: nextRoles,
+                              });
                             }}
-                            title={
-                              isSelfAdminRole
-                                ? 'Bạn không thể tự thu hồi vai trò Quản trị viên của chính mình'
-                                : undefined
-                            }
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              disabled={isDisabled}
-                              onChange={(e) => {
-                                if (isDisabled) return;
-                                const checked = e.target.checked;
-                                let nextRoles: string[];
-                                if (checked) {
-                                  nextRoles = [...currentRoles.filter((code) => code !== r.role), r.role];
-                                } else {
-                                  nextRoles = currentRoles.filter((code) => code !== r.role);
-                                }
-                                setEditFormData({
-                                  ...editFormData,
-                                  role: nextRoles[0] || 'sales',
-                                  roles: nextRoles,
-                                });
-                              }}
-                              style={{ marginTop: '2px', cursor: isDisabled ? 'not-allowed' : 'pointer', accentColor: r.badgeColor, width: '16px', height: '16px' }}
-                            />
-                            <div style={{ fontSize: '12.5px', lineHeight: '1.4' }}>
-                              <div style={{ fontWeight: '700', color: isChecked ? r.badgeColor : '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {r.title}
-                                {r.role === 'admin' && isChecked && (
-                                  <span style={{ fontSize: '10.5px', color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)', padding: '1px 6px', borderRadius: '4px' }}>
-                                    Toàn quyền
-                                  </span>
-                                )}
-                                {isSelfAdminRole && (
-                                  <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '500' }}>🔒 Bắt buộc</span>
-                                )}
-                              </div>
-                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
-                                {r.description}
-                              </div>
+                            style={{ marginTop: '2px', cursor: isDisabled ? 'not-allowed' : 'pointer', accentColor: r.badgeColor, width: '16px', height: '16px' }}
+                          />
+                          <div style={{ fontSize: '12.5px', lineHeight: '1.4' }}>
+                            <div style={{ fontWeight: '700', color: isChecked ? r.badgeColor : '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {r.title}
+                              {r.role === 'admin' && isChecked && (
+                                <span style={{ fontSize: '10.5px', color: '#b91c1c', background: '#fee2e2', padding: '1px 6px', borderRadius: '4px' }}>
+                                  Toàn quyền
+                                </span>
+                              )}
                             </div>
-                          </label>
-                        );
-                      })}
-                    </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
+                              {r.description}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
 
                   {/* Cảnh báo ràng buộc kho nếu có vai trò kho */}
                   {!((editFormData.roles || []).includes('admin')) && hasWarehouseRole(editFormData.roles || []) && (
@@ -1453,10 +1648,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       marginTop: '8px',
                       padding: '8px 12px',
                       borderRadius: '8px',
-                      background: 'rgba(16, 185, 129, 0.12)',
-                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      background: '#dcfce7',
+                      border: '1px solid #bbf7d0',
                       fontSize: '12px',
-                      color: '#6ee7b7',
+                      color: '#15803d',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px'
@@ -1469,7 +1664,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                 {/* Kho / Địa bàn phụ trách */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
                     Kho / Địa bàn phụ trách <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <select
@@ -1477,12 +1672,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     onChange={(e) => setEditFormData({ ...editFormData, branch: e.target.value })}
                     style={{
                       width: '100%',
-                      padding: '10px 14px',
+                      padding: '8px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #475569',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      fontSize: '14px',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#0f172a',
+                      fontSize: '13.5px',
                       boxSizing: 'border-box',
                       cursor: 'pointer'
                     }}
@@ -1497,7 +1692,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
                 {/* Trạng thái tài khoản */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#cbd5e1', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '4px' }}>
                     Trạng thái hoạt động
                   </label>
                   <select
@@ -1506,13 +1701,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     onChange={(e) => setEditFormData({ ...editFormData, is_active: e.target.value === 'true' })}
                     style={{
                       width: '100%',
-                      padding: '10px 14px',
+                      padding: '8px 12px',
                       borderRadius: '8px',
-                      border: '1px solid #475569',
-                      background: userToEdit.username.toLowerCase() === currentUser.username.toLowerCase() ? '#1e293b' : '#0f172a',
-                      color: editFormData.is_active ? '#34d399' : '#f87171',
+                      border: '1px solid #cbd5e1',
+                      background: userToEdit.username.toLowerCase() === currentUser.username.toLowerCase() ? '#f8fafc' : '#ffffff',
+                      color: editFormData.is_active ? '#15803d' : '#b91c1c',
                       fontWeight: '600',
-                      fontSize: '14px',
+                      fontSize: '13.5px',
                       boxSizing: 'border-box',
                       cursor: userToEdit.username.toLowerCase() === currentUser.username.toLowerCase() ? 'not-allowed' : 'pointer'
                     }}
@@ -1527,12 +1722,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   <div style={{
                     marginTop: '4px',
                     padding: '14px',
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
                     borderRadius: '8px',
                     animation: 'fadeIn 0.2s ease-in-out'
                   }}>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#fca5a5', marginBottom: '6px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#b91c1c', marginBottom: '6px' }}>
                       Lý do khóa tài khoản <span style={{ color: '#ef4444' }}>*</span>
                     </label>
                     <textarea
@@ -1545,9 +1740,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         width: '100%',
                         padding: '10px 14px',
                         borderRadius: '8px',
-                        border: !editFormData.lock_reason.trim() ? '1px solid #ef4444' : '1px solid #475569',
-                        background: '#0f172a',
-                        color: '#f8fafc',
+                        border: !editFormData.lock_reason.trim() ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                        background: '#ffffff',
+                        color: '#0f172a',
                         fontSize: '13.5px',
                         boxSizing: 'border-box',
                         resize: 'vertical',
@@ -1556,11 +1751,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       }}
                     />
                     {!editFormData.lock_reason.trim() ? (
-                      <span style={{ fontSize: '12px', color: '#f87171', display: 'block', marginTop: '4px' }}>
+                      <span style={{ fontSize: '12px', color: '#dc2626', display: 'block', marginTop: '4px' }}>
                         ⚠️ Bắt buộc phải nhập lý do khóa để lưu thay đổi.
                       </span>
                     ) : (
-                      <span style={{ fontSize: '12px', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b', display: 'block', marginTop: '4px' }}>
                         ℹ️ Lý do này sẽ được thông báo khi người dùng thử đăng nhập và lưu trong nhật ký hệ thống.
                       </span>
                     )}
@@ -1574,25 +1769,25 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 display: 'flex',
                 justifyContent: 'flex-end',
                 gap: '12px',
-                borderTop: '1px solid #334155',
+                borderTop: '1px solid #e2e8f0',
                 paddingTop: '18px'
               }}>
                 <button
                   type="button"
                   onClick={() => setUserToEdit(null)}
                   style={{
-                    background: 'rgba(51, 65, 85, 0.6)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '10px',
-                    color: '#cbd5e1',
+                    background: '#f1f5f9',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    color: '#475569',
                     padding: '10px 20px',
                     fontSize: '13.5px',
                     fontWeight: '600',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(71, 85, 105, 0.8)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(51, 65, 85, 0.6)')}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
                 >
                   Hủy bỏ
                 </button>
@@ -1601,10 +1796,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   disabled={isSubmittingEdit || (!editFormData.is_active && !editFormData.lock_reason.trim())}
                   style={{
                     background: (!editFormData.is_active && !editFormData.lock_reason.trim())
-                      ? '#475569'
-                      : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                      ? '#94a3b8'
+                      : 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                     border: 'none',
-                    borderRadius: '10px',
+                    borderRadius: '8px',
                     color: '#ffffff',
                     padding: '10px 24px',
                     fontSize: '13.5px',
@@ -1614,20 +1809,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       : 'pointer',
                     boxShadow: (!editFormData.is_active && !editFormData.lock_reason.trim())
                       ? 'none'
-                      : '0 4px 16px rgba(99, 102, 241, 0.45)',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSubmittingEdit && (editFormData.is_active || editFormData.lock_reason.trim())) {
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(99, 102, 241, 0.6)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'none';
-                    e.currentTarget.style.boxShadow = (!editFormData.is_active && !editFormData.lock_reason.trim())
-                      ? 'none'
-                      : '0 4px 16px rgba(99, 102, 241, 0.45)';
+                      : '0 2px 6px rgba(37, 99, 235, 0.35)',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   {isSubmittingEdit ? 'Đang lưu...' : 'Lưu Thay Đổi'}
@@ -1646,8 +1829,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           left: 0,
           width: '100vw',
           height: '100vh',
-          background: 'rgba(11, 17, 32, 0.85)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1655,25 +1839,26 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           padding: '20px'
         }}>
           <div style={{
-            background: '#1e293b',
-            border: '1px solid rgba(239, 68, 68, 0.4)',
-            borderRadius: '18px',
+            background: '#ffffff',
+            border: '1px solid #fee2e2',
+            borderRadius: '16px',
             width: '100%',
-            maxWidth: '460px',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7), 0 0 30px rgba(239, 68, 68, 0.15)',
+            maxWidth: '480px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             overflow: 'hidden',
-            color: '#f8fafc',
+            color: '#0f172a',
             textAlign: 'center',
-            padding: '28px 24px',
+            padding: '32px 28px',
+            animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}>
             {/* Warning Icon */}
             <div style={{
               width: '64px',
               height: '64px',
               borderRadius: '50%',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '2px solid rgba(239, 68, 68, 0.4)',
-              color: '#ef4444',
+              background: '#fee2e2',
+              border: '2px solid #fecaca',
+              color: '#dc2626',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -1683,36 +1868,37 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               ⚠️
             </div>
 
-            <h3 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 10px', color: '#f8fafc' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 10px', color: '#0f172a' }}>
               Xác Nhận Xóa Tài Khoản?
             </h3>
 
-            <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.6', margin: '0 0 18px' }}>
-              Bạn có chắc chắn muốn xóa tài khoản <strong style={{ color: '#f87171' }}>"{userToDelete.full_name}"</strong> (@{userToDelete.username}) khỏi hệ thống?
+            <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: '0 0 18px' }}>
+              Bạn có chắc chắn muốn xóa tài khoản <strong style={{ color: '#b91c1c' }}>"{userToDelete.full_name}"</strong> (@{userToDelete.username}) khỏi hệ thống?
             </p>
 
             <div style={{
-              background: '#0f172a',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
               borderRadius: '10px',
               padding: '12px 16px',
               marginBottom: '20px',
               fontSize: '13px',
-              color: '#94a3b8',
+              color: '#64748b',
               textAlign: 'left',
               lineHeight: '1.6'
             }}>
               <div>• Vai trò: <strong style={{ color: userToDelete.badge_color }}>{userToDelete.role_title}</strong></div>
-              <div>• Địa bàn: <strong style={{ color: '#f8fafc' }}>{userToDelete.branch}</strong></div>
-              <div style={{ color: '#ef4444', marginTop: '4px' }}>
+              <div>• Địa bàn: <strong style={{ color: '#0f172a' }}>{userToDelete.branch}</strong></div>
+              <div style={{ color: '#dc2626', marginTop: '4px', fontWeight: '500' }}>
                 ⚠️ Dữ liệu tài khoản này sẽ bị xóa khỏi cơ sở dữ liệu và không thể hoàn tác.
               </div>
             </div>
 
             {deleteModalError && (
               <div style={{
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#fca5a5',
+                background: '#fee2e2',
+                border: '1px solid #fecaca',
+                color: '#b91c1c',
                 padding: '10px 14px',
                 borderRadius: '8px',
                 fontSize: '13px',
@@ -1729,10 +1915,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 onClick={() => setUserToDelete(null)}
                 disabled={isDeleting}
                 style={{
-                  background: '#334155',
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: '#e2e8f0',
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#475569',
                   padding: '10px 20px',
                   fontSize: '14px',
                   fontWeight: '600',
@@ -1748,13 +1934,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 style={{
                   background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
                   border: 'none',
-                  borderRadius: '10px',
+                  borderRadius: '8px',
                   color: '#ffffff',
                   padding: '10px 24px',
                   fontSize: '14px',
                   fontWeight: '700',
                   cursor: isDeleting ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.4)'
+                  boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
                 }}
               >
                 {isDeleting ? 'Đang xóa...' : 'Xác Nhận Xóa'}
@@ -1763,6 +1949,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           </div>
         </div>
       )}
+
       {/* POPUP 4 (Giữa màn hình): Quản lý & Bàn Giao Đại Lý Cần Chuyển Giao (AC 3) */}
       {handoverUser && (
         <div style={{
@@ -1771,39 +1958,41 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           left: 0,
           width: '100vw',
           height: '100vh',
-          background: 'rgba(11, 17, 32, 0.85)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000,
+          zIndex: 10000,
           padding: '20px'
         }}>
           <div style={{
-            background: '#1e293b',
-            border: '1px solid #f59e0b',
+            background: '#ffffff',
+            border: '1px solid #fde68a',
             borderRadius: '16px',
             width: '100%',
-            maxWidth: '620px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 20px rgba(245, 158, 11, 0.2)',
-            overflow: 'hidden'
+            maxWidth: '640px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            overflow: 'hidden',
+            animation: 'fadeInCard 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}>
             {/* Header */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '18px 24px',
-              borderBottom: '1px solid #334155',
-              background: 'rgba(245, 158, 11, 0.1)'
+              padding: '20px 24px',
+              borderBottom: '1px solid #fef3c7',
+              background: '#fffbeb'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '22px' }}>⚠️</span>
                 <div>
-                  <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#fef3c7' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#92400e' }}>
                     Bàn Giao Đại Lý - {handoverUser.full_name}
                   </h3>
-                  <p style={{ fontSize: '12.5px', color: '#cbd5e1', margin: '2px 0 0' }}>
+                  <p style={{ fontSize: '12.5px', color: '#b45309', margin: '2px 0 0' }}>
                     Nhân viên @{handoverUser.username} đang bị khóa tài khoản
                   </p>
                 </div>
@@ -1828,8 +2017,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             <div style={{ padding: '20px 24px', maxHeight: '70vh', overflowY: 'auto' }}>
               {/* Banner cảnh báo AC 3 */}
               <div style={{
-                background: 'rgba(245, 158, 11, 0.15)',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
                 borderRadius: '10px',
                 padding: '12px 16px',
                 marginBottom: '18px',
@@ -1838,10 +2027,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 gap: '12px'
               }}>
                 <span style={{ fontSize: '20px', flexShrink: 0 }}>🚨</span>
-                <div style={{ fontSize: '13px', color: '#fde68a', lineHeight: '1.5' }}>
+                <div style={{ fontSize: '13px', color: '#92400e', lineHeight: '1.5' }}>
                   <strong>Cảnh báo bàn giao phụ trách:</strong> Nhân viên phụ trách đã bị khóa tài khoản. Toàn bộ tính năng lên đơn hàng mới cho các đại lý này sẽ bị <strong>chặn hoàn toàn</strong> cho đến khi được bàn giao cho nhân viên mới còn hoạt động.
                   {handoverUser.lock_reason && (
-                    <div style={{ marginTop: '6px', color: '#f8fafc', fontStyle: 'italic' }}>
+                    <div style={{ marginTop: '6px', color: '#78350f', fontStyle: 'italic' }}>
                       "Lý do khóa: {handoverUser.lock_reason}"
                     </div>
                   )}
@@ -1850,21 +2039,22 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
               {/* Danh sách đại lý */}
               <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#f8fafc', marginBottom: '10px' }}>
+                <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', marginBottom: '10px' }}>
                   Danh sách đại lý cần bàn giao ({handoverDealers.length})
                 </h4>
 
                 {isLoadingDealers ? (
-                  <div style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
                     Đang tải danh sách đại lý...
                   </div>
                 ) : handoverDealers.length === 0 ? (
                   <div style={{
                     padding: '16px',
                     textAlign: 'center',
-                    background: '#0f172a',
+                    background: '#f8fafc',
                     borderRadius: '8px',
-                    color: '#94a3b8',
+                    border: '1px solid #e2e8f0',
+                    color: '#64748b',
                     fontSize: '13px'
                   }}>
                     Nhân viên này hiện không phụ trách đại lý nào.
@@ -1875,8 +2065,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       <div
                         key={d.id}
                         style={{
-                          background: '#0f172a',
-                          border: '1px solid #334155',
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
                           borderRadius: '8px',
                           padding: '10px 14px',
                           display: 'flex',
@@ -1886,17 +2076,17 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: '700', color: '#f8fafc', fontSize: '13.5px' }}>
-                            {d.name} <span style={{ color: '#38bdf8', fontSize: '12px' }}>({d.code})</span>
+                          <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '13.5px' }}>
+                            {d.name} <span style={{ color: '#0284c7', fontSize: '12px' }}>({d.code})</span>
                           </div>
-                          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
                             📞 {d.phone || 'Chưa có SĐT'} • 📍 {d.address || 'Chưa có địa chỉ'}
                           </div>
                         </div>
                         <span style={{
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          border: '1px solid rgba(239, 68, 68, 0.4)',
-                          color: '#fca5a5',
+                          background: '#fee2e2',
+                          border: '1px solid #fecaca',
+                          color: '#b91c1c',
                           padding: '2px 8px',
                           borderRadius: '6px',
                           fontSize: '11px',
@@ -1914,12 +2104,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               {/* Form chọn nhân viên bàn giao mới */}
               {handoverDealers.length > 0 && (
                 <div style={{
-                  background: '#0f172a',
-                  border: '1px solid #334155',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
                   borderRadius: '10px',
                   padding: '14px 16px',
                 }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#cbd5e1', marginBottom: '8px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
                     Chọn nhân viên phụ trách mới tiếp nhận <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <select
@@ -1929,9 +2119,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       width: '100%',
                       padding: '10px 14px',
                       borderRadius: '8px',
-                      border: '1px solid #475569',
-                      background: '#1e293b',
-                      color: '#f8fafc',
+                      border: '1px solid #cbd5e1',
+                      background: '#ffffff',
+                      color: '#0f172a',
                       fontSize: '13.5px',
                       boxSizing: 'border-box',
                       cursor: 'pointer'
@@ -1950,9 +2140,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
               {handoverModalError && (
                 <div style={{
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  color: '#fca5a5',
+                  background: '#fee2e2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
                   padding: '10px 14px',
                   borderRadius: '8px',
                   fontSize: '13px',
@@ -1966,21 +2156,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             {/* Footer */}
             <div style={{
               padding: '16px 24px',
-              borderTop: '1px solid #334155',
+              borderTop: '1px solid #e2e8f0',
               display: 'flex',
               justifyContent: 'flex-end',
               gap: '12px',
-              background: '#0f172a'
+              background: '#f8fafc'
             }}>
               <button
                 type="button"
                 onClick={() => setHandoverUser(null)}
                 disabled={isSubmittingHandover}
                 style={{
-                  background: '#334155',
-                  border: 'none',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
                   borderRadius: '8px',
-                  color: '#e2e8f0',
+                  color: '#475569',
                   padding: '10px 18px',
                   fontSize: '13.5px',
                   fontWeight: '600',
@@ -2003,7 +2193,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     fontSize: '13.5px',
                     fontWeight: '700',
                     cursor: (isSubmittingHandover || !targetSaleUsername) ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 12px rgba(217, 119, 6, 0.4)'
+                    boxShadow: '0 2px 6px rgba(217, 119, 6, 0.3)'
                   }}
                 >
                   {isSubmittingHandover ? 'Đang bàn giao...' : 'Xác Nhận Bàn Giao Ngay'}

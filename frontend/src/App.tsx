@@ -203,21 +203,8 @@ function App() {
     sessionManager.start(newToken);
   };
 
-  // Component video background động toàn trang web
-  const videoBackground = (
-    <div className="global-bg-video-wrapper" aria-hidden="true">
-      <video
-        className="global-bg-video"
-        autoPlay
-        loop
-        muted
-        playsInline
-      >
-        <source src="/bg-video.mp4" type="video/mp4" />
-      </video>
-      <div className="global-bg-video-overlay" />
-    </div>
-  );
+  // Nền sáng Clean Slate sang trọng
+  const videoBackground = null;
 
   // Nếu đã đăng nhập thành công
   if (currentUser && authToken) {
@@ -246,7 +233,7 @@ function App() {
     return (
       <>
         {videoBackground}
-        <main className="auth-page" style={{ background: 'transparent' }}>
+        <main className="auth-page">
         <section className="auth-card" aria-labelledby="page-title">
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <div
@@ -259,7 +246,7 @@ function App() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 10px 25px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35)',
+                boxShadow: '0 10px 25px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(255,255,255,0.08)',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
                 color: '#ffffff',
               }}
