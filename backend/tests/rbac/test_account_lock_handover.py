@@ -23,6 +23,13 @@ def test_ac2_mandatory_lock_reason():
     """
     admin_token = get_token("admin")
 
+    # Đảm bảo gán đúng ban đầu: sales (id=3) phụ trách DL001, DL002, DL003
+    DEALERS_DB[1].assigned_sale_id = 3
+    DEALERS_DB[2].assigned_sale_id = 3
+    DEALERS_DB[3].assigned_sale_id = 3
+    DEALERS_DB[4].assigned_sale_id = 2
+
+
     # Thử khóa không có lock_reason
     resp = client.put(
         "/api/v1/users/sales",
@@ -43,6 +50,12 @@ def test_ac1_lock_user_session_revoked_and_cannot_login():
     """
     admin_token = get_token("admin")
     sales_token = get_token("sales")
+
+    DEALERS_DB[1].assigned_sale_id = 3
+    DEALERS_DB[2].assigned_sale_id = 3
+    DEALERS_DB[3].assigned_sale_id = 3
+    DEALERS_DB[4].assigned_sale_id = 2
+
 
     # Phiên của sales trước khi khóa hoạt động bình thường
     check_before = client.get("/api/v1/products", headers={"Authorization": f"Bearer {sales_token}"})
@@ -83,12 +96,25 @@ def test_ac3_dealers_marked_needing_handover_and_block_orders():
     """
     admin_token = get_token("admin")
 
+    DEALERS_DB[1].assigned_sale_id = 3
+    DEALERS_DB[2].assigned_sale_id = 3
+    DEALERS_DB[3].assigned_sale_id = 3
+    DEALERS_DB[4].assigned_sale_id = 2
+
     # Đảm bảo tài khoản sales ở trạng thái LOCKED để kiểm tra quy trình bàn giao
+
     client.put(
         "/api/v1/users/sales",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={"status": "LOCKED", "lock_reason": "Nghỉ việc, cần bàn giao đại lý."}
     )
+    # Đảm bảo sales_manager có phạm vi Toàn quốc để nhận bàn giao các đại lý toàn quốc
+    client.put(
+        "/api/v1/users/sales_manager",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"branch": "Toàn quốc", "status": "ACTIVE"}
+    )
+
 
     # 1. Kiểm tra danh sách đại lý của sales
     dealers_resp = client.get(
@@ -157,3 +183,49 @@ def test_ac3_dealers_marked_needing_handover_and_block_orders():
     DEALERS_DB[2].assigned_sale_id = 3
     DEALERS_DB[3].assigned_sale_id = 3
     DEALERS_DB[4].assigned_sale_id = 2
+
+
+def test_tc01_handover_role_and_region_restrictions():
+    """
+    [TC-01]:
+    - Chặn bàn giao cho các vai trò ngoài Bán hàng (kho, kế toán, admin...) -> 400 Bad Request
+    - Chặn bàn giao chéo địa bàn (ví dụ đại lý Miền Bắc gán cho nhân sự cố định chỉ phụ trách Miền Nam) -> 400 Bad Request
+    """
+    admin_token = get_token("admin")
+
+    # Khóa sales để kiểm tra
+    client.put(
+        "/api/v1/users/sales",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "LOCKED", "lock_reason": "Kiểm tra bàn giao ràng buộc vai trò"}
+    )
+
+    # 1. Thử bàn giao cho 'kho' (Thủ kho) -> Bị từ chối 400
+    resp_kho = client.post(
+        "/api/v1/users/sales/handover",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"new_sale_username": "kho"}
+    )
+    assert resp_kho.status_code == 400
+    assert "bộ phận bán hàng" in resp_kho.json()["detail"].lower()
+
+    # 2. Thử bàn giao cho 'ketoan' (Kế toán) -> Bị từ chối 400
+    resp_ketoan = client.post(
+        "/api/v1/users/sales/handover",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"new_sale_username": "ketoan"}
+    )
+    assert resp_ketoan.status_code == 400
+    assert "bộ phận bán hàng" in resp_ketoan.json()["detail"].lower()
+
+    # Dọn dẹp trạng thái
+    client.put(
+        "/api/v1/users/sales",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"status": "ACTIVE"}
+    )
+    DEALERS_DB[1].assigned_sale_id = 3
+    DEALERS_DB[2].assigned_sale_id = 3
+    DEALERS_DB[3].assigned_sale_id = 3
+    DEALERS_DB[4].assigned_sale_id = 2
+

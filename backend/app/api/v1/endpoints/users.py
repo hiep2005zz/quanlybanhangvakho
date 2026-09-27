@@ -21,7 +21,36 @@ from app.services.customer_account import generate_temporary_password, send_cust
 router = APIRouter()
 
 from datetime import datetime, timezone
-from app.models.dealer import count_dealers_by_sale_id, get_dealers_by_sale_id, DEALERS_DB
+from app.models.dealer import count_dealers_by_sale_id, get_dealers_by_sale_id, DEALERS_DB, save_dealers_db, load_dealers_db
+
+
+# Ràng buộc TC-01: Chỉ sales hoặc sales_manager mới được tiếp nhận bàn giao đại lý
+SALES_ROLES = {"sales", "sales_manager"}
+
+def check_region_match(user_branch: str, dealer_address: str, source_user_branch: str = "") -> bool:
+    """Toàn quốc, Trụ sở chính, cùng Kho/Chi nhánh với người nguồn được nhận; ngược lại phải khớp vùng miền."""
+    ub = (user_branch or "").lower().strip()
+    if "toàn quốc" in ub or "trụ sở" in ub:
+        return True
+    
+    # Nếu người nhận cùng kho/chi nhánh với người nguồn (ví dụ cùng ở Kho Tổng Hà Nội)
+    sb = (source_user_branch or "").lower().strip()
+    if sb and ub and sb == ub:
+        return True
+
+    addr = (dealer_address or "").lower()
+    # Khu vực Miền Bắc
+    if ("miền bắc" in ub or "hà nội" in ub or "hải phòng" in ub) and any(x in addr for x in ["hà nội", "hải phòng", "bắc", "quảng ninh"]):
+        return True
+    # Khu vực Miền Trung
+    if ("miền trung" in ub or "đà nẵng" in ub or "huế" in ub) and any(x in addr for x in ["đà nẵng", "huế", "quảng", "nghệ an", "trung"]):
+        return True
+    # Khu vực Miền Nam
+    if ("miền nam" in ub or "hồ chí minh" in ub or "tp. hcm" in ub) and any(x in addr for x in ["hồ chí minh", "tp. hcm", "bình dương", "nam", "tân bình"]):
+        return True
+    return False
+
+
 
 def _build_user_item(u: UserInDB) -> UserItemResponse:
     roles = u.get_roles()
@@ -67,6 +96,7 @@ def list_users(
     """
     Lấy danh sách người dùng trong hệ thống (Chỉ dành cho Quản trị viên - Zero-Trust).
     """
+    load_dealers_db()
     users = [_build_user_item(u) for u in sorted(USERS_DB.values(), key=lambda x: x.id)]
     return UserListResponse(users=users, total=len(users))
 
@@ -465,6 +495,25 @@ def handover_dealers(
             detail=f"Nhân viên mới '{new_user.full_name}' cũng đang bị khóa tài khoản! Vui lòng chọn nhân viên đang hoạt động."
         )
 
+    # TC-01: Ràng buộc 1 - Vai trò (Role): Chỉ sales hoặc sales_manager
+    recipient_roles = set(new_user.get_roles())
+    if not recipient_roles.intersection(SALES_ROLES):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Chỉ có thể bàn giao đại lý cho nhân sự thuộc bộ phận Bán hàng / Kinh doanh (sales, sales_manager). Nhân viên '{new_user.full_name}' không hợp lệ."
+        )
+
+    # TC-01: Ràng buộc 2 - Địa bàn (Region): Khớp khu vực phụ trách
+    user_dealers = [d for d in DEALERS_DB.values() if d.assigned_sale_id == old_user.id]
+    for d in user_dealers:
+        if not check_region_match(getattr(new_user, "branch", ""), d.address or "", getattr(old_user, "branch", "")):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Địa bàn không phù hợp! Đại lý '{d.name}' ({d.address}) không thuộc khu vực phụ trách của '{new_user.full_name}' ({getattr(new_user, 'branch', '')})."
+            )
+
+
+
     # Chuyển toàn bộ đại lý sang nhân viên mới
     transferred_count = 0
     for d in DEALERS_DB.values():
@@ -472,24 +521,11 @@ def handover_dealers(
             d.assigned_sale_id = new_user.id
             transferred_count += 1
 
-    try:
-        from app.core.database import SessionLocal
-        from app.models.entities import DealerEntity
-        db = SessionLocal()
-        try:
-            db.query(DealerEntity).filter(DealerEntity.assigned_sale_id == old_user.id).update(
-                {DealerEntity.assigned_sale_id: new_user.id}
-            )
-            db.commit()
-        except Exception as sql_err:
-            db.rollback()
-            print(f"SQL Server handover update note: {sql_err}")
-        finally:
-            db.close()
-    except Exception as e:
-        print(f"Error connecting to SQL Server on handover: {e}")
+    # Lưu bền vững DEALERS_DB vào SQL Server và file JSON dự phòng
+    save_dealers_db()
 
     return {
+
         "status": "success",
         "message": f"Đã bàn giao thành công {transferred_count} đại lý từ '{old_user.full_name}' sang '{new_user.full_name}'.",
         "transferred_count": transferred_count,

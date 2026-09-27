@@ -56,6 +56,91 @@ DEALERS_DB: dict[int, Dealer] = {
     ),
 }
 
+import os
+import json
+
+DEALERS_JSON_PATH = os.path.join(os.path.dirname(__file__), "dealers_data.json")
+
+def save_dealers_db():
+    """Lưu DEALERS_DB vào cơ sở dữ liệu SQL Server (và đồng bộ JSON dự phòng)."""
+    try:
+        from app.core.database import SessionLocal
+        from app.models.entities import DealerEntity
+
+        db = SessionLocal()
+        try:
+            for k, d in DEALERS_DB.items():
+                db_dealer = db.query(DealerEntity).filter(DealerEntity.id == d.id).first()
+                if not db_dealer:
+                    db_dealer = db.query(DealerEntity).filter(DealerEntity.code == d.code).first()
+                if not db_dealer:
+                    db_dealer = DealerEntity(id=d.id, code=d.code, name=d.name)
+                    db.add(db_dealer)
+
+                db_dealer.code = d.code
+                db_dealer.name = d.name
+                db_dealer.phone = d.phone
+                db_dealer.email = d.email
+                db_dealer.address = d.address
+                db_dealer.assigned_sale_id = d.assigned_sale_id
+
+            db.commit()
+        except Exception as sql_err:
+            db.rollback()
+            print(f"SQL Server save dealers note: {sql_err}")
+        finally:
+            db.close()
+
+        # Đồng bộ ra JSON backup
+        data = {str(k): v.model_dump(mode="json") for k, v in DEALERS_DB.items()}
+        with open(DEALERS_JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving dealers db: {e}")
+
+def load_dealers_db():
+    """Nạp DEALERS_DB từ SQL Server Database (hoặc fallback sang JSON)."""
+    loaded_from_sql = False
+    try:
+        from app.core.database import SessionLocal
+        from app.models.entities import DealerEntity
+
+        db = SessionLocal()
+        try:
+            dealers_in_db = db.query(DealerEntity).all()
+            if dealers_in_db:
+                DEALERS_DB.clear()
+                for entity in dealers_in_db:
+                    d = Dealer(
+                        id=entity.id,
+                        code=entity.code,
+                        name=entity.name,
+                        phone=entity.phone,
+                        email=entity.email,
+                        address=entity.address,
+                        assigned_sale_id=entity.assigned_sale_id,
+                    )
+                    DEALERS_DB[entity.id] = d
+                loaded_from_sql = True
+        except Exception as sql_err:
+            print(f"SQL Server load dealers note: {sql_err}")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"Error connecting to SQL Server on dealer load: {e}")
+
+    if not loaded_from_sql and os.path.exists(DEALERS_JSON_PATH):
+        try:
+            with open(DEALERS_JSON_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                for k, v in data.items():
+                    DEALERS_DB[int(k)] = Dealer(**v)
+        except Exception as e:
+            print(f"Error loading dealers db from json: {e}")
+
+# Tự động nạp dữ liệu khi khởi động
+load_dealers_db()
+
 def count_dealers_by_sale_id(user_id: int) -> int:
     """Đếm số lượng đại lý/khách hàng do nhân viên phụ trách."""
     return sum(1 for d in DEALERS_DB.values() if d.assigned_sale_id == user_id)
@@ -63,3 +148,4 @@ def count_dealers_by_sale_id(user_id: int) -> int:
 def get_dealers_by_sale_id(user_id: int) -> List[Dealer]:
     """Lấy danh sách đại lý do nhân viên phụ trách."""
     return [d for d in DEALERS_DB.values() if d.assigned_sale_id == user_id]
+
