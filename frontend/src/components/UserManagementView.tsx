@@ -189,9 +189,15 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   useEffect(() => {
     loadUsers();
 
-    // Lắng nghe sự kiện tạo hoặc thay đổi tài khoản người dùng để tự động cập nhật ngay tức thì
-    const handleAccountsChanged = () => {
+    // Lắng nghe sự kiện tạo hoặc thay đổi tài khoản người dùng để tự động cập nhật ngay tức thì và hiện thông báo
+    const handleAccountsChanged = (e: any) => {
       loadUsers();
+      const msg = e?.detail?.message;
+      if (msg) {
+        setSuccessMessage(msg);
+      } else {
+        setSuccessMessage('✅ Tạo tài khoản thành công!');
+      }
     };
     window.addEventListener('USER_ACCOUNTS_CHANGED', handleAccountsChanged);
     return () => {

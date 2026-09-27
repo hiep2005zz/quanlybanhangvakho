@@ -80,11 +80,17 @@ export const CreateCustomerModal: React.FC<CreateCustomerModalProps> = ({
         username: formData.username?.trim() || undefined,
       });
 
-      // Phát sự kiện đồng bộ toàn hệ thống để trang Phân quyền lập tức cập nhật người dùng mới
-      window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { username: res.user.username } }));
+      const successMsg = `✅ ${res.message} Tài khoản: "${res.user.username}" (${res.user.full_name})`;
+
+      // Phát sự kiện đồng bộ toàn hệ thống để trang Phân quyền lập tức cập nhật người dùng mới và hiển thị thông báo
+      window.dispatchEvent(
+        new CustomEvent('USER_ACCOUNTS_CHANGED', {
+          detail: { username: res.user.username, message: successMsg },
+        })
+      );
 
       if (onSuccess) {
-        onSuccess(`✅ ${res.message} Tài khoản: "${res.user.username}" (${res.user.full_name})`);
+        onSuccess(successMsg);
       }
       setFormData({
         full_name: '',

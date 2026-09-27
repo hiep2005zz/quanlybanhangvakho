@@ -1527,9 +1527,9 @@ export default function DashboardPage({
         isOpen={isCreateAccountModalOpen}
         onClose={() => setIsCreateAccountModalOpen(false)}
         token={token}
-        onSuccess={() => {
-          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì không cần F5
-          window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED'));
+        onSuccess={(msg) => {
+          // Bắn sự kiện cập nhật để trang phân quyền tải lại ngay tức thì và nhận thông báo
+          window.dispatchEvent(new CustomEvent('USER_ACCOUNTS_CHANGED', { detail: { message: msg } }));
         }}
       />
     </div>
