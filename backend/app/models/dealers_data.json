@@ -6,7 +6,7 @@
     "phone": "0912345678",
     "email": "saomai@daily.vn",
     "address": "120 C?u Gi?y, Hà N?i",
-    "assigned_sale_id": 8
+    "assigned_sale_id": 2
   },
   "2": {
     "id": 2,
@@ -15,7 +15,7 @@
     "phone": "0987654321",
     "email": "tanbinh@daily.vn",
     "address": "45 Lý Thu?ng Ki?t, TP. HCM",
-    "assigned_sale_id": 8
+    "assigned_sale_id": 2
   },
   "3": {
     "id": 3,
@@ -24,7 +24,7 @@
     "phone": "0934567890",
     "email": "haiphong@daily.vn",
     "address": "88 L?ch Tray, H?i Phòng",
-    "assigned_sale_id": 8
+    "assigned_sale_id": 2
   },
   "4": {
     "id": 4,
@@ -33,6 +33,6 @@
     "phone": "0945678901",
     "email": "anphat@daily.vn",
     "address": "66 Nguy?n Hu?, Ðà N?ng",
-    "assigned_sale_id": 8
+    "assigned_sale_id": 2
   }
 }

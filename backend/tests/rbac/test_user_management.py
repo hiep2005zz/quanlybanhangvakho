@@ -243,3 +243,12 @@ def test_admin_cannot_revoke_own_admin_role_in_multi_roles():
     assert res_ok.status_code == 200
     assert "admin" in res_ok.json()["roles"]
     assert "sales_manager" in res_ok.json()["roles"]
+
+    # Phục hồi tài khoản admin về duy nhất 1 vai trò admin để bảo đảm tính toàn vẹn hệ thống
+    res_restore = client.put(
+        "/api/v1/users/admin",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"roles": ["admin"]}
+    )
+    assert res_restore.status_code == 200
+    assert res_restore.json()["roles"] == ["admin"]

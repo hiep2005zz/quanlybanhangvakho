@@ -105,17 +105,17 @@ const checkRegionMatch = (userBranch: string, dealerAddress: string, sourceUserB
   const addr = (dealerAddress || '').toLowerCase();
   // Khu vực Miền Bắc
   if ((ub.includes('miền bắc') || ub.includes('hà nội') || ub.includes('hải phòng')) &&
-      ['hà nội', 'hải phòng', 'bắc', 'quảng ninh'].some((x) => addr.includes(x))) {
+    ['hà nội', 'hải phòng', 'bắc', 'quảng ninh'].some((x) => addr.includes(x))) {
     return true;
   }
   // Khu vực Miền Trung
   if ((ub.includes('miền trung') || ub.includes('đà nẵng') || ub.includes('huế')) &&
-      ['đà nẵng', 'huế', 'quảng', 'nghệ an', 'trung'].some((x) => addr.includes(x))) {
+    ['đà nẵng', 'huế', 'quảng', 'nghệ an', 'trung'].some((x) => addr.includes(x))) {
     return true;
   }
   // Khu vực Miền Nam
   if ((ub.includes('miền nam') || ub.includes('hồ chí minh') || ub.includes('tp. hcm')) &&
-      ['hồ chí minh', 'tp. hcm', 'bình dương', 'nam', 'tân bình'].some((x) => addr.includes(x))) {
+    ['hồ chí minh', 'tp. hcm', 'bình dương', 'nam', 'tân bình'].some((x) => addr.includes(x))) {
     return true;
   }
   return false;
@@ -254,14 +254,30 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const openEditModal = (targetUser: UserAccount) => {
     setUserToEdit(targetUser);
     setEditModalError(null);
-    const rawRoles = targetUser.roles && targetUser.roles.length > 0 ? targetUser.roles : [targetUser.role];
-    // Loại bỏ role tạm 'customer' để quản trị viên chọn vai trò nghiệp vụ chính thức
-    const initialRoles = rawRoles.filter((r) => r && r !== 'customer');
+    const isTargetAdmin =
+      (targetUser.roles || [targetUser.role]).includes('admin') ||
+      targetUser.username.toLowerCase() === 'admin' ||
+      targetUser.id === 1;
+
+    let initialRoles: string[];
+    if (isTargetAdmin) {
+      // Tài khoản Admin duy nhất: chỉ giữ vai trò admin, không thừa thãi các vai trò khác
+      initialRoles = ['admin'];
+    } else {
+      const rawRoles = targetUser.roles && targetUser.roles.length > 0 ? targetUser.roles : [targetUser.role];
+      const validRoleCodes = ROLES_LIST.map((item) => item.role);
+      // Chỉ giữ lại các vai trò nghiệp vụ hợp lệ có trong danh sách phân quyền (loại bỏ admin, customer, và vai trò cũ như purchasing)
+      initialRoles = rawRoles.filter((r) => r && validRoleCodes.includes(r) && r !== 'customer' && r !== 'admin');
+      if (initialRoles.length === 0) {
+        initialRoles = ['sales'];
+      }
+    }
+
     setEditFormData({
       full_name: targetUser.full_name,
       email: targetUser.email || '',
       phone: targetUser.phone || '',
-      role: initialRoles[0] || 'sales',
+      role: initialRoles[0] || (isTargetAdmin ? 'admin' : 'sales'),
       roles: initialRoles,
       branch: targetUser.branch && targetUser.branch !== 'Chưa phân công' ? targetUser.branch : 'Kho Tổng Hà Nội',
       password: '',
@@ -949,9 +965,39 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         <td style={{ padding: '14px 16px' }}>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                             {(() => {
+                              const isThisAdmin = u.username.toLowerCase() === 'admin' || u.id === 1 || u.role === 'admin' || (u.roles || []).includes('admin');
+                              if (isThisAdmin) {
+                                return [
+                                  <span
+                                    key="admin"
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      padding: '3px 9px',
+                                      borderRadius: '999px',
+                                      background: '#ef444414',
+                                      color: '#ef4444',
+                                      fontWeight: '700',
+                                      fontSize: '11.5px',
+                                      border: '1px solid #ef444430',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }} />
+                                    Quản trị hệ thống
+                                  </span>
+                                ];
+                              }
                               const allRoles = (u.roles && u.roles.length > 0) ? u.roles : [u.role];
-                              const nonCustomerRoles = allRoles.filter((r) => r !== 'customer');
-                              const displayRoles = nonCustomerRoles.length > 0 ? nonCustomerRoles : ['customer'];
+                              const validRoleCodes = ROLES_LIST.map((item) => item.role);
+                              // Nếu người dùng đã có các vai trò chính thức trong hệ thống, loại bỏ các nhãn cũ/lỗi thời (như purchasing hay customer)
+                              const recognizedRoles = allRoles.filter((r) => validRoleCodes.includes(r) && r !== 'customer');
+                              const displayRoles = recognizedRoles.length > 0 
+                                ? recognizedRoles 
+                                : allRoles.filter((r) => r !== 'customer').length > 0 
+                                  ? allRoles.filter((r) => r !== 'customer') 
+                                  : ['customer'];
                               return displayRoles.map((rCode) => {
                                 const rMeta = ROLES_LIST.find((item) => item.role === rCode);
                                 const color = rMeta?.badgeColor || u.badge_color || '#2563eb';
@@ -1601,115 +1647,185 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   />
                 </div>
 
-                {/* Chọn nhiều Vai trò (Trong 7 vai trò hệ thống) */}
+                {/* Chọn nhiều Vai trò (Trong các vai trò hệ thống) */}
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <label style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
-                      Vai trò hệ thống (Gán nhiều vai trò cùng lúc) <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>
-                      Đã chọn: <strong style={{ color: '#2563eb' }}>{editFormData.roles?.length || 0}</strong> vai trò
-                    </span>
-                  </div>
+                  {(() => {
+                    const isTargetAdmin =
+                      (userToEdit.roles || [userToEdit.role]).includes('admin') ||
+                      userToEdit.username.toLowerCase() === 'admin' ||
+                      userToEdit.id === 1;
 
-                  {/* Danh sách vai trò */}
-                  <div
-                    className="roles-grid-scroll"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-                      gap: '8px',
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '10px',
-                      padding: '10px',
-                      maxHeight: '190px',
-                      overflowY: 'auto',
-                      scrollbarWidth: 'none',
-                      msOverflowStyle: 'none',
-                    }}
-                  >
-                    {ROLES_LIST.map((r) => {
-                      const currentRoles = editFormData.roles || [];
-                      const isChecked = currentRoles.includes(r.role);
-                      const isSelf = userToEdit.username.toLowerCase() === currentUser.username.toLowerCase();
-                      const isSelfAdminRole = isSelf && r.role === 'admin' && (userToEdit.roles || [userToEdit.role]).includes('admin');
-                      const isDisabled = isSelfAdminRole;
-
+                    if (isTargetAdmin) {
                       return (
-                        <label
-                          key={r.role}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: '12px',
-                            padding: '10px 12px',
-                            borderRadius: '10px',
-                            border: `1px solid ${isChecked ? r.badgeColor : '#e2e8f0'}`,
-                            background: isChecked ? `${r.badgeColor}12` : '#ffffff',
-                            cursor: isDisabled ? 'not-allowed' : 'pointer',
-                            opacity: isDisabled ? 0.85 : 1,
-                            transition: 'all 0.15s ease',
-                            boxShadow: isChecked ? `0 2px 6px ${r.badgeColor}18` : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            disabled={isDisabled}
-                            onChange={(e) => {
-                              if (isDisabled) return;
-                              const checked = e.target.checked;
-                              let nextRoles: string[];
-                              if (checked) {
-                                nextRoles = [...currentRoles.filter((code) => code !== r.role), r.role];
-                              } else {
-                                nextRoles = currentRoles.filter((code) => code !== r.role);
-                              }
-                              setEditFormData({
-                                ...editFormData,
-                                role: nextRoles[0] || 'sales',
-                                roles: nextRoles,
-                              });
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
+                              Vai trò hệ thống <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <span style={{ fontSize: '12px', color: '#64748b' }}>
+                              Đã chọn: <strong style={{ color: '#dc2626' }}>1</strong> vai trò (Cố định)
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              padding: '14px 16px',
+                              borderRadius: '10px',
+                              border: '1px solid #fecaca',
+                              background: '#fef2f2',
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: '12px',
+                              boxShadow: '0 1px 3px rgba(239, 68, 68, 0.08)'
                             }}
-                            style={{ marginTop: '2px', cursor: isDisabled ? 'not-allowed' : 'pointer', accentColor: r.badgeColor, width: '16px', height: '16px' }}
-                          />
-                          <div style={{ fontSize: '12.5px', lineHeight: '1.4' }}>
-                            <div style={{ fontWeight: '700', color: isChecked ? r.badgeColor : '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              {r.title}
-                              {r.role === 'admin' && isChecked && (
-                                <span style={{ fontSize: '10.5px', color: '#b91c1c', background: '#fee2e2', padding: '1px 6px', borderRadius: '4px' }}>
-                                  Toàn quyền
-                                </span>
-                              )}
+                          >
+                            <div
+                              style={{
+                                width: '34px',
+                                height: '34px',
+                                borderRadius: '8px',
+                                background: '#fee2e2',
+                                border: '1px solid #fca5a5',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                fontSize: '16px'
+                              }}
+                            >
+                              🛡️
                             </div>
-                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
-                              {r.description}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#b91c1c' }}>
+                                  Quản trị hệ thống (Admin)
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: '10.5px',
+                                    fontWeight: '700',
+                                    color: '#b91c1c',
+                                    background: '#fee2e2',
+                                    border: '1px solid #fca5a5',
+                                    padding: '1px 7px',
+                                    borderRadius: '999px'
+                                  }}
+                                >
+                                  Toàn quyền tối cao
+                                </span>
+                              </div>
+                              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#7f1d1d', lineHeight: '1.45' }}>
+                                Tài khoản Quản trị hệ thống duy nhất đã có toàn quyền truy cập tất cả chức năng và dữ liệu (bán hàng, kho bãi, tài chính, người dùng). Không cần gán thêm các vai trò nghiệp vụ khác.
+                              </p>
                             </div>
                           </div>
-                        </label>
+                        </div>
                       );
-                    })}
-                  </div>
+                    }
 
-                  {/* Cảnh báo ràng buộc kho nếu có vai trò kho */}
-                  {!((editFormData.roles || []).includes('admin')) && hasWarehouseRole(editFormData.roles || []) && (
-                    <div style={{
-                      marginTop: '8px',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      background: '#dcfce7',
-                      border: '1px solid #bbf7d0',
-                      fontSize: '12px',
-                      color: '#15803d',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      <span>📦</span>
-                      <span><strong>Ràng buộc Kho:</strong> Tài khoản này có vai trò Kho (Thủ kho hoặc Quản lý kho), bắt buộc phải gắn với ít nhất 1 kho cụ thể bên dưới.</span>
-                    </div>
-                  )}
+                    // Với nhân viên thông thường: Không cho phép gán vai trò Admin, chỉ hiển thị các vai trò nghiệp vụ
+                    const availableRoles = ROLES_LIST.filter((r) => r.role !== 'admin');
+                    return (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <label style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>
+                            Vai trò hệ thống (Gán nhiều vai trò cùng lúc) <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>
+                            Đã chọn: <strong style={{ color: '#2563eb' }}>{editFormData.roles?.length || 0}</strong> vai trò
+                          </span>
+                        </div>
+
+                        {/* Danh sách vai trò nghiệp vụ */}
+                        <div
+                          className="roles-grid-scroll"
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+                            gap: '8px',
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '10px',
+                            padding: '10px',
+                            maxHeight: '190px',
+                            overflowY: 'auto',
+                            scrollbarWidth: 'none',
+                            msOverflowStyle: 'none',
+                          }}
+                        >
+                          {availableRoles.map((r) => {
+                            const currentRoles = editFormData.roles || [];
+                            const isChecked = currentRoles.includes(r.role);
+
+                            return (
+                              <label
+                                key={r.role}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: '12px',
+                                  padding: '10px 12px',
+                                  borderRadius: '10px',
+                                  border: `1px solid ${isChecked ? r.badgeColor : '#e2e8f0'}`,
+                                  background: isChecked ? `${r.badgeColor}12` : '#ffffff',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
+                                  boxShadow: isChecked ? `0 2px 6px ${r.badgeColor}18` : '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    let nextRoles: string[];
+                                    if (checked) {
+                                      nextRoles = [...currentRoles.filter((code) => code !== r.role && code !== 'admin'), r.role];
+                                    } else {
+                                      nextRoles = currentRoles.filter((code) => code !== r.role && code !== 'admin');
+                                    }
+                                    setEditFormData({
+                                      ...editFormData,
+                                      role: nextRoles[0] || 'sales',
+                                      roles: nextRoles,
+                                    });
+                                  }}
+                                  style={{ marginTop: '2px', cursor: 'pointer', accentColor: r.badgeColor, width: '16px', height: '16px' }}
+                                />
+                                <div style={{ fontSize: '12.5px', lineHeight: '1.4' }}>
+                                  <div style={{ fontWeight: '700', color: isChecked ? r.badgeColor : '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {r.title}
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '3px' }}>
+                                    {r.description}
+                                  </div>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+
+                        {/* Cảnh báo ràng buộc kho nếu có vai trò kho */}
+                        {hasWarehouseRole(editFormData.roles || []) && (
+                          <div style={{
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            background: '#dcfce7',
+                            border: '1px solid #bbf7d0',
+                            fontSize: '12px',
+                            color: '#15803d',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            <span>📦</span>
+                            <span><strong>Ràng buộc Kho:</strong> Tài khoản này có vai trò Kho (Thủ kho hoặc Quản lý kho), bắt buộc phải gắn với ít nhất 1 kho cụ thể bên dưới.</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Kho / Địa bàn phụ trách */}
