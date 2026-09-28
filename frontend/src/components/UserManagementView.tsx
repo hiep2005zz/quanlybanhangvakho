@@ -63,17 +63,17 @@ const ROLES_LIST = [
   },
   {
     role: 'accountant',
-    title: 'Kế toán',
+    title: 'Kế toán công nợ',
     badgeColor: '#f59e0b',
-    description: '(Đối soát hóa đơn, chứng từ doanh thu và chi phí đơn hàng)',
+    description: '(Phát hành hoá đơn, ghi nhận thanh toán, đối chiếu công nợ với đại lý)',
     costPerm: false,
     invPerm: false,
   },
   {
-    role: 'purchasing',
-    title: 'Nhân viên mua hàng',
-    badgeColor: '#06b6d4',
-    description: '(Lập phiếu mua hàng, theo dõi đơn nhập hàng từ nhà cung cấp)',
+    role: 'customer',
+    title: 'Đại lý',
+    badgeColor: '#0284c7',
+    description: '(Cửa hàng hoặc đại lý mua sỉ, tự đặt hàng, theo dõi đơn và công nợ của mình)',
     costPerm: false,
     invPerm: false,
   },
@@ -89,6 +89,39 @@ const BRANCH_OPTIONS = [
   'Khu vực Miền Nam',
   'Trụ sở chính',
 ];
+
+// TC-01: Ràng buộc địa bàn và vai trò bàn giao đại lý
+const SALES_ROLES = ['sales', 'sales_manager'];
+
+const checkRegionMatch = (userBranch: string, dealerAddress: string, sourceUserBranch: string = ''): boolean => {
+  const ub = (userBranch || '').toLowerCase().trim();
+  if (ub.includes('toàn quốc') || ub.includes('trụ sở')) {
+    return true;
+  }
+  const sb = (sourceUserBranch || '').toLowerCase().trim();
+  if (sb && ub && sb === ub) {
+    return true;
+  }
+  const addr = (dealerAddress || '').toLowerCase();
+  // Khu vực Miền Bắc
+  if ((ub.includes('miền bắc') || ub.includes('hà nội') || ub.includes('hải phòng')) &&
+      ['hà nội', 'hải phòng', 'bắc', 'quảng ninh'].some((x) => addr.includes(x))) {
+    return true;
+  }
+  // Khu vực Miền Trung
+  if ((ub.includes('miền trung') || ub.includes('đà nẵng') || ub.includes('huế')) &&
+      ['đà nẵng', 'huế', 'quảng', 'nghệ an', 'trung'].some((x) => addr.includes(x))) {
+    return true;
+  }
+  // Khu vực Miền Nam
+  if ((ub.includes('miền nam') || ub.includes('hồ chí minh') || ub.includes('tp. hcm')) &&
+      ['hồ chí minh', 'tp. hcm', 'bình dương', 'nam', 'tân bình'].some((x) => addr.includes(x))) {
+    return true;
+  }
+  return false;
+};
+
+
 
 export const UserManagementView: React.FC<UserManagementViewProps> = ({
   currentUser,
@@ -329,23 +362,31 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     setHandoverModalError(null);
     setIsLoadingDealers(true);
 
-    // Tìm default nhân viên mới (khác user này, đang active)
-    const activeStaff = users.filter((u) => u.username.toLowerCase() !== targetUser.username.toLowerCase() && u.is_active && u.status !== 'LOCKED');
-    if (activeStaff.length > 0) {
-      setTargetSaleUsername(activeStaff[0].username);
-    } else {
-      setTargetSaleUsername('');
-    }
-
     try {
       const data = await getUserDealersApi(token, targetUser.username);
       setHandoverDealers(data.dealers);
+
+      // Tìm default nhân viên kinh doanh phù hợp địa bàn và vai trò
+      const dealers = data.dealers || [];
+      const eligible = users.filter((u) => {
+        if (!u.is_active || u.status === 'LOCKED' || u.username.toLowerCase() === targetUser.username.toLowerCase()) return false;
+        const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.role];
+        if (!userRoles.some((r) => SALES_ROLES.includes(r))) return false;
+        return dealers.every((d: any) => checkRegionMatch(u.branch || '', d.address || '', targetUser.branch || ''));
+      });
+
+      if (eligible.length > 0) {
+        setTargetSaleUsername(eligible[0].username);
+      } else {
+        setTargetSaleUsername('');
+      }
     } catch (err: any) {
       setHandoverModalError(err.message || 'Không thể tải danh sách đại lý của nhân viên này.');
     } finally {
       setIsLoadingDealers(false);
     }
   };
+
 
   // Thực hiện bàn giao đại lý
   const handleConfirmHandover = async () => {
@@ -801,7 +842,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     letterSpacing: '0.08em',
                     borderBottom: '1px solid #e2e8f0'
                   }}>
-                    <th style={{ padding: '14px 16px', fontWeight: '700', width: '60px', textAlign: 'center' }}>ID</th>
+                    <th style={{ padding: '14px 16px', fontWeight: '700', width: '60px', textAlign: 'center' }}>STT</th>
                     <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Họ và tên / Tài khoản</th>
                     <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Email & SĐT</th>
                     <th style={{ padding: '14px 16px', fontWeight: '700', textAlign: 'left' }}>Vai trò hệ thống</th>
@@ -829,18 +870,21 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           zIndex: isDropdownOpen ? 30 : 1,
                         }}
                       >
-                        {/* ID */}
+                        {/* Thứ tự chuẩn STT (#1, #2, #3,...) */}
                         <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                          <span style={{
-                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                            fontSize: '12px',
-                            color: '#475569',
-                            fontWeight: '600',
-                            background: '#f1f5f9',
-                            padding: '2px 6px',
-                            borderRadius: '4px'
-                          }}>
-                            #{u.id}
+                          <span
+                            title={`Mã ID gốc hệ thống: #${u.id}`}
+                            style={{
+                              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                              fontSize: '12px',
+                              color: '#475569',
+                              fontWeight: '600',
+                              background: '#f1f5f9',
+                              padding: '2px 7px',
+                              borderRadius: '4px'
+                            }}
+                          >
+                            #{startIndex + idx + 1}
                           </span>
                         </td>
 
@@ -2107,42 +2151,71 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 )}
               </div>
 
-              {/* Form chọn nhân viên bàn giao mới */}
-              {handoverDealers.length > 0 && (
-                <div style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '10px',
-                  padding: '14px 16px',
-                }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
-                    Chọn nhân viên phụ trách mới tiếp nhận <span style={{ color: '#ef4444' }}>*</span>
-                  </label>
-                  <select
-                    value={targetSaleUsername}
-                    onChange={(e) => setTargetSaleUsername(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      background: '#ffffff',
-                      color: '#0f172a',
-                      fontSize: '13.5px',
-                      boxSizing: 'border-box',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {users
-                      .filter((u) => u.username.toLowerCase() !== handoverUser.username.toLowerCase() && u.is_active && u.status !== 'LOCKED')
-                      .map((u) => (
-                        <option key={u.username} value={u.username}>
-                          👤 {u.full_name} (@{u.username}) - {u.role_title} ({u.branch})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              )}
+              {/* Form chọn nhân viên bàn giao mới (TC-01) */}
+              {handoverDealers.length > 0 && (() => {
+                const eligibleSalesStaff = users.filter((u) => {
+                  if (!u.is_active || u.status === 'LOCKED' || u.username.toLowerCase() === handoverUser.username.toLowerCase()) {
+                    return false;
+                  }
+                  const userRoles = u.roles && u.roles.length > 0 ? u.roles : [u.role];
+                  if (!userRoles.some((r) => SALES_ROLES.includes(r))) {
+                    return false;
+                  }
+                  const matchesAllDealers = handoverDealers.every((d) =>
+                    checkRegionMatch(u.branch || '', d.address || '', handoverUser.branch || '')
+                  );
+                  return matchesAllDealers;
+                });
+
+
+                return (
+                  <div style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    padding: '14px 16px',
+                  }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                      Chọn nhân viên phụ trách mới tiếp nhận <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    {eligibleSalesStaff.length === 0 ? (
+                      <div style={{
+                        padding: '12px 14px',
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        borderRadius: '8px',
+                        color: '#b91c1c',
+                        fontSize: '13px',
+                      }}>
+                        ⚠️ Không tìm thấy nhân sự Bán hàng / Kinh doanh nào phù hợp với địa bàn của các đại lý trên.
+                      </div>
+                    ) : (
+                      <select
+                        value={targetSaleUsername}
+                        onChange={(e) => setTargetSaleUsername(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1px solid #cbd5e1',
+                          background: '#ffffff',
+                          color: '#0f172a',
+                          fontSize: '13.5px',
+                          boxSizing: 'border-box',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {eligibleSalesStaff.map((u) => (
+                          <option key={u.username} value={u.username}>
+                            👤 {u.full_name} (@{u.username}) - {u.role_title} ({u.branch})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })()}
+
 
               {handoverModalError && (
                 <div style={{

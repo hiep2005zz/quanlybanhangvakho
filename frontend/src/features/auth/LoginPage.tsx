@@ -351,8 +351,8 @@ export default function LoginPage({ onLoginSuccess, expiredMessage, onClearExpir
                   { u: 'sales', label: 'Nhân viên kinh doanh', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', desc: 'Chặn giá vốn & kho' },
                   { u: 'kho', label: 'Thủ kho', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', desc: 'Thao tác kho, ẩn giá vốn' },
                   { u: 'warehouse_mgr', label: 'Quản lý kho', color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', desc: 'Quản lý kho & mua hàng' },
-                  { u: 'ketoan', label: 'Kế toán', color: '#d97706', bg: '#fffbeb', border: '#fde68a', desc: 'Sổ sách chứng từ' },
-                  { u: 'muahang', label: 'Nhân viên mua hàng', color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc', desc: 'Lập phiếu mua hàng' },
+                  { u: 'ketoan', label: 'Kế toán công nợ', color: '#d97706', bg: '#fffbeb', border: '#fde68a', desc: 'Sổ sách & đối trừ nợ' },
+                  { u: 'customer', label: 'Đại lý', color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', desc: 'Tự đặt hàng & xem nợ' },
                 ].map((roleItem) => (
                   <button
                     key={roleItem.u}

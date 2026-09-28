@@ -72,7 +72,7 @@ body {
   margin: 0;
   min-width: 320px;
   background-color: #f8fafc;
-  background-image: 
+  background-image:
     radial-gradient(#e2e8f0 1px, transparent 1px),
     linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   background-size: 24px 24px, 100% 100%;
@@ -83,7 +83,8 @@ body {
   color: #334155;
 }
 
-html, body {
+html,
+body {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
 }
@@ -92,13 +93,16 @@ html, body {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
@@ -116,7 +120,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: 
+  background:
     linear-gradient(135deg, rgba(15, 23, 42, 0.72) 0%, rgba(30, 41, 59, 0.65) 100%),
     url('/login-bg.jpg') center center / cover no-repeat fixed;
   padding: 32px 20px;
@@ -133,7 +137,7 @@ html, body {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 20px;
-  box-shadow: 
+  box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.35),
     0 0 0 1px rgba(255, 255, 255, 0.2),
     0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -317,21 +321,43 @@ button.secondary:hover {
 }
 
 @media (max-width: 768px) {
-  .auth-page { padding: 16px; }
-  .auth-card { padding: 28px 22px; border-radius: 14px; }
+  .auth-page {
+    padding: 16px;
+  }
+
+  .auth-card {
+    padding: 28px 22px;
+    border-radius: 14px;
+  }
 }
 
 @media (max-width: 520px) {
-  .auth-card { padding: 24px 18px; border-radius: 12px; }
+  .auth-card {
+    padding: 24px 18px;
+    border-radius: 12px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @keyframes fadeInCard {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .brand-title-shimmer {
