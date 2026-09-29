@@ -378,7 +378,7 @@ export default function DashboardPage({
                     margin: '0 0 6px 0',
                     fontSize: '16.5px',
                     fontWeight: '700',
-                    color: '#ffffff',
+                    color: '#0f172a',
                     letterSpacing: '-0.01em',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -1349,23 +1349,24 @@ export default function DashboardPage({
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' }}>
                 <thead>
                   <tr style={{
-                    color: '#64748b',
+                    color: '#475569',
                     background: '#f8fafc',
-                    fontSize: '11px',
+                    fontSize: '12px',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    borderBottom: '1px solid #e2e8f0',
+                    letterSpacing: '0.05em',
+                    borderBottom: '2px solid #e2e8f0',
                   }}>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Mã SP</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Tên Sản Phẩm</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'left' }}>Danh Mục</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Số Lượng Tồn</th>
-                    <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Niêm Yết (Bán)</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700', textAlign: 'center', width: '70px' }}>Ảnh</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700', textAlign: 'left' }}>Mã SP</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700', textAlign: 'left' }}>Tên Sản Phẩm</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700', textAlign: 'left' }}>Danh Mục</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700', textAlign: 'right' }}>Số Lượng Tồn</th>
+                    <th style={{ padding: '14px 18px', fontWeight: '700', textAlign: 'right' }}>Giá Niêm Yết (Bán)</th>
                     {/* CỘT GIÁ VỐN & BIÊN LỢI NHUẬN - CHỈ HIỆN KHI SERVER CHO PHÉP (QUẢN LÝ KINH DOANH / ADMIN) */}
                     {isCostVisible && (
                       <>
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Giá Vốn Nhập Kho</th>
-                        <th style={{ padding: '12px 18px', fontWeight: '600', textAlign: 'right' }}>Biên Lợi Nhuận</th>
+                        <th style={{ padding: '14px 18px', fontWeight: '700', textAlign: 'right' }}>Giá Vốn Nhập Kho</th>
+                        <th style={{ padding: '14px 18px', fontWeight: '700', textAlign: 'right' }}>Biên Lợi Nhuận</th>
                       </>
                     )}
                     {!isCostVisible && (
@@ -1374,76 +1375,137 @@ export default function DashboardPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((item, idx) => (
+                  {filteredProducts.map((item, idx) => {
+                    // Xử lý ảnh minh họa thông minh dựa theo tên và danh mục
+                    const nameLower = item.name.toLowerCase();
+                    const catLower = item.category.toLowerCase();
+                    
+                    let imageUrl = 'https://images.unsplash.com/photo-1560393464-5c69a73c5770?q=80&w=200&auto=format&fit=crop'; // Hộp mặc định
+                    
+                    if (nameLower.includes('polo')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=200&auto=format&fit=crop'; // Áo polo
+                    } else if (nameLower.includes('jeans')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=200&auto=format&fit=crop'; // Quần jeans
+                    } else if (nameLower.includes('bomber') || nameLower.includes('khoác')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1551028719-00167b16eac5?q=80&w=200&auto=format&fit=crop'; // Áo khoác da/bomber
+                    } else if (nameLower.includes('sơ mi')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1603252109303-2751441dd157?q=80&w=200&auto=format&fit=crop'; // Áo sơ mi
+                    } else if (nameLower.includes('sneaker') || nameLower.includes('thể thao')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=200&auto=format&fit=crop'; // Giày sneaker đỏ
+                    } else if (nameLower.includes('giày da') || nameLower.includes('công sở')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1533867617858-e7b97e060509?q=80&w=200&auto=format&fit=crop'; // Giày tây nam
+                    } else if (nameLower.includes('cao gót')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=200&auto=format&fit=crop'; // Giày cao gót
+                    } else if (nameLower.includes('thắt lưng')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1624222247344-550fb60583dc?q=80&w=200&auto=format&fit=crop'; // Thắt lưng da
+                    } else if (nameLower.includes('ví')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1627123424574-724758594e93?q=80&w=200&auto=format&fit=crop'; // Ví da
+                    } else if (nameLower.includes('kính')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?q=80&w=200&auto=format&fit=crop'; // Kính râm
+                    } else if (catLower.includes('thời trang')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=200&auto=format&fit=crop'; // Thời trang chung
+                    } else if (catLower.includes('giày')) {
+                      imageUrl = 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=200&auto=format&fit=crop'; // Giày chung
+                    }
+
+                    return (
                     <tr
                       key={item.id}
                       className="inventory-row"
                       style={{
-                        background: idx % 2 === 0 ? '#ffffff' : '#fcfdfd',
-                        borderBottom: '1px solid #f1f5f9',
+                        background: idx % 2 === 0 ? '#ffffff' : '#f8fafc',
+                        borderBottom: '1px solid #e2e8f0',
+                        transition: 'background 0.2s',
                       }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = idx % 2 === 0 ? '#ffffff' : '#f8fafc'}
                     >
+                      {/* Cột Ảnh: Chỉnh kích thước to hơn và vuông vắn rõ ràng */}
+                      <td style={{ padding: '8px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
+                        <div style={{
+                          width: '56px',
+                          height: '56px',
+                          borderRadius: '10px',
+                          overflow: 'hidden',
+                          border: '1px solid #e2e8f0',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                          margin: '0 auto',
+                          backgroundColor: '#f1f5f9'
+                        }}>
+                          <img 
+                            src={imageUrl} 
+                            alt={item.name} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            loading="lazy"
+                          />
+                        </div>
+                      </td>
+
                       {/* Mã SP: font monospace thanh mảnh, Slate đậm, không bọc khung giả nút bấm */}
                       <td style={{
-                        padding: '13px 18px',
+                        padding: '16px 18px',
                         textAlign: 'left',
                         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: '#334155',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        color: '#0f172a',
                       }}>
                         {item.code}
                       </td>
 
                       {/* Tên Sản Phẩm */}
-                      <td style={{ padding: '13px 18px', fontWeight: '500', color: '#0f172a', fontSize: '13.5px', textAlign: 'left' }}>
+                      <td style={{ padding: '16px 18px', fontWeight: '700', color: '#1e293b', fontSize: '14.5px', textAlign: 'left' }}>
                         {item.name}
                       </td>
 
                       {/* Danh Mục: Text gọn gàng */}
-                      <td style={{ padding: '13px 18px', textAlign: 'left', color: '#64748b', fontSize: '12.5px' }}>
-                        {item.category}
+                      <td style={{ padding: '16px 18px', textAlign: 'left', color: '#475569', fontSize: '13px', fontWeight: '600' }}>
+                        <span style={{ background: '#e2e8f0', padding: '4px 8px', borderRadius: '6px' }}>{item.category}</span>
                       </td>
 
                       {/* Số Lượng Tồn: Số kèm đơn vị bình thường, màu chữ tối chuẩn đồng nhất */}
-                      <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      <td style={{ padding: '16px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         <span style={{
-                          fontWeight: '600',
+                          fontWeight: '700',
                           color: '#0f172a',
+                          fontSize: '14.5px'
                         }}>
                           {item.stock.toLocaleString()} cái
                         </span>
                       </td>
 
                       {/* Giá Niêm Yết: Màu chữ tối chuẩn #0f172a, tabular-nums */}
-                      <td style={{ padding: '13px 18px', color: '#0f172a', fontWeight: '600', fontSize: '13.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      <td style={{ padding: '16px 18px', color: '#0f172a', fontWeight: '700', fontSize: '14.5px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         {item.sell_price.toLocaleString('vi-VN')} đ
                       </td>
 
                       {/* GIÁ VỐN & BIÊN LỢI NHUẬN TỪ SERVER: Chuyển từ đỏ tươi sang màu tối bình thường kèm tag bảo mật nhỏ */}
                       {isCostVisible && (
                         <>
-                          <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          <td style={{ padding: '16px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                              <span style={{ color: '#0f172a', fontWeight: '600', fontSize: '13.5px' }}>
+                              <span style={{ color: '#334155', fontWeight: '600', fontSize: '14.5px' }}>
                                 {item.cost_price ? `${item.cost_price.toLocaleString('vi-VN')} đ` : '—'}
                               </span>
-                              <span style={{ fontSize: '10.5px', color: '#94a3b8', letterSpacing: '-0.01em' }}>
+                              <span style={{ fontSize: '11px', color: '#64748b', letterSpacing: '-0.01em', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>
                                 Chỉ Quản lý
                               </span>
                             </div>
                           </td>
-                          <td style={{ padding: '13px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                          <td style={{ padding: '16px 18px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             {item.profit_margin !== undefined && item.profit_margin !== null ? (
                               <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '3px',
-                                color: item.profit_margin >= 0 ? '#15803d' : '#dc2626',
-                                fontWeight: '600',
-                                fontSize: '13px',
+                                gap: '4px',
+                                color: item.profit_margin >= 0 ? '#166534' : '#991b1b',
+                                background: item.profit_margin >= 0 ? '#dcfce7' : '#fee2e2',
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                fontWeight: '700',
+                                fontSize: '13.5px',
                               }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                   {item.profit_margin >= 0 ? (
                                     <>
                                       <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
@@ -1468,7 +1530,7 @@ export default function DashboardPage({
                         <td />
                       )}
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             )}

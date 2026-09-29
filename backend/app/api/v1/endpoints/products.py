@@ -14,6 +14,11 @@ RAW_PRODUCTS = [
     {"id": 3, "code": "SP003", "name": "Áo khoác Bomber Chống Nước", "category": "Thời trang", "stock": 30, "cost_price": 220000.0, "sell_price": 490000.0},
     {"id": 4, "code": "SP004", "name": "Giày Sneaker Thể Thao", "category": "Giày dép", "stock": 65, "cost_price": 310000.0, "sell_price": 650000.0},
     {"id": 5, "code": "SP005", "name": "Thắt lưng da bò nguyên tấm", "category": "Phụ kiện", "stock": 80, "cost_price": 95000.0, "sell_price": 250000.0},
+    {"id": 6, "code": "SP006", "name": "Ví da nam cao cấp", "category": "Phụ kiện", "stock": 110, "cost_price": 120000.0, "sell_price": 350000.0},
+    {"id": 7, "code": "SP007", "name": "Kính râm phân cực", "category": "Phụ kiện", "stock": 40, "cost_price": 80000.0, "sell_price": 180000.0},
+    {"id": 8, "code": "SP008", "name": "Giày da nam công sở", "category": "Giày dép", "stock": 55, "cost_price": 450000.0, "sell_price": 850000.0},
+    {"id": 9, "code": "SP009", "name": "Áo sơ mi lụa tơ tằm", "category": "Thời trang", "stock": 25, "cost_price": 250000.0, "sell_price": 550000.0},
+    {"id": 10, "code": "SP010", "name": "Giày cao gót nữ thanh lịch", "category": "Giày dép", "stock": 35, "cost_price": 280000.0, "sell_price": 590000.0},
 ]
 
 @router.get("", response_model=ProductListResponse)

@@ -3,12 +3,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.config import settings
 
-# Engine kết nối Microsoft SQL Server qua SQLAlchemy + pyodbc
+# Engine kết nối CSDL (SQLite hoặc SQL Server tùy theo cấu hình .env)
+is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+connect_args = {"check_same_thread": False} if is_sqlite else {}
+
 engine = create_engine(
     settings.DATABASE_URL,
     echo=False,
-    pool_pre_ping=True,
-    pool_recycle=3600,
+    connect_args=connect_args,
+    **({"pool_pre_ping": True, "pool_recycle": 3600} if not is_sqlite else {})
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

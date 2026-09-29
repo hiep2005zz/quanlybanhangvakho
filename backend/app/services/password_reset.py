@@ -37,7 +37,7 @@ class PasswordResetService:
 
         # Anti-enumeration: Nếu email không tồn tại hoặc tài khoản bị khóa, vẫn trả về cùng 1 thông báo
         if not matched_user or not matched_user.is_active:
-            print(f"[FORGOT PASSWORD] Không tìm thấy user hoặc tài khoản bị khóa cho input: '{normalized_email}'", flush=True)
+            print(f"[FORGOT PASSWORD] User not found or inactive for input: '{normalized_email}'", flush=True)
             return RESET_MESSAGE
 
         token = secrets.token_urlsafe(32)
