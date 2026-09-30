@@ -146,3 +146,5 @@ def _load_persisted_users() -> None:
 
 _load_persisted_users()
 
+def load_users_db() -> None:
+    _load_persisted_users()
