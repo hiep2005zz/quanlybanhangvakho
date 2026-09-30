@@ -622,6 +622,6 @@ export async function getAdminContactApi(): Promise<{ admin_email: string; admin
   } catch {
     // fallback
   }
-  return { admin_email: 'daongochiep645@gmail.com', admin_name: 'Nguyễn Quản Trị' };
+  return { admin_email: 'tranngochuy2509066@gmail.com', admin_name: 'Nguyễn Quản Trị' };
 }
 
