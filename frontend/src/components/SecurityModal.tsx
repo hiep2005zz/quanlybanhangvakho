@@ -12,7 +12,7 @@ interface SecurityModalProps {
 
 export default function SecurityModal({
   isOpen,
-  onClose, s
+  onClose,
   token,
   username,
   onTokenUpdated,
