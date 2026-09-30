@@ -160,7 +160,8 @@ td {
   border-bottom: 1px solid rgba(20, 184, 166, 0.08); vertical-align: middle;
 }
 tr { transition: background 0.2s ease; }
-tr:hover td { background-color: rgba(255, 255, 255, 0.95); box-shadow: inset 4px 0 0 var(--primary); }
+tr:hover td { background-color: rgba(255, 255, 255, 0.95); }
+tr:hover td:first-child { box-shadow: inset 4px 0 0 var(--primary); }
 
 /* Inputs in Dashboard */
 .dashboard-main-container input, .dashboard-main-container select {
