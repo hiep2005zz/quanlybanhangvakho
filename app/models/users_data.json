@@ -145,18 +145,18 @@
     "full_name": "huytran",
     "email": "tranngochuy2509066@gmail.com",
     "phone": "0998726252",
-    "role": "customer",
+    "role": "sales",
     "roles": [
-      "customer"
+      "sales"
     ],
     "hashed_password": "$2b$12$RLXU9TT8QHFArDBpzHB8/.JYVmxJFBJWyZbTMhujXgdvXspczQo2C",
-    "branch": "Chưa phân công",
-    "is_active": true,
-    "status": "ACTIVE",
-    "lock_reason": null,
-    "locked_at": null,
+    "branch": "Kho Chi Nhánh TP. Hồ Chí Minh",
+    "is_active": false,
+    "status": "LOCKED",
+    "lock_reason": "bàn giao công viêvj",
+    "locked_at": "2026-09-30T17:22:32.539313Z",
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 1
+    "token_version": 2
   }
 }
