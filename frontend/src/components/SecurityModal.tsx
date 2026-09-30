@@ -12,11 +12,12 @@ interface SecurityModalProps {
 
 export default function SecurityModal({
   isOpen,
-  onClose,
+  onClose, s
   token,
   username,
   onTokenUpdated,
 }: SecurityModalProps) {
+
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
