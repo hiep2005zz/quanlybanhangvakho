@@ -201,3 +201,19 @@ def has_permission(role: str, permission: str) -> bool:
     if "*" in perms:
         return True
     return permission in perms
+
+def get_roles_permissions(roles: List[str]) -> List[str]:
+    """Lấy tổng hợp danh sách quyền hạn từ nhiều vai trò."""
+    perms = set()
+    for role in roles:
+        perms.update(get_role_permissions(role))
+    if "*" in perms:
+        return [p.value for p in Permission]
+    return sorted(list(perms))
+
+def has_roles_permission(roles: List[str], permission: str) -> bool:
+    """Kiểm tra xem ít nhất 1 trong các vai trò có quyền được yêu cầu hay không."""
+    for role in roles:
+        if has_permission(role, permission):
+            return True
+    return False
