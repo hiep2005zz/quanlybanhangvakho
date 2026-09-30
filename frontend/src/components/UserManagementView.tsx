@@ -1379,8 +1379,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 </select>
               </div>
 
-              {/* Điều hướng trang: Chỉ hiển thị khi có từ 2 trang trở lên (tức tổng số dòng vượt quá số dòng / trang) */}
-              {totalPages > 1 && (
+              {/* Điều hướng trang: Luôn hiển thị để người dùng biết tính năng phân trang có tồn tại */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button
                     type="button"
@@ -1426,7 +1425,6 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     Sau →
                   </button>
                 </div>
-              )}
             </div>
           </>
         )}
