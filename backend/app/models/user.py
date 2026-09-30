@@ -23,6 +23,12 @@ class UserInDB(BaseModel):
     failed_attempts: int = 0
     locked_until: Optional[datetime] = None
     token_version: int = 1
+    roles: Optional[list[str]] = None
+
+    def get_roles(self) -> list[str]:
+        if self.roles:
+            return self.roles
+        return [self.role] if self.role else []
 
 # Password mặc định cho tất cả tài khoản mẫu là '123'
 DEFAULT_HASH = get_password_hash("123")
