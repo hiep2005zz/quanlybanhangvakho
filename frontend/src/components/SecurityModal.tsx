@@ -17,7 +17,6 @@ export default function SecurityModal({
   username,
   onTokenUpdated,
 }: SecurityModalProps) {
-
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -112,7 +111,7 @@ export default function SecurityModal({
 
       setSuccessMessage(
         res.message ||
-        'Đổi mật khẩu thành công! Tất cả các phiên đăng nhập khác đã được thu hồi an toàn.'
+          'Đổi mật khẩu thành công! Tất cả các phiên đăng nhập khác đã được thu hồi an toàn.'
       );
 
       if (res.access_token && onTokenUpdated) {
@@ -420,8 +419,6 @@ export default function SecurityModal({
             </div>
           </div>
 
-
-
           {/* Ô 3: Xác nhận mật khẩu mới */}
           <div style={{ marginBottom: '24px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#334155', marginBottom: '6px' }}>
@@ -530,7 +527,6 @@ export default function SecurityModal({
               )}
             </button>
           </div>
-
         </form>
       </div>
     </div>

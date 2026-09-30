@@ -12,6 +12,8 @@ export interface User {
   username: string;
   full_name: string;
   role: string;
+  roles?: string[];
+  role_titles?: string[];
   permissions?: string[];
   role_title?: string;
   branch?: string;
@@ -204,13 +206,20 @@ export async function validateSessionApi(token?: string): Promise<boolean> {
   }
 }
 
-export async function getMeApi(token: string): Promise<User> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, { method: 'GET' }, token);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.detail || 'Không thể tải thông tin quyền tài khoản.');
+/**
+ * Get current user profile from server (/auth/me) with fresh roles & permissions:
+ */
+export async function getMeApi(token?: string): Promise<User | null> {
+  try {
+    const response = await authenticatedFetch(`${API_BASE_URL}/auth/me`, {
+      method: 'GET',
+    }, token);
+    if (!response.ok) return null;
+    const user: User = await response.json();
+    return user;
+  } catch {
+    return null;
   }
-  return data as User;
 }
 
 export async function loginApi(username: string, password: string): Promise<LoginResponse> {
@@ -432,7 +441,9 @@ export interface UserAccount {
   email?: string;
   phone?: string;
   role: string;
+  roles?: string[];
   role_title: string;
+  role_titles?: string[];
   branch: string;
   is_active: boolean;
   status: string;
@@ -444,20 +455,27 @@ export interface UserAccount {
   badge_color: string;
 }
 
+export interface CustomerCreatePayload {
+  full_name: string;
+  email: string;
+  phone: string;
+  username?: string;
+}
+
+export interface CustomerCreateResponse {
+  user: UserAccount;
+  email_sent: boolean;
+  message: string;
+}
+
 export interface UserCreatePayload {
   full_name: string;
   username?: string;
   email: string;
   password: string;
-  role: string;
+  role?: string;
+  roles?: string[];
   branch?: string;
-}
-
-export interface CustomerCreatePayload {
-  full_name: string;
-  username?: string;
-  email: string;
-  phone: string;
 }
 
 export interface UserUpdatePayload {
@@ -466,6 +484,7 @@ export interface UserUpdatePayload {
   phone?: string;
   password?: string;
   role?: string;
+  roles?: string[];
   branch?: string;
   is_active?: boolean;
   status?: string;
@@ -524,11 +543,7 @@ export async function createUserApi(token: string, payload: UserCreatePayload): 
   return data;
 }
 
-export async function createCustomerApi(token: string, payload: CustomerCreatePayload): Promise<{
-  user: UserAccount;
-  email_sent: boolean;
-  message: string;
-}> {
+export async function createCustomerApi(token: string, payload: CustomerCreatePayload): Promise<CustomerCreateResponse> {
   const response = await authenticatedFetch(`${API_BASE_URL}/users/customers`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -537,7 +552,7 @@ export async function createCustomerApi(token: string, payload: CustomerCreatePa
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || `Lỗi tạo tài khoản khách hàng (Mã lỗi ${response.status})`);
+    throw new Error(data.detail || `Lỗi tạo tài khoản kinh doanh (Mã lỗi ${response.status})`);
   }
   return data;
 }
@@ -596,5 +611,17 @@ export async function handoverDealersApi(
     throw new Error(data.detail || `Lỗi bàn giao đại lý (Mã lỗi ${response.status})`);
   }
   return data;
+}
+
+export async function getAdminContactApi(): Promise<{ admin_email: string; admin_name: string }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/admin-contact`);
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch {
+    // fallback
+  }
+  return { admin_email: 'daongochiep645@gmail.com', admin_name: 'Nguyễn Quản Trị' };
 }
 
