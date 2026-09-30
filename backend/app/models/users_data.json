@@ -221,7 +221,7 @@
     "is_active": false,
     "status": "LOCKED",
     "lock_reason": "nghỉ việc",
-    "locked_at": "2026-09-28T10:40:31.614158",
+    "locked_at": "2026-09-28T10:40:31.614158Z",
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 4
