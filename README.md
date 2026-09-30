@@ -1,36 +1,8 @@
-# Dự Án Fullstack (Frontend + Backend)
+# Dự Án Backend FastAPI
 
-## Cấu trúc thư mục
-- `frontend/`: React 19 + TypeScript + Vite
-- `backend/`: FastAPI + Python 3.14
+## 1. Hướng dẫn chạy Backend
 
----
-
-## 1. Hướng dẫn chạy Frontend
-
-1. Di chuyển vào thư mục `frontend`:
-   ```bash
-   cd frontend
-   ```
-2. Cài đặt các thư viện cần thiết:
-   ```bash
-   npm install
-   ```
-3. Chạy môi trường phát triển (Dev Server):
-   ```bash
-   npm run dev
-   ```
-4. Truy cập giao diện tại: `http://localhost:5173`
-
----
-
-## 2. Hướng dẫn chạy Backend
-
-1. Di chuyển vào thư mục `backend`:
-   ```bash
-   cd backend
-   ```
-2. Tạo và kích hoạt môi trường ảo (Virtual Environment):
+1. Tạo và kích hoạt môi trường ảo (Virtual Environment):
    - **Windows**:
      ```powershell
      python -m venv venv
@@ -72,6 +44,5 @@ Hệ thống triển khai nguyên tắc **Zero-Trust (Default Deny)** tại Back
 
 ### Chạy bộ kiểm thử tự động (AC 5):
 ```powershell
-cd backend
 .\venv\Scripts\python.exe -m pytest tests/rbac -v
 ```
