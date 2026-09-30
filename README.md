@@ -44,5 +44,6 @@ Hệ thống triển khai nguyên tắc **Zero-Trust (Default Deny)** tại Back
 
 ### Chạy bộ kiểm thử tự động (AC 5):
 ```powershell
+
 .\venv\Scripts\python.exe -m pytest tests/rbac -v
 ```
