@@ -9,6 +9,7 @@ load_dotenv(BASE_DIR / ".env")
 class Settings:
     PROJECT_NAME: str = "Backend API - Quan Ly Kho & Ban Hang"
     API_V1_STR: str = "/api/v1"
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     
     # JWT Settings (Secret key 32 bytes securely generated or constant for dev)
     SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
@@ -26,6 +27,10 @@ class Settings:
     MAIL_PORT: int = int(os.getenv("MAIL_PORT", "587"))
     MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")
     MAIL_TLS: bool = os.getenv("MAIL_TLS", "True").lower() in ("true", "1", "yes")
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    # Database Settings (Microsoft SQL Server)
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        "mssql+pyodbc://localhost/quanlybanhang?driver=ODBC+Driver+17+for+SQL+Server&trusted_connection=yes"
+    )
 
 settings = Settings()

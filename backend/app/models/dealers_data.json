@@ -1,0 +1,38 @@
+{
+  "1": {
+    "id": 1,
+    "code": "DL001",
+    "name": "Ð?i Lý Phân Ph?i Mi?n B?c - Sao Mai",
+    "phone": "0912345678",
+    "email": "saomai@daily.vn",
+    "address": "120 C?u Gi?y, Hà N?i",
+    "assigned_sale_id": 2
+  },
+  "2": {
+    "id": 2,
+    "code": "DL002",
+    "name": "Ð?i Lý Th?i Trang Tân Bình",
+    "phone": "0987654321",
+    "email": "tanbinh@daily.vn",
+    "address": "45 Lý Thu?ng Ki?t, TP. HCM",
+    "assigned_sale_id": 2
+  },
+  "3": {
+    "id": 3,
+    "code": "DL003",
+    "name": "Ð?i Lý T?ng H?p H?i Phòng",
+    "phone": "0934567890",
+    "email": "haiphong@daily.vn",
+    "address": "88 L?ch Tray, H?i Phòng",
+    "assigned_sale_id": 2
+  },
+  "4": {
+    "id": 4,
+    "code": "DL004",
+    "name": "Công Ty TNHH Bán L? An Phát",
+    "phone": "0945678901",
+    "email": "anphat@daily.vn",
+    "address": "66 Nguy?n Hu?, Ðà N?ng",
+    "assigned_sale_id": 2
+  }
+}

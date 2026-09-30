@@ -19,11 +19,12 @@ export type PermissionType = typeof Permissions[keyof typeof Permissions];
 
 /**
  * Kiểm tra xem người dùng có quyền cụ thể hay không.
- * Nếu user là admin (hoặc có '*'), luôn trả về true.
+ * Nếu user có vai trò admin (hoặc có '*'), luôn trả về true.
  */
 export function hasPermission(user: User | null | undefined, permission: string): boolean {
   if (!user) return false;
-  if (user.role === 'admin') return true;
+  const userRoles = user.roles && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : []);
+  if (userRoles.includes('admin')) return true;
   if (!user.permissions || !Array.isArray(user.permissions)) return false;
   if (user.permissions.includes('*')) return true;
   return user.permissions.includes(permission);
@@ -36,7 +37,8 @@ export function hasPermission(user: User | null | undefined, permission: string)
 export function canViewCost(user: User | null | undefined): boolean {
   if (!user) return false;
   if (user.can_view_cost !== undefined) return user.can_view_cost;
-  return user.role === 'admin' || user.role === 'sales_manager' || hasPermission(user, Permissions.COST_READ);
+  const userRoles = user.roles && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : []);
+  return userRoles.includes('admin') || userRoles.includes('sales_manager') || hasPermission(user, Permissions.COST_READ);
 }
 
 /**

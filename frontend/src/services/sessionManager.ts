@@ -1,5 +1,5 @@
 // frontend/src/services/sessionManager.ts
-import { refreshTokenApi, notifySessionExpired, AUTH_STORAGE, validateSessionApi } from './api';
+import { refreshTokenApi, notifySessionExpired, AUTH_STORAGE, validateSessionApi, getMeApi, User } from './api';
 
 // Định danh duy nhất cho từng Tab/Cửa sổ để phân biệt tab thao tác với các tab khác
 export const CURRENT_TAB_ID = 'tab_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -21,6 +21,7 @@ export interface SessionState {
 
 type TokenRefreshListener = (newToken: string) => void;
 type StatusListener = (state: SessionState) => void;
+type UserProfileListener = (user: User) => void;
 
 class SessionManager {
   private lastActivityTime: number = Date.now();
@@ -32,6 +33,7 @@ class SessionManager {
   private lastSilentRefreshTrigger: number = 0;
   private tokenRefreshListeners: Set<TokenRefreshListener> = new Set();
   private statusListeners: Set<StatusListener> = new Set();
+  private userProfileListeners: Set<UserProfileListener> = new Set();
   private isInitialized: boolean = false;
   private heartbeatCounter: number = 0;
   private authChannel: BroadcastChannel | null = null;
@@ -84,20 +86,54 @@ class SessionManager {
     // Khi mạng có lại, lập tức thử làm mới phiên nếu token sắp hết hạn
     if (this.currentToken && !this.isRefreshing) {
       this.checkAndRefreshSession(true);
+      this.syncCurrentProfile();
     }
   }
 
   // Lắng nghe sự kiện chuyển tab / focus lại cửa sổ:
-  // Lập tức kiểm tra tính hợp lệ của Token với server (thu hồi tức thì nếu server đã đổi token_version)
+  // Lập tức kiểm tra tính hợp lệ của Token với server và đồng bộ vai trò mới nhất
   private handleWindowFocus() {
     if (this.currentToken && !this.isRefreshing) {
       validateSessionApi(this.currentToken);
+      this.syncCurrentProfile();
     }
   }
 
   private handleVisibilityChange() {
     if (document.visibilityState === 'visible' && this.currentToken && !this.isRefreshing) {
       validateSessionApi(this.currentToken);
+      this.syncCurrentProfile();
+    }
+  }
+
+  public async syncCurrentProfile(): Promise<User | null> {
+    if (!this.currentToken) return null;
+    try {
+      const updatedUser = await getMeApi(this.currentToken);
+      if (updatedUser) {
+        // Lưu vào sessionStorage để đồng bộ
+        sessionStorage.setItem(AUTH_STORAGE.USER, JSON.stringify(updatedUser));
+        this.notifyUserProfile(updatedUser);
+        return updatedUser;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
+  public broadcastUserUpdate(username: string) {
+    if (this.authChannel) {
+      try {
+        this.authChannel.postMessage({
+          type: 'USER_ROLE_UPDATED',
+          username: username.toLowerCase(),
+          tabId: CURRENT_TAB_ID,
+          timestamp: Date.now(),
+        });
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -133,6 +169,13 @@ class SessionManager {
               return;
             }
             this.forceExpire('Phiên làm việc đã bị thu hồi do đổi mật khẩu từ một cửa sổ khác. Vui lòng đăng nhập lại.');
+          }
+
+          if (event.data?.type === 'USER_ROLE_UPDATED') {
+            // Nếu tài khoản được cập nhật vai trò trùng với tài khoản tab này -> Lập tức đồng bộ lại profile
+            if (this.currentUsername && event.data?.username && event.data.username.toLowerCase() === this.currentUsername.toLowerCase()) {
+              this.syncCurrentProfile();
+            }
           }
         };
       } catch {
@@ -217,6 +260,17 @@ class SessionManager {
     return () => {
       this.statusListeners.delete(listener);
     };
+  }
+
+  public onUserProfileUpdated(listener: UserProfileListener): () => void {
+    this.userProfileListeners.add(listener);
+    return () => {
+      this.userProfileListeners.delete(listener);
+    };
+  }
+
+  private notifyUserProfile(user: User) {
+    this.userProfileListeners.forEach((listener) => listener(user));
   }
 
   public getSessionState(): SessionState {

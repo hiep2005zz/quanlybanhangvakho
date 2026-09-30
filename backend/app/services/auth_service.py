@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 from fastapi import HTTPException, status
 from app.core.config import settings
 from app.core.security import verify_password, create_access_token
-from app.models.user import USERS_DB, UserInDB
+from app.models.user import USERS_DB, UserInDB, load_users_db
 from app.schemas.auth import TokenResponse, UserResponse
 
 # Global track for failed attempts by username (even if user doesn't exist in DB, to prevent enumeration)
@@ -13,9 +13,16 @@ FAILED_ATTEMPTS: dict[str, dict] = {}
 def get_current_utc() -> datetime:
     return datetime.now(timezone.utc)
 
+def reset_failed_attempts(username: str) -> None:
+    uname = username.strip().lower()
+    FAILED_ATTEMPTS[uname] = {"count": 0, "locked_until": None}
+
 def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenResponse], Optional[HTTPException]]:
     uname = username.strip().lower()
     now = get_current_utc()
+
+    # Đồng bộ dữ liệu người dùng mới nhất từ file JSON (nếu có tài khoản mới được tạo từ endpoint)
+    load_users_db()
 
     # Track attempts state
     attempt_record = FAILED_ATTEMPTS.get(uname, {"count": 0, "locked_until": None})
@@ -90,8 +97,14 @@ def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenRespo
         role=user.role,
         token_version=getattr(user, "token_version", 1)
     )
-    from app.core.rbac import get_role_permissions, ROLE_DETAILS
-    role_info = ROLE_DETAILS.get(user.role, {})
+    from app.core.rbac import get_roles_permissions, ROLE_DETAILS
+    roles = user.get_roles()
+    primary_role = roles[0] if roles else user.role
+    role_info = ROLE_DETAILS.get(primary_role, {})
+    role_titles = [ROLE_DETAILS.get(r, {}).get("title", r) for r in roles]
+    can_view_cost = any(ROLE_DETAILS.get(r, {}).get("can_view_cost", False) for r in roles)
+    can_write_inventory = any(ROLE_DETAILS.get(r, {}).get("can_write_inventory", False) for r in roles)
+
     token_resp = TokenResponse(
         access_token=access_token,
         token_type="bearer",
@@ -99,12 +112,14 @@ def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenRespo
         user=UserResponse(
             username=user.username,
             full_name=user.full_name,
-            role=user.role,
-            permissions=get_role_permissions(user.role),
-            role_title=role_info.get("title", user.role),
+            role=primary_role,
+            roles=roles,
+            role_titles=role_titles,
+            permissions=get_roles_permissions(roles),
+            role_title=role_info.get("title", primary_role),
             branch=getattr(user, "branch", "Kho Tổng Hà Nội"),
-            can_view_cost=role_info.get("can_view_cost", False),
-            can_write_inventory=role_info.get("can_write_inventory", False),
+            can_view_cost=can_view_cost,
+            can_write_inventory=can_write_inventory,
         )
     )
     return token_resp, None

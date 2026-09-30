@@ -3,10 +3,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints import auth, products, inventory, users, orders
 
+from contextlib import asynccontextmanager
+from app.db.init_db import init_db
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Khởi tạo bảng và dữ liệu mẫu trên SQL Server khi ứng dụng khởi động
+    init_db()
+    yield
+
 app = FastAPI(
     title="Quan Ly Ban Hang & Kho API",
     description="Hệ thống API quản lý bán hàng và kho với cơ chế RBAC Zero-Trust bảo vệ giá vốn và kho hàng",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS Middleware to allow Frontend (Vite on any localhost port: 5173, 5174, 5175, etc.)
