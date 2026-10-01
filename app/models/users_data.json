@@ -145,19 +145,19 @@
     "full_name": "tran trung hieu",
     "email": "chanhieu2k6@gmail.com",
     "phone": "0966351620",
-    "role": "customer",
+    "role": "sales",
     "roles": [
-      "customer"
+      "sales"
     ],
     "hashed_password": "$2b$12$BNMwCxB.ZZLPSpGvK5JIJeKWxmLC5fwt/1AuBmTQxRukDFq2VZtzy",
-    "branch": "Chưa phân công",
-    "is_active": true,
-    "status": "ACTIVE",
-    "lock_reason": null,
-    "locked_at": null,
+    "branch": "Kho Tổng Hà Nội",
+    "is_active": false,
+    "status": "LOCKED",
+    "lock_reason": "không lý do",
+    "locked_at": "2026-10-01T07:24:52.700742Z",
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 1
+    "token_version": 2
   },
   "chanhieu206": {
     "id": 9,
@@ -194,7 +194,7 @@
     "is_active": false,
     "status": "LOCKED",
     "lock_reason": "hết nhiệm vụ",
-    "locked_at": "2026-10-01T06:52:04.372722Z",
+    "locked_at": "2026-10-01T06:52:04.373000",
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 2
