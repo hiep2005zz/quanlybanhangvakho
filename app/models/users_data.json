@@ -149,21 +149,12 @@
     "roles": [
       "sales"
     ],
-<<<<<<< Updated upstream
-    "hashed_password": "$2b$12$RLXU9TT8QHFArDBpzHB8/.JYVmxJFBJWyZbTMhujXgdvXspczQo2C",
-    "branch": "Kho Chi Nhánh TP. Hồ Chí Minh",
-    "is_active": false,
-    "status": "LOCKED",
-    "lock_reason": "bàn giao công viêvj",
-    "locked_at": "2026-09-30T17:22:32.539313Z",
-=======
     "hashed_password": "$2b$12$e/IRPWrYVTmHJ1SGNKxO7.SP1kgB3vmc1WMGhWleuPXCt3zp.K00.",
     "branch": "Kho Chi Nhánh TP. Hồ Chí Minh",
     "is_active": true,
     "status": "ACTIVE",
     "lock_reason": null,
     "locked_at": null,
->>>>>>> Stashed changes
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 3
