@@ -139,6 +139,7 @@
     "locked_until": null,
     "token_version": 1
   },
+<<<<<<< HEAD
   "tranngochuy2509066": {
     "id": 8,
     "username": "tranngochuy2509066",
@@ -171,11 +172,84 @@
       "warehouse_manager"
     ],
     "hashed_password": "$2b$12$9HwQqPJA6rMUbXIQ2PphWe3wZ4vQ.btk/wgiF/fuWq4ogu/LbyblC",
+=======
+  "chanhieu2k6": {
+    "id": 8,
+    "username": "chanhieu2k6",
+    "full_name": "tran trung hieu",
+    "email": "chanhieu2k6@gmail.com",
+    "phone": "0966351620",
+    "role": "sales",
+    "roles": [
+      "sales"
+    ],
+    "hashed_password": "$2b$12$BNMwCxB.ZZLPSpGvK5JIJeKWxmLC5fwt/1AuBmTQxRukDFq2VZtzy",
+>>>>>>> c9f2c32e62a42461219b15a0de5a1cb55e16d625
     "branch": "Kho Tổng Hà Nội",
-    "is_active": true,
-    "status": "ACTIVE",
-    "lock_reason": null,
-    "locked_at": null,
+    "is_active": false,
+    "status": "LOCKED",
+    "lock_reason": "không lý do",
+    "locked_at": "2026-10-01T07:24:52.700000",
+    "failed_attempts": 0,
+    "locked_until": null,
+    "token_version": 2
+  },
+  "chanhieu206": {
+    "id": 9,
+    "username": "chanhieu206",
+    "full_name": "hieu nhan vien",
+    "email": "chanhieu206@gmail.com",
+    "phone": "0966351621",
+    "role": "sales_manager",
+    "roles": [
+      "sales_manager"
+    ],
+    "hashed_password": "$2b$12$x.6UfrubAqQL8kztGXi30OsRnUs03c9fgxtNr98F1X/.uTrsS/hRG",
+    "branch": "Kho Tổng Hà Nội",
+    "is_active": false,
+    "status": "LOCKED",
+    "lock_reason": "Hết hợp đồng",
+    "locked_at": "2026-10-01T06:29:09.020000",
+    "failed_attempts": 0,
+    "locked_until": null,
+    "token_version": 2
+  },
+  "tokudatnvn": {
+    "id": 10,
+    "username": "tokudatnvn",
+    "full_name": "hieu van phong",
+    "email": "tokudatnvn@gmail.com",
+    "phone": "0966351622",
+    "role": "sales",
+    "roles": [
+      "sales"
+    ],
+    "hashed_password": "$2b$12$ZyFiJ/iOWK5F1DmVo.BeS.XJDe2Xa76BTU0UmogMHlW.sSikSe.ka",
+    "branch": "Kho Tổng Hà Nội",
+    "is_active": false,
+    "status": "LOCKED",
+    "lock_reason": "hết nhiệm vụ",
+    "locked_at": "2026-10-01T06:52:04.373000",
+    "failed_attempts": 0,
+    "locked_until": null,
+    "token_version": 2
+  },
+  "hihi": {
+    "id": 11,
+    "username": "hihi",
+    "full_name": "hihi",
+    "email": "meomeo2k12345@gmail.com",
+    "phone": "0963516205",
+    "role": "sales",
+    "roles": [
+      "sales"
+    ],
+    "hashed_password": "$2b$12$BaVesaS0Vz74ZmidQU/Ya.XYQMnEJJgVYwxRCBR84qiqLEWQPREtu",
+    "branch": "Kho Tổng Hà Nội",
+    "is_active": false,
+    "status": "LOCKED",
+    "lock_reason": "abc",
+    "locked_at": "2026-10-01T07:54:54.342306Z",
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 2
