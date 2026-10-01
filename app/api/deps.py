@@ -60,7 +60,7 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> UserRespo
     username: str = payload.get("sub", "")
     user: Optional[UserInDB] = USERS_DB.get(username)
     if not user or not user.is_active or getattr(user, "status", "ACTIVE") == "LOCKED":
-        lock_msg = f"Tài khoản đã bị khóa. Lý do: {user.lock_reason}" if user and user.lock_reason else "Tài khoản đã bị khóa hoặc không tồn tại."
+        lock_msg = "Tài khoản đã bị khóa. Vui lòng liên hệ với quản lý." if user else "Tài khoản không tồn tại."
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=lock_msg,

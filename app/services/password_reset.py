@@ -15,7 +15,7 @@ from app.core.security import get_password_hash
 logger = logging.getLogger(__name__)
 
 RESET_TOKEN_TTL_MINUTES = 30
-RESET_MESSAGE = 'Hướng dẫn đặt lại mật khẩu đã được gửi'
+RESET_MESSAGE = 'Thông tin lấy lại quyền truy cập đã được gửi về email của bạn.'
 
 
 class PasswordResetService:
@@ -27,6 +27,25 @@ class PasswordResetService:
         # Nạp lại dữ liệu mới nhất từ file JSON để đảm bảo email vừa sửa/tạo được nhận ngay
         load_users_db()
         normalized_email = email.strip().lower()
+
+        # Kiểm tra định dạng nếu người dùng nhập email (có chứa @)
+        import re
+        if '@' in normalized_email:
+            email_regex = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+            if not re.match(email_regex, normalized_email):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Vui lòng xem lại thông tin tài khoản!"
+                )
+        else:
+            # Kiểm tra định dạng cơ bản nếu là username (chỉ chữ, số, _, -)
+            username_regex = r"^[a-zA-Z0-9_-]+$"
+            if not re.match(username_regex, normalized_email):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Vui lòng xem lại thông tin tài khoản!"
+                )
+
         
         # Tìm người dùng tương ứng trong USERS_DB (hỗ trợ nhập email hoặc username)
         matched_user = None
@@ -36,9 +55,11 @@ class PasswordResetService:
                 break
 
         if not matched_user or not matched_user.is_active:
+            print(f"[FORGOT PASSWORD] Không tìm thấy user hoặc tài khoản bị khóa cho input: '{normalized_email}'", flush=True)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vui lòng xem lại thông tin tài khoản!")
             
         if not matched_user.email:
+            print(f"[FORGOT PASSWORD] Tài khoản không có email: '{normalized_email}'", flush=True)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vui lòng xem lại thông tin tài khoản!")
 
         token = secrets.token_urlsafe(32)
