@@ -27,10 +27,9 @@ class Settings:
     MAIL_PORT: int = int(os.getenv("MAIL_PORT", "587"))
     MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")
     MAIL_TLS: bool = os.getenv("MAIL_TLS", "True").lower() in ("true", "1", "yes")
-    # Database Settings (Microsoft SQL Server)
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "mssql+pyodbc://localhost/quanlybanhang?driver=ODBC+Driver+17+for+SQL+Server&trusted_connection=yes"
+        "sqlite:///./quanlybanhang.db"
     )
 
 settings = Settings()
