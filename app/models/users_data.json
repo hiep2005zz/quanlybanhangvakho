@@ -134,13 +134,13 @@
       "accountant"
     ],
     "hashed_password": "$2b$12$2afYb.kKLmdjmqMF5MHgS.BR9oODSf7AswceKxOFEE2HP853zY1/u",
-    "branch": "Trụ sở chính",
+    "branch": "Toàn quốc",
     "is_active": false,
     "status": "LOCKED",
     "lock_reason": "fdhfdh",
-    "locked_at": "2026-10-01T09:17:26.625936Z",
+    "locked_at": "2026-10-01T09:44:37.406269Z",
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 3
+    "token_version": 4
   }
 }
