@@ -15,7 +15,7 @@ from app.core.security import get_password_hash
 logger = logging.getLogger(__name__)
 
 RESET_TOKEN_TTL_MINUTES = 30
-RESET_MESSAGE = 'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi.'
+RESET_MESSAGE = 'Hướng dẫn đặt lại mật khẩu đã được gửi'
 
 
 class PasswordResetService:
@@ -35,6 +35,7 @@ class PasswordResetService:
                 matched_user = u
                 break
 
+<<<<<<< Updated upstream
         if not matched_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -52,6 +53,13 @@ class PasswordResetService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Tài khoản này đã bị khóa hoặc vô hiệu hóa."
             )
+=======
+        if not matched_user or not matched_user.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vui lòng xem lại thông tin tài khoản!")
+            
+        if not matched_user.email:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vui lòng xem lại thông tin tài khoản!")
+>>>>>>> Stashed changes
 
         token = secrets.token_urlsafe(32)
         token_hash = self._hash_token(token)
