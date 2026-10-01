@@ -31,14 +31,27 @@ class PasswordResetService:
         # Tìm người dùng tương ứng trong USERS_DB (hỗ trợ nhập email hoặc username)
         matched_user = None
         for u in USERS_DB.values():
-            if (u.email and u.email.lower() == normalized_email) or (u.username.lower() == normalized_email) or (u.username.lower() == normalized_email.split('@')[0]):
+            if (u.email and u.email.lower() == normalized_email) or (u.username.lower() == normalized_email):
                 matched_user = u
                 break
 
-        # Anti-enumeration: Nếu email không tồn tại hoặc tài khoản bị khóa, vẫn trả về cùng 1 thông báo
-        if not matched_user or not matched_user.is_active:
-            print(f"[FORGOT PASSWORD] Không tìm thấy user hoặc tài khoản bị khóa cho input: '{normalized_email}'", flush=True)
-            return RESET_MESSAGE
+        if not matched_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Email hoặc tên đăng nhập không tồn tại trong hệ thống."
+            )
+            
+        if not matched_user.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tài khoản này chưa được cấu hình email để nhận liên kết đặt lại mật khẩu."
+            )
+            
+        if not matched_user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tài khoản này đã bị khóa hoặc vô hiệu hóa."
+            )
 
         token = secrets.token_urlsafe(32)
         token_hash = self._hash_token(token)
@@ -52,7 +65,7 @@ class PasswordResetService:
         print(f"[RESET PASSWORD LINK]: {link_str}", flush=True)
         print("==========================================\n", flush=True)
 
-        recipient_email = matched_user.email if matched_user.email else normalized_email
+        recipient_email = matched_user.email
 
         # Gửi email qua Gmail SMTP bằng thư viện smtplib và email.mime
         try:
