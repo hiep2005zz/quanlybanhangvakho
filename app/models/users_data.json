@@ -154,7 +154,7 @@
     "is_active": false,
     "status": "LOCKED",
     "lock_reason": "không lý do",
-    "locked_at": "2026-10-01T07:24:52.700742Z",
+    "locked_at": "2026-10-01T07:24:52.700000",
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 2
@@ -195,6 +195,26 @@
     "status": "LOCKED",
     "lock_reason": "hết nhiệm vụ",
     "locked_at": "2026-10-01T06:52:04.373000",
+    "failed_attempts": 0,
+    "locked_until": null,
+    "token_version": 2
+  },
+  "hihi": {
+    "id": 11,
+    "username": "hihi",
+    "full_name": "hihi",
+    "email": "meomeo2k12345@gmail.com",
+    "phone": "0963516205",
+    "role": "sales",
+    "roles": [
+      "sales"
+    ],
+    "hashed_password": "$2b$12$BaVesaS0Vz74ZmidQU/Ya.XYQMnEJJgVYwxRCBR84qiqLEWQPREtu",
+    "branch": "Kho Tổng Hà Nội",
+    "is_active": false,
+    "status": "LOCKED",
+    "lock_reason": "abc",
+    "locked_at": "2026-10-01T07:54:54.342306Z",
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 2
