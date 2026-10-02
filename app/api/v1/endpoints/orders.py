@@ -124,6 +124,7 @@ def create_order(
         "assigned_sale_name": assigned_user.full_name if assigned_user else None,
         "total_amount": total_amount,
         "status": "CONFIRMED",
+        "items": [item.dict() for item in data.items],
         "created_at": now_str,
     }
     ORDERS_DB[order_id] = order_record

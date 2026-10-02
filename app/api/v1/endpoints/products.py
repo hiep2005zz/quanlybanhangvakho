@@ -54,6 +54,7 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
                 code=p["code"],
                 name=p["name"],
                 category=p["category"],
+                category_id=p.get("category_id"),
                 stock=stock,
                 sell_price=sell_price,
                 cost_price=cost_price,
@@ -67,6 +68,7 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
                 code=p["code"],
                 name=p["name"],
                 category=p["category"],
+                category_id=p.get("category_id"),
                 stock=stock,
                 sell_price=sell_price,
                 cost_price=None,
@@ -104,6 +106,9 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
         summary=summary,
     )
 
+from app.core.database import SessionLocal
+from app.models.entities import CategoryEntity
+
 @router.put("/{product_id}/stock")
 @router.patch("/{product_id}/stock")
 @router.put("/{product_id}")
@@ -117,9 +122,6 @@ def update_product_stock(
 ):
     """
     Cập nhật số lượng tồn kho sản phẩm.
-    Zero-Trust / Default Deny:
-    - Bắt buộc kiểm tra quyền 'inventory:write' ở tầng server.
-    - Nhân viên kinh doanh (Sales) không có quyền -> trả về 403 Forbidden ngay lập tức.
     """
     for p in RAW_PRODUCTS:
         if p["id"] == product_id:
@@ -141,6 +143,53 @@ def update_product_stock(
             return {"status": "success", "message": "Cập nhật tồn kho thành công", "product": p}
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
 
+from app.core.rbac import Role
+from app.api.deps import require_roles
+
+@router.put("/{product_id}/category")
+@router.patch("/{product_id}/category")
+def update_product_category(
+    product_id: int,
+    payload: dict,
+    current_user: UserResponse = Depends(require_roles([Role.SYSTEM_ADMIN.value, Role.SALES_MANAGER.value]))
+):
+    """
+    Đổi nhóm hàng (category_id) của sản phẩm dành cho Admin và Sales Manager.
+    """
+    if "category_id" not in payload:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Thiếu category_id")
+    
+    cat_id = payload["category_id"]
+    if cat_id is not None:
+        cat_id = int(cat_id)
+        
+    db = SessionLocal()
+    try:
+        category_name = "Chưa phân loại"
+        if cat_id is not None:
+            category = db.query(CategoryEntity).filter(CategoryEntity.id == cat_id).first()
+            if not category:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Danh mục không tồn tại")
+            category_name = category.name
+            
+        # 1. Update in SQLite Database
+        from app.models.entities import ProductEntity
+        db_product = db.query(ProductEntity).filter(ProductEntity.id == product_id).first()
+        if db_product:
+            db_product.category_id = cat_id
+            db_product.category = category_name
+            db.commit()
+            
+        # 2. Update in-memory RAW_PRODUCTS (to keep legacy endpoints in sync)
+        for p in RAW_PRODUCTS:
+            if p["id"] == product_id:
+                p["category_id"] = cat_id
+                p["category"] = category_name
+                return {"status": "success", "message": "Cập nhật ngành hàng thành công", "product": p}
+                
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
+    finally:
+        db.close()
 
 @router.put("/{product_id}/price")
 def update_product_price(
@@ -183,4 +232,3 @@ def update_product_price(
                 "product": p
             }
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
-
