@@ -87,15 +87,28 @@ def get_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> UserRespo
     can_view_cost = any(ROLE_DETAILS.get(r, {}).get("can_view_cost", False) for r in roles)
     can_write_inventory = any(ROLE_DETAILS.get(r, {}).get("can_write_inventory", False) for r in roles)
     
+    branch = getattr(user, "branch", "Kho Tổng Hà Nội")
+    warehouse_name = branch if ("kho" in branch.lower() or "toàn quốc" in branch.lower()) else branch
+    territory_name = branch if ("khu vực" in branch.lower() or "toàn quốc" in branch.lower() or "miền" in branch.lower()) else branch
+    phone_val = getattr(user, "phone", None)
+    email_val = getattr(user, "email", None)
+    user_id = getattr(user, "id", None)
+    
     return UserResponse(
+        id=user_id,
         username=user.username,
         full_name=user.full_name,
+        email=email_val,
+        phone=phone_val,
+        phone_number=phone_val,
         role=primary_role,
         roles=roles,
         role_titles=role_titles,
         permissions=permissions,
         role_title=role_info.get("title", primary_role),
-        branch=getattr(user, "branch", "Kho Tổng Hà Nội"),
+        branch=branch,
+        warehouse_name=warehouse_name,
+        territory_name=territory_name,
         can_view_cost=can_view_cost,
         can_write_inventory=can_write_inventory,
     )
