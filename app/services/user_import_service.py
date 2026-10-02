@@ -133,15 +133,110 @@ class UserBulkImportService:
 
     @staticmethod
     def generate_template() -> bytes:
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
         wb = Workbook()
+        
+        # --- Sheet 1: Dữ liệu mẫu ---
         ws = wb.active
-        ws.title = "Import_Users_Template"
-        headers = ["Họ và tên", "Email", "Số điện thoại", "Vai trò (Role)", "Chi nhánh / Địa bàn", "Mật khẩu (Tự chọn, mặc định 123)"]
+        ws.title = "Danh sách người dùng"
+        
+        headers = [
+            "Họ và tên (*)",
+            "Email (*)",
+            "Số điện thoại (*)",
+            "Vai trò (*)",
+            "Chi nhánh / Kho / Địa bàn",
+            "Mật khẩu"
+        ]
         ws.append(headers)
         
-        # Example row
-        ws.append(["Nguyễn Văn A", "nguyenvana@gmail.com", "0912345678", "sales", "Kho Tổng Hà Nội", "123"])
-        
+        # Mẫu dữ liệu phong phú minh họa chuẩn cho các vai trò
+        sample_rows = [
+            ["Nguyễn Văn A", "nguyenvana@gmail.com", "0912345678", "sales", "Kho Tổng Hà Nội", "123"],
+            ["Trần Thị B", "tranthib@gmail.com", "0987654321", "warehouse", "Kho Chi Nhánh Đà Nẵng", "123"],
+            ["Lê Văn C", "levanc@gmail.com", "0901234567", "customer", "Khu vực Miền Nam", "123"],
+            ["Phạm Minh D", "minhd@gmail.com", "0934567890", "accountant", "Trụ sở chính", "123"],
+        ]
+        for row in sample_rows:
+            ws.append(row)
+
+        # Định dạng Header
+        header_fill = PatternFill(start_color="1E40AF", end_color="1E40AF", fill_type="solid")
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        thin_border = Border(
+            left=Side(style="thin", color="CBD5E1"),
+            right=Side(style="thin", color="CBD5E1"),
+            top=Side(style="thin", color="CBD5E1"),
+            bottom=Side(style="thin", color="CBD5E1")
+        )
+
+        ws.row_dimensions[1].height = 28
+
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        # Định dạng các dòng dữ liệu (Cột SĐT ép kiểu Text '@' để không bao giờ mất số 0)
+        for row in ws.iter_rows(min_row=2, max_row=len(sample_rows) + 1, min_col=1, max_col=len(headers)):
+            ws.row_dimensions[row[0].row].height = 22
+            for cell in row:
+                cell.font = Font(name="Calibri", size=11)
+                cell.border = thin_border
+                cell.alignment = Alignment(vertical="center")
+                if cell.column == 3:  # Số điện thoại
+                    cell.number_format = "@"
+
+        # Tự động căn chỉnh độ rộng cột chuẩn mắt (không bị che khuất)
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or "")) for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = max(max_len + 6, 18)
+
+        # --- Sheet 2: Danh mục mã vai trò & Kho hợp lệ ---
+        ws_ref = wb.create_sheet(title="Hướng dẫn mã vai trò")
+        ref_headers = ["Mã vai trò (Điền cột D)", "Tên vai trò", "Lưu ý địa bàn / Kho bắt buộc"]
+        ws_ref.append(ref_headers)
+
+        ws_ref.row_dimensions[1].height = 26
+        ref_header_fill = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
+        for col_idx in range(1, len(ref_headers) + 1):
+            cell = ws_ref.cell(row=1, column=col_idx)
+            cell.fill = ref_header_fill
+            cell.font = header_font
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        ref_data = [
+            ["admin", "Quản trị hệ thống", "Toàn quyền hệ thống"],
+            ["sales_manager", "Quản lý kinh doanh", "Khu vực hoặc Trụ sở chính"],
+            ["sales", "Nhân viên kinh doanh", "Chi nhánh hoặc địa bàn phụ trách"],
+            ["warehouse", "Thủ kho", "BẮT BUỘC: Kho Tổng Hà Nội, Kho Chi Nhánh Đà Nẵng, Kho Chi Nhánh TP. Hồ Chí Minh"],
+            ["warehouse_manager", "Quản lý kho", "BẮT BUỘC: Kho cụ thể"],
+            ["accountant", "Kế toán", "Trụ sở chính hoặc chi nhánh"],
+            ["purchasing", "Nhân viên mua hàng", "Trụ sở chính"],
+            ["customer", "Đại lý", "Khu vực hoạt động của đại lý"],
+        ]
+        for item in ref_data:
+            ws_ref.append(item)
+
+        for row in ws_ref.iter_rows(min_row=2, max_row=len(ref_data) + 1, min_col=1, max_col=len(ref_headers)):
+            ws_ref.row_dimensions[row[0].row].height = 20
+            for cell in row:
+                cell.font = Font(name="Calibri", size=10.5)
+                cell.border = thin_border
+                cell.alignment = Alignment(vertical="center")
+
+        for col in ws_ref.columns:
+            max_len = max(len(str(cell.value or "")) for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws_ref.column_dimensions[col_letter].width = max(max_len + 6, 22)
+
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
