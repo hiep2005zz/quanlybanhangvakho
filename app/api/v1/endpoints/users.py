@@ -384,11 +384,37 @@ def update_user(
     if data.branch is not None:
         user.branch = data.branch.strip()
 
-    if data.password is not None and len(data.password.strip()) >= 3:
-        user.hashed_password = get_password_hash(data.password.strip())
-        user.token_version = getattr(user, "token_version", 1) + 1
-
     save_users_db()
+
+    # Đồng bộ sang SQL Server Database nếu có
+    try:
+        from app.core.database import SessionLocal
+        from app.models.entities import UserEntity
+        import json as _json
+        if SessionLocal:
+            db_session = SessionLocal()
+            try:
+                db_u = db_session.query(UserEntity).filter(UserEntity.username == target_username).first()
+                if db_u:
+                    if new_roles is not None:
+                        db_u.role = user.role
+                        db_u.roles = _json.dumps(user.roles)
+                    if data.full_name is not None and data.full_name.strip():
+                        db_u.full_name = user.full_name
+                    if data.email is not None and data.email.strip():
+                        db_u.email = user.email
+                    if data.phone is not None:
+                        db_u.phone = user.phone
+                    if data.branch is not None:
+                        db_u.branch = user.branch
+                    if data.is_active is not None:
+                        db_u.is_active = user.is_active
+                    db_session.commit()
+            finally:
+                db_session.close()
+    except Exception as e:
+        print(f"Warning: could not sync user to DB: {e}")
+
     return _build_user_item(user)
 
 @router.delete("/{username}")

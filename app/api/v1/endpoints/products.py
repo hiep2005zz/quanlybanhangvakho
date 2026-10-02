@@ -1,9 +1,11 @@
-# backend/app/api/v1/endpoints/products.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_permission
+from app.core.database import get_db
 from app.core.rbac import Permission, has_permission
 from app.schemas.auth import UserResponse
-from app.schemas.product import ProductItem, ProductListResponse, ProductFinancialSummary
+from app.schemas.product import ProductItem, ProductListResponse, ProductFinancialSummary, PriceUpdateRequest
+from app.services.audit_service import log_audit_event
 
 router = APIRouter()
 
@@ -15,6 +17,8 @@ RAW_PRODUCTS = [
     {"id": 4, "code": "SP004", "name": "Giày Sneaker Thể Thao", "category": "Giày dép", "stock": 65, "cost_price": 310000.0, "sell_price": 650000.0},
     {"id": 5, "code": "SP005", "name": "Thắt lưng da bò nguyên tấm", "category": "Phụ kiện", "stock": 80, "cost_price": 95000.0, "sell_price": 250000.0},
 ]
+
+
 
 @router.get("", response_model=ProductListResponse)
 def get_products(current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_READ.value))):
@@ -50,6 +54,7 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
                 code=p["code"],
                 name=p["name"],
                 category=p["category"],
+                category_id=p.get("category_id"),
                 stock=stock,
                 sell_price=sell_price,
                 cost_price=cost_price,
@@ -63,6 +68,7 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
                 code=p["code"],
                 name=p["name"],
                 category=p["category"],
+                category_id=p.get("category_id"),
                 stock=stock,
                 sell_price=sell_price,
                 cost_price=None,
@@ -100,6 +106,9 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
         summary=summary,
     )
 
+from app.core.database import SessionLocal
+from app.models.entities import CategoryEntity
+
 @router.put("/{product_id}/stock")
 @router.patch("/{product_id}/stock")
 @router.put("/{product_id}")
@@ -107,17 +116,214 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
 def update_product_stock(
     product_id: int,
     payload: dict,
+    request: Request,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.INVENTORY_WRITE.value))
 ):
     """
     Cập nhật số lượng tồn kho sản phẩm.
-    Zero-Trust / Default Deny:
-    - Bắt buộc kiểm tra quyền 'inventory:write' ở tầng server.
-    - Nhân viên kinh doanh (Sales) không có quyền -> trả về 403 Forbidden ngay lập tức.
     """
     for p in RAW_PRODUCTS:
         if p["id"] == product_id:
+            old_stock = p["stock"]
             if "stock" in payload:
-                p["stock"] = int(payload["stock"])
+                new_stock = int(payload["stock"])
+                p["stock"] = new_stock
+                log_audit_event(
+                    db=db,
+                    user=current_user,
+                    action_type="INVENTORY_ADJUST",
+                    entity_type="Product",
+                    entity_id=p["code"],
+                    old_val={"stock": old_stock},
+                    new_val={"stock": new_stock},
+                    reason=payload.get("reason", "Cập nhật tồn kho sản phẩm"),
+                    request=request,
+                )
             return {"status": "success", "message": "Cập nhật tồn kho thành công", "product": p}
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
+
+from app.core.rbac import Role
+from app.api.deps import require_roles
+
+@router.put("/{product_id}/category")
+@router.patch("/{product_id}/category")
+def update_product_category(
+    product_id: int,
+    payload: dict,
+    current_user: UserResponse = Depends(require_roles([Role.SYSTEM_ADMIN.value, Role.SALES_MANAGER.value]))
+):
+    """
+    Đổi nhóm hàng (category_id) của sản phẩm dành cho Admin và Sales Manager.
+    """
+    if "category_id" not in payload:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Thiếu category_id")
+    
+    cat_id = payload["category_id"]
+    if cat_id is not None:
+        cat_id = int(cat_id)
+        
+    db = SessionLocal()
+    try:
+        category_name = "Chưa phân loại"
+        if cat_id is not None:
+            category = db.query(CategoryEntity).filter(CategoryEntity.id == cat_id).first()
+            if not category:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Danh mục không tồn tại")
+            category_name = category.name
+            
+        # 1. Update in SQLite Database
+        from app.models.entities import ProductEntity
+        db_product = db.query(ProductEntity).filter(ProductEntity.id == product_id).first()
+        if db_product:
+            db_product.category_id = cat_id
+            db_product.category = category_name
+            db.commit()
+            
+        # 2. Update in-memory RAW_PRODUCTS (to keep legacy endpoints in sync)
+        for p in RAW_PRODUCTS:
+            if p["id"] == product_id:
+                p["category_id"] = cat_id
+                p["category"] = category_name
+                return {"status": "success", "message": "Cập nhật ngành hàng thành công", "product": p}
+                
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
+    finally:
+        db.close()
+
+@router.put("/{product_id}/price")
+def update_product_price(
+    product_id: int,
+    data: PriceUpdateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Thay đổi giá bán niêm yết hoặc giá vốn nhập kho.
+    Ghi vết vào bảng audit_logs với action_type='PRICE_CHANGE'.
+    """
+    for p in RAW_PRODUCTS:
+        if p["id"] == product_id:
+            old_val = {"sell_price": p["sell_price"], "cost_price": p["cost_price"]}
+            new_val = {}
+            if data.sell_price is not None:
+                p["sell_price"] = data.sell_price
+                new_val["sell_price"] = data.sell_price
+            if data.cost_price is not None:
+                p["cost_price"] = data.cost_price
+                new_val["cost_price"] = data.cost_price
+
+            log_audit_event(
+                db=db,
+                user=current_user,
+                action_type="PRICE_CHANGE",
+                entity_type="Product",
+                entity_id=p["code"],
+                old_val=old_val,
+                new_val=new_val,
+                reason=data.reason,
+                request=request,
+            )
+
+            return {
+                "status": "success",
+                "message": f"Đã cập nhật giá cho sản phẩm {p['name']}.",
+                "product": p
+            }
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
+
+# ==============================================================================
+# HÀNG LOẠT SẢN PHẨM TỪ EXCEL (Bulk Import / Preview / Upsert)
+# ==============================================================================
+from fastapi import UploadFile, File
+from fastapi.responses import Response
+from app.schemas.product_import import (
+    ProductBulkPreviewResponse,
+    ProductBulkConfirmRequest,
+    ProductBulkConfirmResponse,
+)
+from app.services.product_import_service import ProductBulkImportService
+
+@router.get("/import-template")
+def download_product_import_template(
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Endpoint 1: GET /api/v1/products/import-template
+    Tải tệp Excel mẫu chuẩn (.xlsx) chứa đầy đủ các cột: SKU, Tên sản phẩm, ĐVT, Giá bán, Danh mục...
+    """
+    content = ProductBulkImportService.generate_template()
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=Mau_Nhap_Danh_Muc_San_Pham.xlsx"}
+    )
+
+@router.post("/bulk-preview", response_model=ProductBulkPreviewResponse)
+def bulk_preview_products(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Endpoint 2: POST /api/v1/products/bulk-preview
+    Nhận UploadFile Excel, validate từng dòng dữ liệu, so khớp SKU trong DB:
+    - Báo lỗi chi tiết theo từng dòng (thiếu dữ liệu bắt buộc, sai định dạng số/chuỗi, đơn vị không hợp lệ).
+    - Đánh dấu trạng thái: "NEW" (Tạo mới), "UPDATE" (Cập nhật), "ERROR" (Lỗi).
+    """
+    if not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Định dạng tệp không được hỗ trợ. Vui lòng tải lên tệp Excel (.xlsx hoặc .xls)."
+        )
+
+    try:
+        content = file.file.read()
+        return ProductBulkImportService.parse_and_validate(content, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Lỗi khi đọc file Excel: {str(e)}"
+        )
+
+@router.post("/bulk-confirm", response_model=ProductBulkConfirmResponse)
+def bulk_confirm_products(
+    request: ProductBulkConfirmRequest,
+    req: Request,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Endpoint 3: POST /api/v1/products/bulk-confirm
+    Lưu / cập nhật dữ liệu vào CSDL theo transaction, hỗ trợ tệp lên đến 5.000 dòng.
+    Ghi vết vào Audit Log và đồng bộ in-memory store.
+    """
+    try:
+        result = ProductBulkImportService.execute_upsert(request, db)
+
+        # Ghi log kiểm toán nếu có thao tác thành công
+        if result.total_processed > 0:
+            log_audit_event(
+                db=db,
+                user=current_user,
+                action_type="PRODUCT_BULK_IMPORT",
+                entity_type="Product",
+                entity_id=f"BULK_{result.total_processed}_ITEMS",
+                old_val=None,
+                new_val={
+                    "total_processed": result.total_processed,
+                    "created_count": result.created_count,
+                    "updated_count": result.updated_count,
+                    "failed_count": result.failed_count,
+                },
+                reason=f"Nhập hàng loạt sản phẩm từ Excel ({result.created_count} tạo mới, {result.updated_count} cập nhật)",
+                request=req,
+            )
+
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+

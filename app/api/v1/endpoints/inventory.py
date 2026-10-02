@@ -1,8 +1,10 @@
 # backend/app/api/v1/endpoints/inventory.py
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy.orm import Session
 from app.api.deps import require_permission
+from app.core.database import get_db
 from app.core.rbac import Permission
 from app.schemas.auth import UserResponse
 from app.schemas.inventory import (
@@ -14,6 +16,7 @@ from app.schemas.inventory import (
     InventoryTransaction,
 )
 from app.api.v1.endpoints.products import RAW_PRODUCTS
+from app.services.audit_service import log_audit_event
 
 router = APIRouter()
 
@@ -69,6 +72,8 @@ def get_inventory_transactions(
 @router.post("/adjust", response_model=InventoryResponse)
 def adjust_stock(
     data: StockAdjustRequest,
+    request: Request,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.INVENTORY_WRITE.value))
 ):
     """
@@ -108,6 +113,19 @@ def adjust_stock(
     )
     INVENTORY_TRANSACTIONS.insert(0, tx)
 
+    # Ghi nhật ký thao tác kiểm kê / điều chỉnh tồn kho (chỉ lưu trường bị biến động)
+    log_audit_event(
+        db=db,
+        user=current_user,
+        action_type="INVENTORY_ADJUST",
+        entity_type="Product",
+        entity_id=product["code"],
+        old_val={"stock": previous_stock},
+        new_val={"stock": new_stock},
+        reason=data.reason,
+        request=request,
+    )
+
     return InventoryResponse(
         status="success",
         message=f"Đã điều chỉnh tồn kho sản phẩm '{product['name']}' thành công từ {previous_stock} sang {new_stock}.",
@@ -120,6 +138,8 @@ def adjust_stock(
 @router.post("/receipt", response_model=InventoryResponse)
 def create_stock_receipt(
     data: StockReceiptRequest,
+    request: Request,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.INVENTORY_WRITE.value))
 ):
     """
@@ -153,6 +173,19 @@ def create_stock_receipt(
     )
     INVENTORY_TRANSACTIONS.insert(0, tx)
 
+    # Ghi nhật ký nhập kho (chỉ lưu trường bị biến động)
+    log_audit_event(
+        db=db,
+        user=current_user,
+        action_type="INVENTORY_ADJUST",
+        entity_type="Product",
+        entity_id=product["code"],
+        old_val={"stock": previous_stock},
+        new_val={"stock": new_stock},
+        reason=reason_str,
+        request=request,
+    )
+
     return InventoryResponse(
         status="success",
         message=f"Nhập kho thành công {data.quantity} sản phẩm '{product['name']}'. Tồn kho hiện tại: {new_stock}.",
@@ -165,6 +198,8 @@ def create_stock_receipt(
 @router.post("/issue", response_model=InventoryResponse)
 def create_stock_issue(
     data: StockIssueRequest,
+    request: Request,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.INVENTORY_WRITE.value))
 ):
     """
@@ -204,6 +239,19 @@ def create_stock_issue(
     )
     INVENTORY_TRANSACTIONS.insert(0, tx)
 
+    # Ghi nhật ký xuất kho (chỉ lưu trường bị biến động)
+    log_audit_event(
+        db=db,
+        user=current_user,
+        action_type="INVENTORY_ADJUST",
+        entity_type="Product",
+        entity_id=product["code"],
+        old_val={"stock": previous_stock},
+        new_val={"stock": new_stock},
+        reason=reason_str,
+        request=request,
+    )
+
     return InventoryResponse(
         status="success",
         message=f"Xuất kho thành công {data.quantity} sản phẩm '{product['name']}'. Tồn kho còn lại: {new_stock}.",
@@ -217,6 +265,8 @@ def create_stock_issue(
 def update_stock_quantity(
     product_id: int,
     data: StockUpdateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.INVENTORY_WRITE.value))
 ):
     """
@@ -248,6 +298,19 @@ def update_stock_quantity(
     )
     INVENTORY_TRANSACTIONS.insert(0, tx)
 
+    # Ghi nhật ký kiểm kê trực tiếp
+    log_audit_event(
+        db=db,
+        user=current_user,
+        action_type="INVENTORY_ADJUST",
+        entity_type="Product",
+        entity_id=product["code"],
+        old_val={"stock": previous_stock},
+        new_val={"stock": data.new_stock},
+        reason=data.reason,
+        request=request,
+    )
+
     return InventoryResponse(
         status="success",
         message=f"Đã cập nhật số lượng tồn kho sản phẩm '{product['name']}' thành {data.new_stock}.",
@@ -260,6 +323,8 @@ def update_stock_quantity(
 @router.delete("/{product_id}/stock", response_model=InventoryResponse)
 def clear_stock_quantity(
     product_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.INVENTORY_WRITE.value))
 ):
     """
@@ -291,6 +356,19 @@ def clear_stock_quantity(
     )
     INVENTORY_TRANSACTIONS.insert(0, tx)
 
+    # Ghi nhật ký reset kho
+    log_audit_event(
+        db=db,
+        user=current_user,
+        action_type="INVENTORY_ADJUST",
+        entity_type="Product",
+        entity_id=product["code"],
+        old_val={"stock": previous_stock},
+        new_val={"stock": 0},
+        reason="Thao tác DELETE: Đặt lại tồn kho về 0",
+        request=request,
+    )
+
     return InventoryResponse(
         status="success",
         message=f"Đã reset tồn kho của '{product['name']}' về 0.",
@@ -298,3 +376,4 @@ def clear_stock_quantity(
         current_stock=0,
         transaction=tx,
     )
+
