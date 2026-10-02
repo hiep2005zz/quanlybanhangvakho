@@ -14,6 +14,8 @@ class Dealer(BaseModel):
     email: Optional[str] = None
     address: Optional[str] = None
     assigned_sale_id: Optional[int] = None  # user id of the sales staff responsible
+    credit_limit: float = 50000000.0        # Hạn mức công nợ mặc định (VNĐ)
+
 
 # Initial seed data for dealers
 # Sales user: id=3 (username: 'sales', full_name: 'Trần Bán Hàng')

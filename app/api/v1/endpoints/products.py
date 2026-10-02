@@ -1,9 +1,11 @@
-# backend/app/api/v1/endpoints/products.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_permission
+from app.core.database import get_db
 from app.core.rbac import Permission, has_permission
 from app.schemas.auth import UserResponse
-from app.schemas.product import ProductItem, ProductListResponse, ProductFinancialSummary
+from app.schemas.product import ProductItem, ProductListResponse, ProductFinancialSummary, PriceUpdateRequest
+from app.services.audit_service import log_audit_event
 
 router = APIRouter()
 
@@ -15,6 +17,8 @@ RAW_PRODUCTS = [
     {"id": 4, "code": "SP004", "name": "Giày Sneaker Thể Thao", "category": "Giày dép", "stock": 65, "cost_price": 310000.0, "sell_price": 650000.0},
     {"id": 5, "code": "SP005", "name": "Thắt lưng da bò nguyên tấm", "category": "Phụ kiện", "stock": 80, "cost_price": 95000.0, "sell_price": 250000.0},
 ]
+
+
 
 @router.get("", response_model=ProductListResponse)
 def get_products(current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_READ.value))):
@@ -112,6 +116,8 @@ from app.models.entities import CategoryEntity
 def update_product_stock(
     product_id: int,
     payload: dict,
+    request: Request,
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.INVENTORY_WRITE.value))
 ):
     """
@@ -119,9 +125,22 @@ def update_product_stock(
     """
     for p in RAW_PRODUCTS:
         if p["id"] == product_id:
+            old_stock = p["stock"]
             if "stock" in payload:
-                p["stock"] = int(payload["stock"])
-            return {"status": "success", "message": "Cập nhật sản phẩm thành công", "product": p}
+                new_stock = int(payload["stock"])
+                p["stock"] = new_stock
+                log_audit_event(
+                    db=db,
+                    user=current_user,
+                    action_type="INVENTORY_ADJUST",
+                    entity_type="Product",
+                    entity_id=p["code"],
+                    old_val={"stock": old_stock},
+                    new_val={"stock": new_stock},
+                    reason=payload.get("reason", "Cập nhật tồn kho sản phẩm"),
+                    request=request,
+                )
+            return {"status": "success", "message": "Cập nhật tồn kho thành công", "product": p}
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
 
 from app.core.rbac import Role
@@ -171,3 +190,45 @@ def update_product_category(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
     finally:
         db.close()
+
+@router.put("/{product_id}/price")
+def update_product_price(
+    product_id: int,
+    data: PriceUpdateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Thay đổi giá bán niêm yết hoặc giá vốn nhập kho.
+    Ghi vết vào bảng audit_logs với action_type='PRICE_CHANGE'.
+    """
+    for p in RAW_PRODUCTS:
+        if p["id"] == product_id:
+            old_val = {"sell_price": p["sell_price"], "cost_price": p["cost_price"]}
+            new_val = {}
+            if data.sell_price is not None:
+                p["sell_price"] = data.sell_price
+                new_val["sell_price"] = data.sell_price
+            if data.cost_price is not None:
+                p["cost_price"] = data.cost_price
+                new_val["cost_price"] = data.cost_price
+
+            log_audit_event(
+                db=db,
+                user=current_user,
+                action_type="PRICE_CHANGE",
+                entity_type="Product",
+                entity_id=p["code"],
+                old_val=old_val,
+                new_val=new_val,
+                reason=data.reason,
+                request=request,
+            )
+
+            return {
+                "status": "success",
+                "message": f"Đã cập nhật giá cho sản phẩm {p['name']}.",
+                "product": p
+            }
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")

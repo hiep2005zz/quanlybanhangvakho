@@ -10,6 +10,7 @@ from app.models.entities import (
     InventoryTransactionEntity,
     OrderEntity,
     CategoryEntity,
+    AuditLogEntity,
 )
 from app.core.security import get_password_hash
 from app.core.rbac import Role

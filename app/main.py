@@ -1,7 +1,7 @@
 # backend/app/main.py - Fresh Reset
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1.endpoints import auth, products, inventory, users, orders, categories
+from app.api.v1.endpoints import auth, products, inventory, users, orders, categories, audit_logs
 
 from contextlib import asynccontextmanager
 from app.db.init_db import init_db
@@ -43,6 +43,7 @@ app.include_router(inventory.router, prefix="/api/v1/inventory", tags=["Inventor
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(orders.router, prefix="/api/v1/orders", tags=["Orders"])
 app.include_router(categories.router, prefix="/api/v1/categories", tags=["Categories"])
+app.include_router(audit_logs.router, prefix="/api/v1/audit-logs", tags=["AuditLogs"])
 
 @app.get("/")
 def root():

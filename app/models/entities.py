@@ -97,7 +97,9 @@ class DealerEntity(Base):
     email = Column(String(255), nullable=True)
     address = Column(Unicode(500), nullable=True)
     assigned_sale_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    credit_limit = Column(Float, default=50000000.0)
     created_at = Column(DateTime, default=get_utc_now)
+
 
 
 class InventoryTransactionEntity(Base):
@@ -131,3 +133,20 @@ class OrderEntity(Base):
     note = Column(UnicodeText, nullable=True)
     items_json = Column(UnicodeText, nullable=True)  # JSON order items
     created_at = Column(DateTime, default=get_utc_now)
+
+
+class AuditLogEntity(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user_name = Column(Unicode(100), nullable=True)
+    action_type = Column(String(50), nullable=False, index=True)  # INVENTORY_ADJUST, PRICE_CHANGE, DEBT_LIMIT_CHANGE, INVOICE_EDIT, etc.
+    entity_type = Column(String(50), nullable=False, index=True)  # Product, CustomerDebt, Invoice, etc.
+    entity_id = Column(String(100), nullable=False, index=True)   # Mã SP, ID khách, Mã hóa đơn
+    old_values = Column(UnicodeText, nullable=True)               # JSON string giá trị cũ
+    new_values = Column(UnicodeText, nullable=True)               # JSON string giá trị mới
+    reason = Column(Unicode(255), nullable=True)                  # Lý do điều chỉnh
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, default=get_utc_now, index=True)
+
