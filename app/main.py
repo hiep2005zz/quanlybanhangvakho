@@ -41,6 +41,8 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(products.router, prefix="/api/v1/products", tags=["Products"])
 app.include_router(inventory.router, prefix="/api/v1/inventory", tags=["Inventory"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
+from app.api.v1.endpoints import user_import
+app.include_router(user_import.router, prefix="/api/v1/users/import", tags=["User Import"])
 app.include_router(orders.router, prefix="/api/v1/orders", tags=["Orders"])
 
 @app.get("/")
