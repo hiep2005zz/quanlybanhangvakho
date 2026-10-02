@@ -5,16 +5,20 @@ AC 3: Kiểm tra nhân viên phụ trách của Đại lý đó.
 Nếu tài khoản nhân viên đang ở trạng thái LOCKED, từ chối tạo đơn và báo lỗi:
 "Đại lý này thuộc nhân viên đã bị khóa tài khoản, vui lòng bàn giao trước khi lên đơn".
 """
+import json
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_permission
 from app.core.database import get_db
 from app.core.rbac import Permission
 from app.schemas.auth import UserResponse
+from app.api.v1.endpoints.products import RAW_PRODUCTS
 from app.models.dealer import DEALERS_DB, save_dealers_db
+from app.models.entities import OrderEntity
 from app.models.user import USERS_DB
 from app.services.audit_service import log_audit_event
 
@@ -24,11 +28,15 @@ class OrderItemCreate(BaseModel):
     product_id: int
     quantity: int = Field(..., gt=0)
     price: float = Field(..., ge=0)
+    unit: str = Field(default="Cái", min_length=1, max_length=30)
 
 class OrderCreate(BaseModel):
     dealer_id: int
     items: List[OrderItemCreate]
     note: Optional[str] = None
+    delivery_point: Optional[str] = Field(default=None, max_length=500)
+    desired_delivery_date: Optional[date] = None
+    discount_percent: float = Field(default=0, ge=0, le=100)
 
 class OrderResponse(BaseModel):
     id: int
@@ -41,6 +49,14 @@ class OrderResponse(BaseModel):
     total_amount: float
     status: str
     created_at: str
+
+class SalesOrderResponse(OrderResponse):
+    subtotal_amount: float = 0
+    discount_percent: float = 0
+    discount_amount: float = 0
+    delivery_point: Optional[str] = None
+    desired_delivery_date: Optional[str] = None
+    items: List[dict] = Field(default_factory=list)
 
 class InvoiceEditRequest(BaseModel):
     note: Optional[str] = None
@@ -68,12 +84,68 @@ ORDERS_DB: dict[int, dict] = {
 }
 NEXT_ORDER_ID = 2
 
+def _allocate_order_id(db: Session) -> int:
+    global NEXT_ORDER_ID
+    max_stored_id = db.query(func.max(OrderEntity.id)).scalar() or 0
+    order_id = max(
+        NEXT_ORDER_ID,
+        max(ORDERS_DB.keys(), default=0) + 1,
+        max_stored_id + 1,
+    )
+    NEXT_ORDER_ID = order_id + 1
+    return order_id
+
+@router.get("/dealers")
+def get_order_dealers(
+    current_user: UserResponse = Depends(require_permission(Permission.ORDER_WRITE.value))
+):
+    """Return dealers available for order entry, restricted to the assigned salesperson."""
+    dealers = list(DEALERS_DB.values())
+    if current_user.role == "sales":
+        assigned_user = USERS_DB.get(current_user.username)
+        if not assigned_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Không tìm thấy nhân viên kinh doanh hiện tại.",
+            )
+        dealers = [dealer for dealer in dealers if dealer.assigned_sale_id == assigned_user.id]
+
+    return [
+        {
+            "id": dealer.id,
+            "code": dealer.code,
+            "name": dealer.name,
+            "phone": dealer.phone,
+            "address": dealer.address,
+        }
+        for dealer in sorted(dealers, key=lambda item: item.name.lower())
+    ]
+
 @router.get("", response_model=List[OrderResponse])
 def get_orders(
+    db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.ORDER_READ.value))
 ):
     """Lấy danh sách đơn hàng / hóa đơn."""
-    return [OrderResponse(**o) for o in sorted(ORDERS_DB.values(), key=lambda x: x["id"], reverse=True)]
+    orders_by_code = {
+        order["order_code"]: OrderResponse(**order)
+        for order in ORDERS_DB.values()
+    }
+    for order in db.query(OrderEntity).order_by(OrderEntity.id.desc()).all():
+        if order.order_code not in orders_by_code:
+            orders_by_code[order.order_code] = OrderResponse(
+                id=order.id,
+                order_code=order.order_code,
+                dealer_id=order.dealer_id,
+                dealer_name=order.dealer_name,
+                created_by=order.created_by,
+                assigned_sale_id=order.assigned_sale_id,
+                assigned_sale_name=order.assigned_sale_name,
+                total_amount=order.total_amount,
+                status=order.status,
+                created_at=order.created_at.isoformat() if order.created_at else "",
+            )
+    return sorted(orders_by_code.values(), key=lambda order: order.id, reverse=True)
 
 @router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 def create_order(
@@ -82,7 +154,6 @@ def create_order(
     db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.ORDER_WRITE.value))
 ):
-    global NEXT_ORDER_ID
     # 1. Tìm thông tin đại lý
     dealer = DEALERS_DB.get(data.dealer_id)
     if not dealer:
@@ -108,9 +179,10 @@ def create_order(
         )
 
     # 3. Tạo đơn hàng
-    total_amount = sum(item.quantity * item.price for item in data.items)
-    order_id = NEXT_ORDER_ID
-    NEXT_ORDER_ID += 1
+    subtotal_amount = sum(item.quantity * item.price for item in data.items)
+    discount_amount = round(subtotal_amount * data.discount_percent / 100, 2)
+    total_amount = subtotal_amount - discount_amount
+    order_id = _allocate_order_id(db)
     order_code = f"ORD{order_id:05d}"
     now_str = datetime.now(timezone.utc).isoformat()
 
@@ -125,10 +197,136 @@ def create_order(
         "total_amount": total_amount,
         "status": "CONFIRMED",
         "created_at": now_str,
+        "subtotal_amount": subtotal_amount,
+        "discount_percent": data.discount_percent,
+        "discount_amount": discount_amount,
+        "delivery_point": data.delivery_point,
+        "desired_delivery_date": data.desired_delivery_date.isoformat() if data.desired_delivery_date else None,
+        "items": [item.model_dump() for item in data.items],
+        "note": data.note,
     }
     ORDERS_DB[order_id] = order_record
 
     return OrderResponse(**order_record)
+
+@router.post("/sales-entry", response_model=SalesOrderResponse, status_code=status.HTTP_201_CREATED)
+def create_sales_entry_order(
+    data: OrderCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.ORDER_WRITE.value)),
+):
+    """Create and persist orders from the sales-entry workflow."""
+    if not data.items:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Đơn hàng phải có ít nhất một dòng sản phẩm.",
+        )
+    if not data.delivery_point or not data.delivery_point.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vui lòng chọn điểm giao hàng.",
+        )
+    if not data.desired_delivery_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vui lòng chọn ngày giao mong muốn.",
+        )
+    if data.desired_delivery_date < date.today():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ngày giao mong muốn không được ở quá khứ.",
+        )
+
+    dealer = DEALERS_DB.get(data.dealer_id)
+    if not dealer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy đại lý có ID {data.dealer_id}.",
+        )
+
+    assigned_sale_id = dealer.assigned_sale_id
+    assigned_user = next((user for user in USERS_DB.values() if user.id == assigned_sale_id), None)
+    if current_user.role == "sales":
+        current_salesperson = USERS_DB.get(current_user.username)
+        if not current_salesperson or assigned_sale_id != current_salesperson.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn chỉ được tạo đơn hàng cho đại lý được phân công.",
+            )
+    if assigned_user and (not assigned_user.is_active or getattr(assigned_user, "status", "ACTIVE") == "LOCKED"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Đại lý này thuộc nhân viên đã bị khóa tài khoản, vui lòng bàn giao trước khi lên đơn",
+        )
+
+    product_by_id = {product["id"]: product for product in RAW_PRODUCTS}
+    priced_items: list[OrderItemCreate] = []
+    for item in data.items:
+        product = product_by_id.get(item.product_id)
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy sản phẩm có ID {item.product_id}.",
+            )
+        priced_items.append(item.model_copy(update={"price": product["sell_price"]}))
+
+    verified_data = data.model_copy(update={
+        "delivery_point": data.delivery_point.strip(),
+        "items": priced_items,
+    })
+    subtotal_amount = sum(item.quantity * item.price for item in priced_items)
+    discount_amount = round(subtotal_amount * data.discount_percent / 100, 2)
+    total_amount = subtotal_amount - discount_amount
+    order_id = _allocate_order_id(db)
+    order_code = f"ORD{order_id:05d}"
+    created_at = datetime.now(timezone.utc)
+    items = [item.model_dump() for item in verified_data.items]
+
+    db_order = OrderEntity(
+        id=order_id,
+        order_code=order_code,
+        dealer_id=dealer.id,
+        dealer_name=dealer.name,
+        created_by=current_user.username,
+        assigned_sale_id=assigned_sale_id,
+        assigned_sale_name=assigned_user.full_name if assigned_user else None,
+        total_amount=total_amount,
+        status="CONFIRMED",
+        note=verified_data.note,
+        items_json=json.dumps({
+            "items": items,
+            "delivery_point": verified_data.delivery_point,
+            "desired_delivery_date": verified_data.desired_delivery_date.isoformat(),
+            "subtotal_amount": subtotal_amount,
+            "discount_percent": verified_data.discount_percent,
+            "discount_amount": discount_amount,
+        }, ensure_ascii=False),
+        created_at=created_at,
+    )
+    db.add(db_order)
+    db.commit()
+
+    order_record = {
+        "id": order_id,
+        "order_code": order_code,
+        "dealer_id": dealer.id,
+        "dealer_name": dealer.name,
+        "created_by": current_user.username,
+        "assigned_sale_id": assigned_sale_id,
+        "assigned_sale_name": assigned_user.full_name if assigned_user else None,
+        "total_amount": total_amount,
+        "status": "CONFIRMED",
+        "created_at": created_at.isoformat(),
+        "subtotal_amount": subtotal_amount,
+        "discount_percent": verified_data.discount_percent,
+        "discount_amount": discount_amount,
+        "delivery_point": verified_data.delivery_point,
+        "desired_delivery_date": verified_data.desired_delivery_date.isoformat(),
+        "items": items,
+    }
+    ORDERS_DB[order_id] = order_record
+    return SalesOrderResponse(**order_record)
 
 
 @router.put("/{order_code}")
@@ -224,4 +422,3 @@ def update_customer_debt_limit(
         "message": f"Đã cập nhật hạn mức công nợ cho {dealer.name} thành {data.credit_limit:,.0f} đ.",
         "dealer": dealer
     }
-

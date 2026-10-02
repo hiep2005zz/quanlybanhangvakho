@@ -1,7 +1,7 @@
 # backend/app/db/init_db.py
 import json
 import os
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from app.core.database import engine, Base, SessionLocal
 from app.models.entities import (
     UserEntity,
@@ -14,17 +14,34 @@ from app.models.entities import (
 from app.core.security import get_password_hash
 from app.core.rbac import Role
 
+
+def _ensure_dealer_credit_limit_column(bind=engine):
+    """Add the credit limit column to databases created before it was introduced."""
+    columns = {column["name"] for column in inspect(bind).get_columns("dealers")}
+    if "credit_limit" in columns:
+        return
+
+    with bind.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE dealers "
+                "ADD credit_limit FLOAT NOT NULL DEFAULT 50000000.0"
+            )
+        )
+
+
 def init_db():
-    print("Initializing Database tables in Microsoft SQL Server...")
+    print(f"Initializing database tables using {engine.dialect.name}...")
     # Tạo các bảng nếu chưa có
     Base.metadata.create_all(bind=engine)
+    _ensure_dealer_credit_limit_column(engine)
     print("Tables created successfully.")
 
     db = SessionLocal()
     try:
         # 1. Seed Users nếu bảng đang trống
         if db.query(UserEntity).count() == 0:
-            print("Seeding initial users into SQL Server...")
+            print("Seeding initial users...")
             # Kiểm tra xem có file users_data.json để migrate dữ liệu cũ không
             json_path = os.path.join(os.path.dirname(__file__), "..", "models", "users_data.json")
             if os.path.exists(json_path):
@@ -53,7 +70,7 @@ def init_db():
 
         # 2. Seed Products nếu chưa có
         if db.query(ProductEntity).count() == 0:
-            print("Seeding initial products into SQL Server...")
+            print("Seeding initial products...")
             initial_products = [
                 ProductEntity(id=1, code="SP001", name="Áo thun Polo Nam Cao Cấp", category="Thời trang", stock=120, cost_price=85000.0, sell_price=199000.0),
                 ProductEntity(id=2, code="SP002", name="Quần Jeans Slimfit Co Giãn", category="Thời trang", stock=45, cost_price=160000.0, sell_price=380000.0),
@@ -67,7 +84,7 @@ def init_db():
 
         # 3. Seed Dealers nếu chưa có
         if db.query(DealerEntity).count() == 0:
-            print("Seeding initial dealers into SQL Server...")
+            print("Seeding initial dealers...")
             initial_dealers = [
                 DealerEntity(id=1, code="DL001", name="Đại Lý Phân Phối Miền Bắc - Sao Mai", phone="0912345678", email="saomai@daily.vn", address="120 Cầu Giấy, Hà Nội", assigned_sale_id=3),
                 DealerEntity(id=2, code="DL002", name="Đại Lý Thời Trang Tân Bình", phone="0987654321", email="tanbinh@daily.vn", address="45 Lý Thường Kiệt, TP. HCM", assigned_sale_id=3),
@@ -77,6 +94,10 @@ def init_db():
             db.add_all(initial_dealers)
             db.commit()
             print("Dealers seeded successfully.")
+
+        from app.models.dealer import load_dealers_db
+
+        load_dealers_db()
 
     except Exception as e:
         db.rollback()
