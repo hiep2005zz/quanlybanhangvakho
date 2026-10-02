@@ -47,12 +47,15 @@ def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenRespo
                 user = u
                 break
 
-    # AC 1 & AC 2: Nếu tài khoản bị Quản trị viên khóa -> Trả về 403 Forbidden không kèm lý do
+    # AC 1 & AC 2: Nếu tài khoản bị Quản trị viên khóa -> Trả về 403 Forbidden kèm lý do
     if user and (getattr(user, "status", "ACTIVE") == "LOCKED" or not user.is_active):
+        reason = getattr(user, "lock_reason", None)
+        msg = f"Tài khoản đã bị khóa: {reason}" if reason else "Tài khoản đã bị khóa. Vui lòng liên hệ với quản lý."
         return None, HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tài khoản đã bị khóa. Vui lòng liên hệ với quản lý."
+            detail=msg
         )
+
 
     # Verify password if user exists
     is_valid = False

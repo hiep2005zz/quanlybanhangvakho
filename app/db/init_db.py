@@ -9,6 +9,7 @@ from app.models.entities import (
     DealerEntity,
     InventoryTransactionEntity,
     OrderEntity,
+    AuditLogEntity,
 )
 from app.core.security import get_password_hash
 from app.core.rbac import Role
