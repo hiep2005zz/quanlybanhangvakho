@@ -232,3 +232,98 @@ def update_product_price(
                 "product": p
             }
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
+
+# ==============================================================================
+# HÀNG LOẠT SẢN PHẨM TỪ EXCEL (Bulk Import / Preview / Upsert)
+# ==============================================================================
+from fastapi import UploadFile, File
+from fastapi.responses import Response
+from app.schemas.product_import import (
+    ProductBulkPreviewResponse,
+    ProductBulkConfirmRequest,
+    ProductBulkConfirmResponse,
+)
+from app.services.product_import_service import ProductBulkImportService
+
+@router.get("/import-template")
+def download_product_import_template(
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Endpoint 1: GET /api/v1/products/import-template
+    Tải tệp Excel mẫu chuẩn (.xlsx) chứa đầy đủ các cột: SKU, Tên sản phẩm, ĐVT, Giá bán, Danh mục...
+    """
+    content = ProductBulkImportService.generate_template()
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=Mau_Nhap_Danh_Muc_San_Pham.xlsx"}
+    )
+
+@router.post("/bulk-preview", response_model=ProductBulkPreviewResponse)
+def bulk_preview_products(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Endpoint 2: POST /api/v1/products/bulk-preview
+    Nhận UploadFile Excel, validate từng dòng dữ liệu, so khớp SKU trong DB:
+    - Báo lỗi chi tiết theo từng dòng (thiếu dữ liệu bắt buộc, sai định dạng số/chuỗi, đơn vị không hợp lệ).
+    - Đánh dấu trạng thái: "NEW" (Tạo mới), "UPDATE" (Cập nhật), "ERROR" (Lỗi).
+    """
+    if not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Định dạng tệp không được hỗ trợ. Vui lòng tải lên tệp Excel (.xlsx hoặc .xls)."
+        )
+
+    try:
+        content = file.file.read()
+        return ProductBulkImportService.parse_and_validate(content, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Lỗi khi đọc file Excel: {str(e)}"
+        )
+
+@router.post("/bulk-confirm", response_model=ProductBulkConfirmResponse)
+def bulk_confirm_products(
+    request: ProductBulkConfirmRequest,
+    req: Request,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Endpoint 3: POST /api/v1/products/bulk-confirm
+    Lưu / cập nhật dữ liệu vào CSDL theo transaction, hỗ trợ tệp lên đến 5.000 dòng.
+    Ghi vết vào Audit Log và đồng bộ in-memory store.
+    """
+    try:
+        result = ProductBulkImportService.execute_upsert(request, db)
+
+        # Ghi log kiểm toán nếu có thao tác thành công
+        if result.total_processed > 0:
+            log_audit_event(
+                db=db,
+                user=current_user,
+                action_type="PRODUCT_BULK_IMPORT",
+                entity_type="Product",
+                entity_id=f"BULK_{result.total_processed}_ITEMS",
+                old_val=None,
+                new_val={
+                    "total_processed": result.total_processed,
+                    "created_count": result.created_count,
+                    "updated_count": result.updated_count,
+                    "failed_count": result.failed_count,
+                },
+                reason=f"Nhập hàng loạt sản phẩm từ Excel ({result.created_count} tạo mới, {result.updated_count} cập nhật)",
+                request=req,
+            )
+
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+

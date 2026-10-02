@@ -1,5 +1,4 @@
 # backend/app/main.py - Fresh Reset
-from opentelemetry.context import contextvars_context
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints import auth, products, inventory, users, orders, categories, audit_logs, profile, suppliers
