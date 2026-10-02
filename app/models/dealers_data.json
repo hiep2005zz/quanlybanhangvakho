@@ -7,6 +7,8 @@
     "email": "saomai@daily.vn",
     "address": "120 Cầu Giấy, Hà Nội",
     "assigned_sale_id": 2,
+    "address": "120 C?u Gi?y, Hà N?i",
+    "assigned_sale_id": 3,
     "credit_limit": 100000000.0
   },
   "2": {
@@ -17,6 +19,8 @@
     "email": "tanbinh@daily.vn",
     "address": "45 Lý Thường Kiệt, TP. HCM",
     "assigned_sale_id": 2,
+    "address": "45 Lý Thu?ng Ki?t, TP. HCM",
+    "assigned_sale_id": 3,
     "credit_limit": 50000000.0
   },
   "3": {
@@ -27,6 +31,8 @@
     "email": "haiphong@daily.vn",
     "address": "88 Lạch Tray, Hải Phòng",
     "assigned_sale_id": 2,
+    "address": "88 L?ch Tray, H?i Phòng",
+    "assigned_sale_id": 3,
     "credit_limit": 50000000.0
   },
   "4": {
