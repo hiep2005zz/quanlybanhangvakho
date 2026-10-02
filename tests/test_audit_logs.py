@@ -115,20 +115,30 @@ def test_invoice_edit_creates_audit_log():
     """Khi sửa đổi hoặc hủy hóa đơn, hệ thống ghi INVOICE_EDIT."""
     admin_token = get_token("admin")
 
+    create_resp = client.post(
+        "/api/v1/orders",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "dealer_id": 1,
+            "items": [{"product_id": 1, "quantity": 1, "price": 199000, "unit": "Cái"}],
+        },
+    )
+    assert create_resp.status_code == 201
+    order_code = create_resp.json()["order_code"]
+
     edit_resp = client.put(
-        "/api/v1/orders/ORD00001",
+        f"/api/v1/orders/{order_code}",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={"status": "CANCELLED", "note": "Hủy theo yêu cầu khách hàng", "reason": "Khách hủy hợp đồng"}
     )
     assert edit_resp.status_code == 200
 
-    # Tra cứu lịch sử của hóa đơn ORD00001
     entity_resp = client.get(
-        "/api/v1/audit-logs/entity/Invoice/ORD00001",
+        f"/api/v1/audit-logs/entity/Invoice/{order_code}",
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert entity_resp.status_code == 200
     items = entity_resp.json()
     assert len(items) > 0
     assert items[0]["action_type"] == "INVOICE_EDIT"
-    assert items[0]["entity_id"] == "ORD00001"
+    assert items[0]["entity_id"] == order_code

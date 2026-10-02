@@ -67,22 +67,9 @@ class DebtLimitUpdateRequest(BaseModel):
     credit_limit: float = Field(..., ge=0)
     reason: str = Field(..., min_length=2, max_length=255)
 
-# Mock orders storage
-ORDERS_DB: dict[int, dict] = {
-    1: {
-        "id": 1,
-        "order_code": "ORD00001",
-        "dealer_id": 1,
-        "dealer_name": "Đại Lý Phân Phối Miền Bắc - Sao Mai",
-        "created_by": "sales",
-        "assigned_sale_id": 3,
-        "assigned_sale_name": "Trần Bán Hàng",
-        "total_amount": 1990000.0,
-        "status": "CONFIRMED",
-        "created_at": "2026-09-28T09:00:00Z",
-    }
-}
-NEXT_ORDER_ID = 2
+# Orders created through the API are stored in the database and this process-local cache.
+ORDERS_DB: dict[int, dict] = {}
+NEXT_ORDER_ID = 12
 
 def _allocate_order_id(db: Session) -> int:
     global NEXT_ORDER_ID
