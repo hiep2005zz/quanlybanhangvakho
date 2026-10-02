@@ -1,8 +1,14 @@
 # backend/app/schemas/product.py
 from typing import Optional, List, Dict
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+class PriceUpdateRequest(BaseModel):
+    sell_price: Optional[float] = Field(None, ge=0)
+    cost_price: Optional[float] = Field(None, ge=0)
+    reason: Optional[str] = "Điều chỉnh giá niêm yết/giá vốn"
 
 class ProductItem(BaseModel):
+
     id: int
     code: str
     name: str

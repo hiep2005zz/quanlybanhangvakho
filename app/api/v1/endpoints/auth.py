@@ -131,7 +131,7 @@ def forgot_password(payload: ForgotPasswordRequest) -> MessageResponse:
     """
     Yêu cầu đặt lại mật khẩu khi quên qua email:
     - Nhận liên kết đặt lại mật khẩu có hiệu lực 30 phút
-    - Email không tồn tại vẫn hiển thị cùng 1 thông báo chống rà quét tài khoản
+    - Kiểm tra email/username có tồn tại và khớp với tài khoản trước khi gửi email
     """
     msg = password_reset_service.request_reset(str(payload.email))
     return MessageResponse(message=msg)
