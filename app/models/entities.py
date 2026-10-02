@@ -60,6 +60,17 @@ class UserEntity(Base):
         return [self.role] if self.role else []
 
 
+class CategoryEntity(Base):
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(Unicode(255), nullable=False, unique=True)
+    parent_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    description = Column(UnicodeText, nullable=True)
+    created_at = Column(DateTime, default=get_utc_now)
+
+    sub_categories = relationship("CategoryEntity", backref="parent", remote_side=[id])
+
 class ProductEntity(Base):
     __tablename__ = "products"
 
@@ -67,10 +78,13 @@ class ProductEntity(Base):
     code = Column(String(50), unique=True, index=True, nullable=False)
     name = Column(Unicode(255), nullable=False)
     category = Column(Unicode(100), default="Thời trang")
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     stock = Column(Integer, default=0)
     cost_price = Column(Float, default=0.0)
     sell_price = Column(Float, default=0.0)
     created_at = Column(DateTime, default=get_utc_now)
+
+    category_rel = relationship("CategoryEntity", backref="products")
 
 
 class DealerEntity(Base):
