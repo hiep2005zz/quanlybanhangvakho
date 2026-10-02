@@ -9,6 +9,7 @@ from app.models.entities import (
     DealerEntity,
     InventoryTransactionEntity,
     OrderEntity,
+    CategoryEntity,
     AuditLogEntity,
 )
 from app.core.security import get_password_hash
@@ -51,15 +52,30 @@ def init_db():
             db.commit()
             print("Users seeded successfully.")
 
+        # 1.5 Seed Categories nếu chưa có
+        if db.query(CategoryEntity).count() == 0:
+            print("Seeding initial categories into SQL Server...")
+            initial_categories = [
+                CategoryEntity(id=1, name="Thời trang", parent_id=None),
+                CategoryEntity(id=2, name="Giày dép", parent_id=None),
+                CategoryEntity(id=3, name="Phụ kiện", parent_id=None),
+                CategoryEntity(id=4, name="Áo Nam", parent_id=1),
+                CategoryEntity(id=5, name="Quần Nam", parent_id=1),
+                CategoryEntity(id=6, name="Áo Thun", parent_id=4),
+            ]
+            db.add_all(initial_categories)
+            db.commit()
+            print("Categories seeded successfully.")
+
         # 2. Seed Products nếu chưa có
         if db.query(ProductEntity).count() == 0:
             print("Seeding initial products into SQL Server...")
             initial_products = [
-                ProductEntity(id=1, code="SP001", name="Áo thun Polo Nam Cao Cấp", category="Thời trang", stock=120, cost_price=85000.0, sell_price=199000.0),
-                ProductEntity(id=2, code="SP002", name="Quần Jeans Slimfit Co Giãn", category="Thời trang", stock=45, cost_price=160000.0, sell_price=380000.0),
-                ProductEntity(id=3, code="SP003", name="Áo khoác Bomber Chống Nước", category="Thời trang", stock=30, cost_price=220000.0, sell_price=490000.0),
-                ProductEntity(id=4, code="SP004", name="Giày Sneaker ThThể Thao", category="Giày dép", stock=65, cost_price=310000.0, sell_price=650000.0),
-                ProductEntity(id=5, code="SP005", name="Thắt lưng da bò nguyên tấm", category="Phụ kiện", stock=80, cost_price=95000.0, sell_price=250000.0),
+                ProductEntity(id=1, code="SP001", name="Áo thun Polo Nam Cao Cấp", category="Thời trang", category_id=6, stock=120, cost_price=85000.0, sell_price=199000.0),
+                ProductEntity(id=2, code="SP002", name="Quần Jeans Slimfit Co Giãn", category="Thời trang", category_id=5, stock=45, cost_price=160000.0, sell_price=380000.0),
+                ProductEntity(id=3, code="SP003", name="Áo khoác Bomber Chống Nước", category="Thời trang", category_id=4, stock=30, cost_price=220000.0, sell_price=490000.0),
+                ProductEntity(id=4, code="SP004", name="Giày Sneaker Thể Thao", category="Giày dép", category_id=2, stock=65, cost_price=310000.0, sell_price=650000.0),
+                ProductEntity(id=5, code="SP005", name="Thắt lưng da bò nguyên tấm", category="Phụ kiện", category_id=3, stock=80, cost_price=95000.0, sell_price=250000.0),
             ]
             db.add_all(initial_products)
             db.commit()

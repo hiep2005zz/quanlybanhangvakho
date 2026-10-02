@@ -13,6 +13,7 @@ class ProductItem(BaseModel):
     code: str
     name: str
     category: str
+    category_id: Optional[int] = None
     stock: int
     sell_price: float
     # Dữ liệu nhạy cảm (AC 3: Bị lọc bỏ hoàn toàn nếu không phải Admin hoặc Sales Manager)
