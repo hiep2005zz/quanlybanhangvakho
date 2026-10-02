@@ -44,6 +44,10 @@ class Permission(str, Enum):
     # Tài nguyên: Quản trị hệ thống & Phân quyền
     USER_MANAGE = "user:manage"
 
+    # Tài nguyên: Chính sách chiết khấu theo sản lượng (Volume Discount)
+    DISCOUNT_READ = "discount:read"
+    DISCOUNT_MANAGE = "discount:manage"
+
 
 # Ma trận phân quyền cho 7 vai trò nghiệp vụ (RBAC Matrix)
 ROLE_PERMISSIONS: Dict[str, Set[str]] = {
@@ -53,6 +57,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
     },
 
     # 2. Quản lý kinh doanh: Xem/sửa sản phẩm, xem đơn hàng, xem báo cáo VÀ ĐƯỢC XEM GIÁ VỐN / LỢI NHUẬN
+    # Khai báo và quản lý chính sách chiết khấu theo sản lượng (DISCOUNT_MANAGE)
     # Tuyệt đối KHÔNG có quyền can thiệp ghi kho (inventory:write)
     Role.SALES_MANAGER.value: {
         Permission.PRODUCT_READ.value,
@@ -62,15 +67,18 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.ORDER_READ.value,
         Permission.ORDER_WRITE.value,
         Permission.REPORT_READ.value,
+        Permission.DISCOUNT_READ.value,      # Tra cứu chính sách chiết khấu
+        Permission.DISCOUNT_MANAGE.value,    # Khai báo & quản lý chính sách chiết khấu
     },
 
-    # 3. Nhân viên kinh doanh: Xem SP, tạo đơn hàng, xem tồn kho bán.
+    # 3. Nhân viên kinh doanh: Xem SP, tạo đơn hàng, xem tồn kho bán, tra cứu chiết khấu cho khách.
     # KHÔNG được xem giá vốn (cost:read) và TUYỆT ĐỐI CHẶN can thiệp kho (inventory:write)
     Role.SALES.value: {
         Permission.PRODUCT_READ.value,
         Permission.ORDER_READ.value,
         Permission.ORDER_WRITE.value,
         Permission.INVENTORY_READ.value,     # Xem số lượng tồn để bán hàng
+        Permission.DISCOUNT_READ.value,      # Tra cứu & tính chiết khấu tự động
     },
 
     # 4. Thủ kho: Thao tác kho toàn diện (nhập, xuất, kiểm kê, điều chỉnh).
@@ -91,7 +99,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.REPORT_READ.value,
     },
 
-    # 6. Kế toán: Xem chứng từ, đơn hàng, mua hàng, báo cáo chung.
+    # 6. Kế toán: Xem chứng từ, đơn hàng, mua hàng, báo cáo chung, đối soát chiết khấu.
     # Không có quyền can thiệp kho (inventory:write)
     Role.ACCOUNTANT.value: {
         Permission.PRODUCT_READ.value,
@@ -99,6 +107,7 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.PURCHASE_READ.value,
         Permission.REPORT_READ.value,
         Permission.INVENTORY_READ.value,
+        Permission.DISCOUNT_READ.value,      # Đối soát bậc chiết khấu hóa đơn
     },
 
     # 7. Nhân viên mua hàng: Tạo và theo dõi phiếu mua hàng, xem tồn kho.
