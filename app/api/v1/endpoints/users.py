@@ -2,7 +2,8 @@
 import re
 from typing import List, Optional
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import StreamingResponse
 from app.api.deps import get_current_user, require_permission
 from app.core.rbac import (
     Role,
@@ -17,6 +18,8 @@ from app.models.user import USERS_DB, UserInDB, get_next_user_id, save_users_db
 from app.schemas.auth import UserResponse
 from app.schemas.user import UserCreate, UserUpdate, UserItemResponse, UserListResponse, CustomerCreate, CustomerCreateResponse
 from app.services.customer_account import generate_temporary_password, send_customer_credentials
+from app.schemas.user_import import PreviewResponse, ImportExecuteRequest, ImportExecuteResponse
+from app.services.user_import_service import validate_excel_file, execute_import, create_template_excel, create_error_excel
 
 router = APIRouter()
 
@@ -87,6 +90,50 @@ def _build_user_item(u: UserInDB) -> UserItemResponse:
         can_view_cost=can_view_cost,
         can_write_inventory=can_write_inventory,
         badge_color=role_info.get("badge_color", "#64748b"),
+    )
+
+@router.get("/import/template")
+def download_import_template(
+    current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
+):
+    """Tải tệp mẫu Excel để import user hàng loạt (Chỉ Admin)."""
+    stream = create_template_excel()
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="user_import_template.xlsx"'}
+    )
+
+@router.post("/import/preview", response_model=PreviewResponse)
+async def preview_import_users(
+    file: UploadFile = File(...),
+    current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
+):
+    """Upload tệp Excel và trả về kết quả validate từng dòng (Chỉ Admin)."""
+    if not file.filename.endswith('.xlsx'):
+        raise HTTPException(status_code=400, detail="Vui lòng tải lên tệp định dạng .xlsx")
+    content = await file.read()
+    return validate_excel_file(content)
+
+@router.post("/import/execute", response_model=ImportExecuteResponse)
+def execute_import_users(
+    request: ImportExecuteRequest,
+    current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
+):
+    """Xác nhận lưu các dòng hợp lệ vào DB (Chỉ Admin)."""
+    return execute_import(request)
+
+@router.post("/import/export-errors")
+def export_import_errors(
+    request: ImportExecuteRequest,
+    current_user: UserResponse = Depends(require_permission(Permission.USER_MANAGE.value))
+):
+    """Xuất danh sách các dòng lỗi ra tệp Excel (Chỉ Admin)."""
+    stream = create_error_excel(request.rows)
+    return StreamingResponse(
+        stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="import_errors.xlsx"'}
     )
 
 @router.get("", response_model=UserListResponse)
