@@ -25,10 +25,9 @@
     "full_name": "nguyễn thị ly",
     "email": "hiep2005zz@gmail.com",
     "phone": "0822516778",
-    "role": "sales",
+    "role": "sales_manager",
     "roles": [
-      "sales",
-      "warehouse"
+      "sales_manager"
     ],
     "hashed_password": "$2b$12$dzvTAvRSAUvmJia7bfTT/.4JVO1juwxA8RHKaNEq9DKBltYVzi1na",
     "branch": "Kho Tổng Hà Nội",
