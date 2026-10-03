@@ -1,7 +1,13 @@
 # backend/app/main.py - Fresh Reset
+import os
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+<<<<<<< HEAD
 from app.api.v1.endpoints import auth, products, inventory, users, orders, audit_logs, discounts
+=======
+from app.api.v1.endpoints import auth, products, inventory, users, orders, categories, audit_logs, profile, suppliers
+>>>>>>> 96a74e689e924f38d15f302d8efbdcace34d4dd6
 
 from contextlib import asynccontextmanager
 from app.db.init_db import init_db
@@ -41,10 +47,25 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(products.router, prefix="/api/v1/products", tags=["Products"])
 app.include_router(inventory.router, prefix="/api/v1/inventory", tags=["Inventory"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
+from app.api.v1.endpoints import user_import
+app.include_router(user_import.router, prefix="/api/v1/users/import", tags=["User Import"])
 app.include_router(orders.router, prefix="/api/v1/orders", tags=["Orders"])
+app.include_router(categories.router, prefix="/api/v1/categories", tags=["Categories"])
 app.include_router(audit_logs.router, prefix="/api/v1/audit-logs", tags=["AuditLogs"])
+<<<<<<< HEAD
 app.include_router(discounts.router, prefix="/api/v1/discounts", tags=["Discounts"])
+=======
+app.include_router(profile.router, prefix="/api/v1/me", tags=["Profile"])
+app.include_router(profile.router, prefix="/api/v1/profile", tags=["Profile"])
+>>>>>>> 96a74e689e924f38d15f302d8efbdcace34d4dd6
 
+app.include_router(suppliers.router, prefix="/api/v1/suppliers", tags=["Suppliers"])
+
+# Mount static folder for user avatars / media uploads
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
+AVATARS_DIR = os.path.join(UPLOAD_DIR, "avatars")
+os.makedirs(AVATARS_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 @app.get("/")
 def root():

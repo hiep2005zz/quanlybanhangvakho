@@ -57,6 +57,23 @@ def log_audit_event(
     """
     global _MEMORY_AUDIT_ID
 
+    # 0. Chỉ kích hoạt ghi log ở các API biến động tài sản:
+    # - Nhập / Xuất / Điều chỉnh tồn kho: INVENTORY_ADJUST, STOCK_RECEIPT, STOCK_ISSUE
+    # - Thay đổi giá bán, giá vốn: PRICE_CHANGE
+    # - Thay đổi hạn mức công nợ khách hàng: DEBT_LIMIT_CHANGE
+    # - Thay đổi trạng thái / hủy hóa đơn: INVOICE_EDIT, INVOICE_CANCEL
+    ALLOWED_ACTION_TYPES = {
+        "INVENTORY_ADJUST",
+        "STOCK_RECEIPT",
+        "STOCK_ISSUE",
+        "PRICE_CHANGE",
+        "DEBT_LIMIT_CHANGE",
+        "INVOICE_EDIT",
+        "INVOICE_CANCEL",
+    }
+    if action_type not in ALLOWED_ACTION_TYPES:
+        return None
+
     # Bóc tách thông tin user
     user_id = None
     user_name = None
@@ -82,8 +99,27 @@ def log_audit_event(
         except Exception:
             pass
 
+    # Chuẩn hóa đối tượng để so sánh tránh log rác (No-op change)
+    if isinstance(old_val, dict) and isinstance(new_val, dict):
+        # Nếu new_val chỉ chứa các trường thay đổi (partial update),
+        # ta so sánh new_val với các trường tương ứng trong old_val
+        if set(new_val.keys()).issubset(set(old_val.keys())):
+            old_subset = {k: old_val.get(k) for k in new_val.keys()}
+            if old_subset == new_val:
+                return None
+        elif old_val == new_val:
+            return None
+    elif old_val is not None and new_val is not None:
+        if old_val == new_val:
+            return None
+
     old_json = _to_json_str(old_val)
     new_json = _to_json_str(new_val)
+
+    # Loại bỏ log rác (No-op change): nếu old_values == new_values thì bỏ qua, không ghi vào database
+    if old_json is not None and new_json is not None and old_json == new_json:
+        return None
+
     str_entity_id = str(entity_id)
 
     # 1. Thử ghi vào Database SQL

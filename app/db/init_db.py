@@ -9,6 +9,7 @@ from app.models.entities import (
     DealerEntity,
     InventoryTransactionEntity,
     OrderEntity,
+    CategoryEntity,
     AuditLogEntity,
 )
 from app.core.security import get_password_hash
@@ -19,6 +20,33 @@ def init_db():
     # Tạo các bảng nếu chưa có
     Base.metadata.create_all(bind=engine)
     print("Tables created successfully.")
+
+    # Tự động migrate thêm cột nếu bảng đã tồn tại từ trước
+    is_sqlite = engine.url.drivername.startswith("sqlite")
+    with engine.connect() as conn:
+        if is_sqlite:
+            # Kiểm tra và thêm cột cho SQLite
+            user_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(users)")).fetchall()]
+            if "avatar_url" not in user_cols:
+                try:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url TEXT;"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (avatar_url): {ex}")
+        else:
+            for sql_statement in [
+                "IF COL_LENGTH('users', 'avatar_url') IS NULL ALTER TABLE users ADD avatar_url NVARCHAR(500);",
+                "IF COL_LENGTH('products', 'base_unit') IS NULL ALTER TABLE products ADD base_unit NVARCHAR(50) DEFAULT N'Cái';",
+                "IF COL_LENGTH('products', 'units_json') IS NULL ALTER TABLE products ADD units_json NVARCHAR(MAX);",
+                "IF COL_LENGTH('inventory_transactions', 'unit_name') IS NULL ALTER TABLE inventory_transactions ADD unit_name NVARCHAR(50) DEFAULT N'Cái';",
+                "IF COL_LENGTH('inventory_transactions', 'conversion_rate') IS NULL ALTER TABLE inventory_transactions ADD conversion_rate FLOAT DEFAULT 1.0;",
+                "IF COL_LENGTH('inventory_transactions', 'base_quantity') IS NULL ALTER TABLE inventory_transactions ADD base_quantity FLOAT DEFAULT 0.0;",
+            ]:
+                try:
+                    conn.execute(text(sql_statement))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"Migration notice: {ex}")
 
     db = SessionLocal()
     try:
@@ -51,15 +79,30 @@ def init_db():
             db.commit()
             print("Users seeded successfully.")
 
+        # 1.5 Seed Categories nếu chưa có
+        if db.query(CategoryEntity).count() == 0:
+            print("Seeding initial categories into SQL Server...")
+            initial_categories = [
+                CategoryEntity(id=1, name="Thời trang", parent_id=None),
+                CategoryEntity(id=2, name="Giày dép", parent_id=None),
+                CategoryEntity(id=3, name="Phụ kiện", parent_id=None),
+                CategoryEntity(id=4, name="Áo Nam", parent_id=1),
+                CategoryEntity(id=5, name="Quần Nam", parent_id=1),
+                CategoryEntity(id=6, name="Áo Thun", parent_id=4),
+            ]
+            db.add_all(initial_categories)
+            db.commit()
+            print("Categories seeded successfully.")
+
         # 2. Seed Products nếu chưa có
         if db.query(ProductEntity).count() == 0:
             print("Seeding initial products into SQL Server...")
             initial_products = [
-                ProductEntity(id=1, code="SP001", name="Áo thun Polo Nam Cao Cấp", category="Thời trang", stock=120, cost_price=85000.0, sell_price=199000.0),
-                ProductEntity(id=2, code="SP002", name="Quần Jeans Slimfit Co Giãn", category="Thời trang", stock=45, cost_price=160000.0, sell_price=380000.0),
-                ProductEntity(id=3, code="SP003", name="Áo khoác Bomber Chống Nước", category="Thời trang", stock=30, cost_price=220000.0, sell_price=490000.0),
-                ProductEntity(id=4, code="SP004", name="Giày Sneaker ThThể Thao", category="Giày dép", stock=65, cost_price=310000.0, sell_price=650000.0),
-                ProductEntity(id=5, code="SP005", name="Thắt lưng da bò nguyên tấm", category="Phụ kiện", stock=80, cost_price=95000.0, sell_price=250000.0),
+                ProductEntity(id=1, code="SP001", name="Áo thun Polo Nam Cao Cấp", category="Thời trang", category_id=6, stock=120, cost_price=85000.0, sell_price=199000.0, base_unit="Cái", units_json=json.dumps([{"unit_name": "Lốc", "conversion_rate": 6.0}, {"unit_name": "Thùng", "conversion_rate": 24.0}], ensure_ascii=False)),
+                ProductEntity(id=2, code="SP002", name="Quần Jeans Slimfit Co Giãn", category="Thời trang", category_id=5, stock=45, cost_price=160000.0, sell_price=380000.0, base_unit="Chiếc", units_json=json.dumps([{"unit_name": "Kiện", "conversion_rate": 10.0}], ensure_ascii=False)),
+                ProductEntity(id=3, code="SP003", name="Áo khoác Bomber Chống Nước", category="Thời trang", category_id=4, stock=30, cost_price=220000.0, sell_price=490000.0, base_unit="Chiếc", units_json=json.dumps([], ensure_ascii=False)),
+                ProductEntity(id=4, code="SP004", name="Giày Sneaker Thể Thao", category="Giày dép", category_id=2, stock=65, cost_price=310000.0, sell_price=650000.0, base_unit="Đôi", units_json=json.dumps([{"unit_name": "Thùng", "conversion_rate": 12.0}], ensure_ascii=False)),
+                ProductEntity(id=5, code="SP005", name="Thắt lưng da bò nguyên tấm", category="Phụ kiện", category_id=3, stock=80, cost_price=95000.0, sell_price=250000.0, base_unit="Chiếc", units_json=json.dumps([{"unit_name": "Hộp", "conversion_rate": 5.0}], ensure_ascii=False)),
             ]
             db.add_all(initial_products)
             db.commit()
