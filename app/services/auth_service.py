@@ -135,6 +135,7 @@ def authenticate_user(username: str, password: str) -> Tuple[Optional[TokenRespo
             territory_name=territory_name,
             can_view_cost=can_view_cost,
             can_write_inventory=can_write_inventory,
+            avatar_url=getattr(user, "avatar_url", None),
         )
     )
     return token_resp, None
