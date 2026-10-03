@@ -1,6 +1,5 @@
-<<<<<<< HEAD
-from typing import List, Optional
-from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, EmailStr
 
 class RowPreview(BaseModel):
     row_index: int
@@ -27,9 +26,6 @@ class ImportExecuteResponse(BaseModel):
     success_count: int
     failed_count: int
     failed_rows: List[RowPreview]
-=======
-from pydantic import BaseModel, EmailStr
-from typing import List, Optional, Dict, Any
 
 class BulkImportRowResult(BaseModel):
     row_index: int
@@ -49,7 +45,7 @@ class BulkImportPreviewResponse(BaseModel):
     invalid_count: int
 
 class BulkImportExecuteRequest(BaseModel):
-    file_id: str  # Or we could just pass the list of valid rows back, but since we parsed it, it's safer to pass the valid rows back to the server.
+    file_id: str
     rows: List[BulkImportRowResult]
 
 class BulkImportExecuteResponse(BaseModel):
@@ -57,4 +53,3 @@ class BulkImportExecuteResponse(BaseModel):
     success_count: int
     failed_count: int
     failed_rows: List[BulkImportRowResult]
->>>>>>> 96a74e689e924f38d15f302d8efbdcace34d4dd6
