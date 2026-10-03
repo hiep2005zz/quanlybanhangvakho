@@ -115,6 +115,16 @@ def test_order_creation_keeps_delivery_unit_and_discount_totals():
     assert result["delivery_point"] == "120 Cầu Giấy, Hà Nội"
     assert result["desired_delivery_date"] == (date.today() + timedelta(days=8)).isoformat()
     assert [item["unit"] for item in result["items"]] == ["Hộp", "Cái"]
+    detail_response = client.get(
+        f"/api/v1/orders/{result['order_code']}",
+        headers=headers,
+    )
+    assert detail_response.status_code == 200
+    assert detail_response.json()["subtotal_amount"] == 778000
+    assert [item["product_name"] for item in detail_response.json()["items"]] == [
+        "Áo thun Polo Nam Cao Cấp",
+        "Quần Jeans Slimfit Co Giãn",
+    ]
     session = SessionLocal()
     try:
         stored_order = session.query(OrderEntity).filter_by(order_code=result["order_code"]).first()
@@ -141,6 +151,10 @@ def test_existing_order_payload_still_works_without_new_fields():
     )
 
     assert response.status_code == 201
-    created_order_codes.add(response.json()["order_code"])
+    order_code = response.json()["order_code"]
+    created_order_codes.add(order_code)
     assert response.json()["total_amount"] == 398000
     assert "delivery_point" not in response.json()
+    detail_response = client.get(f"/api/v1/orders/{order_code}", headers=headers)
+    assert detail_response.status_code == 200
+    assert detail_response.json()["items"][0]["product_name"] == "Áo thun Polo Nam Cao Cấp"

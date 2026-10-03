@@ -59,6 +59,7 @@ class SalesOrderResponse(OrderResponse):
     discount_amount: float = 0
     delivery_point: Optional[str] = None
     desired_delivery_date: Optional[str] = None
+    note: Optional[str] = None
     items: List[dict] = Field(default_factory=list)
 
 class InvoiceEditRequest(BaseModel):
@@ -72,7 +73,7 @@ class DebtLimitUpdateRequest(BaseModel):
 
 # Orders created through the API are stored in the database and this process-local cache.
 ORDERS_DB: dict[int, dict] = {}
-NEXT_ORDER_ID = 12
+NEXT_ORDER_ID = 1
 
 def _allocate_order_id(db: Session) -> int:
     global NEXT_ORDER_ID
@@ -227,8 +228,7 @@ def create_order(
     subtotal_amount = total_amount
     discount_amount = round(subtotal_amount * data.discount_percent / 100, 2)
     total_amount = subtotal_amount - discount_amount
-    order_id = NEXT_ORDER_ID
-    NEXT_ORDER_ID += 1
+    order_id = _allocate_order_id(db)
 
     order_code = f"ORD{order_id:05d}"
     now_str = datetime.now(timezone.utc).isoformat()
@@ -374,6 +374,106 @@ def create_sales_entry_order(
     }
     ORDERS_DB[order_id] = order_record
     return SalesOrderResponse(**order_record)
+
+@router.get("/{order_code}", response_model=SalesOrderResponse)
+def get_order_detail(
+    order_code: str,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.ORDER_READ.value)),
+):
+    """Return one order with its persisted line items and delivery details."""
+    order_record = next(
+        (
+            order
+            for order in ORDERS_DB.values()
+            if order["order_code"].upper() == order_code.upper()
+        ),
+        None,
+    )
+    if order_record is None:
+        entity = db.query(OrderEntity).filter(
+            func.upper(OrderEntity.order_code) == order_code.upper()
+        ).first()
+        if entity is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy đơn hàng có mã {order_code}.",
+            )
+
+        order_record = {
+            "id": entity.id,
+            "order_code": entity.order_code,
+            "dealer_id": entity.dealer_id,
+            "dealer_name": entity.dealer_name,
+            "created_by": entity.created_by,
+            "assigned_sale_id": entity.assigned_sale_id,
+            "assigned_sale_name": entity.assigned_sale_name,
+            "total_amount": entity.total_amount,
+            "status": entity.status,
+            "created_at": entity.created_at.isoformat() if entity.created_at else "",
+            "note": entity.note,
+        }
+        try:
+            stored_details = json.loads(entity.items_json) if entity.items_json else {}
+        except json.JSONDecodeError as error:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Dữ liệu chi tiết đơn hàng {order_code} không hợp lệ.",
+            ) from error
+        if isinstance(stored_details, list):
+            order_record["items"] = stored_details
+            stored_details = {}
+        elif isinstance(stored_details, dict):
+            order_record["items"] = stored_details.get("items", [])
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Dữ liệu chi tiết đơn hàng {order_code} không hợp lệ.",
+            )
+        for field in (
+            "subtotal_amount",
+            "discount_percent",
+            "discount_amount",
+            "delivery_point",
+            "desired_delivery_date",
+        ):
+            if field in stored_details:
+                order_record[field] = stored_details[field]
+
+    items = order_record.get("items") or []
+    from app.api.v1.endpoints.products import _find_product_in_raw
+
+    for item in items:
+        if not isinstance(item, dict) or item.get("product_name"):
+            continue
+        product = _find_product_in_raw(item.get("product_id"))
+        if product:
+            item["product_name"] = product.get("name")
+            item.setdefault("product_code", product.get("code"))
+        else:
+            item["product_name"] = f"SP #{item.get('product_id', '')}"
+
+    subtotal_amount = order_record.get(
+        "subtotal_amount",
+        sum(
+            float(item.get("price", 0)) * float(item.get("quantity", 0))
+            for item in items
+            if isinstance(item, dict)
+        ),
+    )
+    discount_percent = order_record.get("discount_percent", 0)
+    discount_amount = order_record.get(
+        "discount_amount",
+        round(subtotal_amount * discount_percent / 100, 2),
+    )
+    detail_response = dict(order_record)
+    detail_response.update({
+        "items": items,
+        "subtotal_amount": subtotal_amount,
+        "discount_percent": discount_percent,
+        "discount_amount": discount_amount,
+    })
+    return SalesOrderResponse(**detail_response)
 
 
 @router.put("/{order_code}")
