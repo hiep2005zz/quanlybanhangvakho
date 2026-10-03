@@ -28,7 +28,9 @@ class OrderItemCreate(BaseModel):
     product_id: int
     quantity: int = Field(..., gt=0)
     price: float = Field(..., ge=0)
-    unit: str = Field(default="Cái", min_length=1, max_length=30)
+
+    unit_name: Optional[str] = None
+    conversion_rate: Optional[float] = Field(None, gt=0)
 
 class OrderCreate(BaseModel):
     dealer_id: int
@@ -48,6 +50,7 @@ class OrderResponse(BaseModel):
     assigned_sale_name: Optional[str] = None
     total_amount: float
     status: str
+    items: Optional[List[dict]] = None
     created_at: str
 
 class SalesOrderResponse(OrderResponse):
@@ -165,11 +168,62 @@ def create_order(
             detail="Đại lý này thuộc nhân viên đã bị khóa tài khoản, vui lòng bàn giao trước khi lên đơn"
         )
 
-    # 3. Tạo đơn hàng
-    subtotal_amount = sum(item.quantity * item.price for item in data.items)
-    discount_amount = round(subtotal_amount * data.discount_percent / 100, 2)
-    total_amount = subtotal_amount - discount_amount
-    order_id = _allocate_order_id(db)
+    # 3. Tạo đơn hàng và tính base_quantity
+    from app.api.v1.endpoints.products import RAW_PRODUCTS, _find_product_in_raw
+    from app.models.entities import ProductEntity
+
+    processed_items = []
+    total_amount = 0.0
+
+    for item in data.items:
+        # Tìm thông tin sản phẩm để lấy đơn vị cơ sở và hệ số quy đổi mặc định nếu chưa truyền
+        raw_p = _find_product_in_raw(item.product_id)
+        prod_entity = db.query(ProductEntity).filter(ProductEntity.id == item.product_id).first() if db else None
+
+        base_unit = "Cái"
+        units_list = []
+        if raw_p:
+            base_unit = raw_p.get("base_unit", "Cái")
+            units_list = raw_p.get("units", [])
+        elif prod_entity:
+            base_unit = prod_entity.base_unit or "Cái"
+            units_list = prod_entity.units or []
+
+        chosen_unit = item.unit_name or base_unit
+        chosen_rate = item.conversion_rate
+
+        if chosen_rate is None or chosen_rate <= 0:
+            if chosen_unit == base_unit:
+                chosen_rate = 1.0
+            else:
+                matched = next((u for u in units_list if u.get("unit_name") == chosen_unit), None)
+                chosen_rate = float(matched.get("conversion_rate", 1.0)) if matched else 1.0
+
+        base_quantity = int(round(item.quantity * chosen_rate))
+        total_amount += item.quantity * item.price
+
+        # Cập nhật trừ tồn kho theo base_quantity nếu có sản phẩm
+        if raw_p:
+            raw_p["stock"] = max(0, raw_p.get("stock", 0) - base_quantity)
+        if prod_entity:
+            prod_entity.stock = max(0, (prod_entity.stock or 0) - base_quantity)
+
+        processed_items.append({
+            "product_id": item.product_id,
+            "product_name": raw_p.get("name") if raw_p else (prod_entity.name if prod_entity else f"SP #{item.product_id}"),
+            "quantity": item.quantity,
+            "price": item.price,
+            "unit_name": chosen_unit,
+            "conversion_rate": chosen_rate,
+            "base_quantity": base_quantity,
+        })
+
+    if db:
+        db.commit()
+
+    order_id = NEXT_ORDER_ID
+    NEXT_ORDER_ID += 1
+
     order_code = f"ORD{order_id:05d}"
     now_str = datetime.now(timezone.utc).isoformat()
 
@@ -183,7 +237,7 @@ def create_order(
         "assigned_sale_name": assigned_user.full_name if assigned_user else None,
         "total_amount": total_amount,
         "status": "CONFIRMED",
-        "items": [item.dict() for item in data.items],
+        "items": processed_items,
         "created_at": now_str,
         "subtotal_amount": subtotal_amount,
         "discount_percent": data.discount_percent,

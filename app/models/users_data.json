@@ -9,8 +9,7 @@
     "roles": [
       "admin"
     ],
-
-    "hashed_password": "$2b$12$iAxbfoXxqZQo8YQDTo78wO3qE/2JGDWD6Hc.wGzvq8bStLcj.97se",
+    "hashed_password": "$2b$12$Uc90sTxAjE587mPJnRsHFerMTsgrSpZLO7NyI2RCBG2YS3.iKnJt6",
 
     "branch": "Toàn quốc",
     "is_active": true,
@@ -31,8 +30,7 @@
     "roles": [
       "sales_manager"
     ],
-
-    "hashed_password": "$2b$12$iAxbfoXxqZQo8YQDTo78wO3qE/2JGDWD6Hc.wGzvq8bStLcj.97se",
+    "hashed_password": "$2b$12$Uc90sTxAjE587mPJnRsHFerMTsgrSpZLO7NyI2RCBG2YS3.iKnJt6",
 
     "branch": "Toàn quốc",
     "is_active": true,
@@ -54,8 +52,7 @@
     "roles": [
       "sales"
     ],
-
-    "hashed_password": "$2b$12$iAxbfoXxqZQo8YQDTo78wO3qE/2JGDWD6Hc.wGzvq8bStLcj.97se",
+    "hashed_password": "$2b$12$Uc90sTxAjE587mPJnRsHFerMTsgrSpZLO7NyI2RCBG2YS3.iKnJt6",
 
     "branch": "Khu vực Miền Bắc",
     "is_active": true,
@@ -80,8 +77,7 @@
     "roles": [
       "warehouse"
     ],
-
-    "hashed_password": "$2b$12$dzvTAvRSAUvmJia7bfTT/.4JVO1juwxA8RHKaNEq9DKBltYVzi1na",
+    "hashed_password": "$2b$12$Uc90sTxAjE587mPJnRsHFerMTsgrSpZLO7NyI2RCBG2YS3.iKnJt6",
 
     "branch": "Kho Tổng Hà Nội",
     "is_active": true,
@@ -103,7 +99,7 @@
     "roles": [
       "warehouse_manager"
     ],
-    "hashed_password": "$2b$12$iAxbfoXxqZQo8YQDTo78wO3qE/2JGDWD6Hc.wGzvq8bStLcj.97se",
+    "hashed_password": "$2b$12$Uc90sTxAjE587mPJnRsHFerMTsgrSpZLO7NyI2RCBG2YS3.iKnJt6",
 
     "branch": "Kho Tổng Hà Nội",
     "is_active": true,
@@ -126,10 +122,7 @@
     "roles": [
       "accountant"
     ],
-
-    "hashed_password": "$2b$12$2afYb.kKLmdjmqMF5MHgS.BR9oODSf7AswceKxOFEE2HP853zY1/u",
-
-    "hashed_password": "$2b$12$iAxbfoXxqZQo8YQDTo78wO3qE/2JGDWD6Hc.wGzvq8bStLcj.97se",
+    "hashed_password": "$2b$12$Uc90sTxAjE587mPJnRsHFerMTsgrSpZLO7NyI2RCBG2YS3.iKnJt6",
 
     "branch": "Trụ sở chính",
     "is_active": true,
@@ -152,8 +145,7 @@
     "roles": [
       "purchasing"
     ],
-
-    "hashed_password": "$2b$12$iAxbfoXxqZQo8YQDTo78wO3qE/2JGDWD6Hc.wGzvq8bStLcj.97se",
+    "hashed_password": "$2b$12$Uc90sTxAjE587mPJnRsHFerMTsgrSpZLO7NyI2RCBG2YS3.iKnJt6",
 
     "branch": "Trụ sở chính",
     "is_active": true,
