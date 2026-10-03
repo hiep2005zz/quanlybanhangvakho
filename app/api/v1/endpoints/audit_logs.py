@@ -1,0 +1,307 @@
+# backend/app/api/v1/endpoints/audit_logs.py
+"""
+Audit Logs API Endpoints:
+- GET /api/v1/audit-logs: Xem danh sách nhật ký thao tác (Chỉ Admin).
+  Hỗ trợ lọc theo user_id, entity_type, from_date, to_date, entity_id, phân trang (page, page_size).
+- GET /api/v1/audit-logs/entity/{entity_type}/{entity_id}: Xem nhanh lịch sử riêng của 1 thực thể.
+"""
+from typing import Optional, List
+from datetime import datetime, timezone
+import math
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
+from sqlalchemy.orm import Session
+from sqlalchemy import desc
+
+from app.api.deps import require_roles, require_permission, get_current_user
+from app.core.database import get_db
+from app.core.rbac import Role, Permission
+from app.schemas.auth import UserResponse
+from app.schemas.audit import AuditLogItem, AuditLogListResponse
+from app.models.entities import AuditLogEntity
+from app.services.audit_service import MEMORY_AUDIT_LOGS
+
+router = APIRouter()
+
+
+def _format_datetime(dt) -> str:
+    if isinstance(dt, datetime):
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    return str(dt)
+
+
+@router.get("", response_model=AuditLogListResponse)
+def get_audit_logs(
+    user_id: Optional[int] = Query(None, description="Lọc theo ID người thực hiện"),
+    entity_type: Optional[str] = Query(None, description="Lọc theo loại đối tượng (Product, CustomerDebt, Invoice, v.v.)"),
+    entity_id: Optional[str] = Query(None, description="Lọc theo mã/ID đối tượng"),
+    action_type: Optional[str] = Query(None, description="Lọc theo hành động"),
+    from_date: Optional[str] = Query(None, description="Từ ngày (YYYY-MM-DD hoặc ISO string)"),
+    to_date: Optional[str] = Query(None, description="Đến ngày (YYYY-MM-DD hoặc ISO string)"),
+    page: int = Query(1, ge=1, description="Trang hiện tại"),
+    page_size: int = Query(20, ge=1, le=100, description="Số bản ghi trên mỗi trang"),
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_roles([Role.SYSTEM_ADMIN.value])),
+):
+    """
+    Xem danh sách nhật ký thao tác:
+    - Phân quyền: Chỉ cho phép role 'Quản trị hệ thống' (Admin).
+    - Hỗ trợ lọc theo: user_id, entity_type, entity_id, action_type, from_date, to_date.
+    - Phân trang: page, page_size, sắp xếp created_at DESC.
+    """
+    # 1. Truy vấn từ Database
+    try:
+        query = db.query(AuditLogEntity)
+
+        if user_id is not None:
+            query = query.filter(AuditLogEntity.user_id == user_id)
+
+        if entity_type and entity_type.strip() and entity_type.strip().lower() != "all":
+            clean_type = entity_type.strip()
+            if clean_type == "Inventory":
+                # Tồn kho: lọc theo entity_type='Inventory' hoặc entity_type='Product' có hành động liên quan kho
+                query = query.filter(
+                    (AuditLogEntity.entity_type == "Inventory") |
+                    ((AuditLogEntity.entity_type == "Product") & (AuditLogEntity.action_type == "INVENTORY_ADJUST"))
+                )
+            elif clean_type == "ProductPrice":
+                # Giá sản phẩm: lọc theo entity_type='ProductPrice' hoặc entity_type='Product' có hành động đổi giá
+                query = query.filter(
+                    (AuditLogEntity.entity_type == "ProductPrice") |
+                    ((AuditLogEntity.entity_type == "Product") & (AuditLogEntity.action_type == "PRICE_CHANGE"))
+                )
+            elif clean_type == "Invoice":
+                query = query.filter(AuditLogEntity.entity_type.in_(["Invoice", "Order"]))
+            elif clean_type == "Order":
+                query = query.filter(AuditLogEntity.entity_type.in_(["Order", "Invoice"]))
+            else:
+                query = query.filter(AuditLogEntity.entity_type == clean_type)
+
+        if entity_id and entity_id.strip():
+            query = query.filter(AuditLogEntity.entity_id.ilike(f"%{entity_id.strip()}%"))
+
+        if action_type and action_type.strip() and action_type.strip().lower() != "all":
+            query = query.filter(AuditLogEntity.action_type == action_type.strip())
+
+        if from_date and from_date.strip():
+            try:
+                dt_from = datetime.fromisoformat(from_date.strip().replace("Z", "+00:00"))
+                query = query.filter(AuditLogEntity.created_at >= dt_from)
+            except Exception:
+                pass
+
+        if to_date and to_date.strip():
+            try:
+                dt_to = datetime.fromisoformat(to_date.strip().replace("Z", "+00:00"))
+                # Nếu chỉ truyền date YYYY-MM-DD thì đẩy tới 23:59:59
+                if len(to_date.strip()) == 10:
+                    dt_to = dt_to.replace(hour=23, minute=59, second=59)
+                query = query.filter(AuditLogEntity.created_at <= dt_to)
+            except Exception:
+                pass
+
+        total = query.count()
+        offset = (page - 1) * page_size
+        records = query.order_by(desc(AuditLogEntity.created_at)).offset(offset).limit(page_size).all()
+
+        items = [
+            AuditLogItem(
+                id=r.id,
+                user_id=r.user_id,
+                user_name=r.user_name,
+                action_type=r.action_type,
+                entity_type=r.entity_type,
+                entity_id=r.entity_id,
+                old_values=r.old_values,
+                new_values=r.new_values,
+                reason=r.reason,
+                ip_address=r.ip_address,
+                created_at=_format_datetime(r.created_at),
+            )
+            for r in records
+        ]
+
+        total_pages = max(1, math.ceil(total / page_size)) if total > 0 else 1
+
+        return AuditLogListResponse(
+            items=items,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        )
+
+    except Exception as e:
+        print(f"Audit log DB query fallback to memory: {e}")
+        # Fallback query từ MEMORY_AUDIT_LOGS
+        filtered = list(MEMORY_AUDIT_LOGS)
+
+        if user_id is not None:
+            filtered = [m for m in filtered if m.get("user_id") == user_id]
+
+        if entity_type and entity_type.strip() and entity_type.strip().lower() != "all":
+            clean_type = entity_type.strip()
+            if clean_type == "Inventory":
+                filtered = [m for m in filtered if m.get("entity_type") == "Inventory" or (m.get("entity_type") == "Product" and m.get("action_type") == "INVENTORY_ADJUST")]
+            elif clean_type == "ProductPrice":
+                filtered = [m for m in filtered if m.get("entity_type") == "ProductPrice" or (m.get("entity_type") == "Product" and m.get("action_type") == "PRICE_CHANGE")]
+            elif clean_type in ["Invoice", "Order"]:
+                filtered = [m for m in filtered if m.get("entity_type") in ["Invoice", "Order"]]
+            else:
+                filtered = [m for m in filtered if m.get("entity_type") == clean_type]
+
+        if entity_id and entity_id.strip():
+            q_id = entity_id.strip().lower()
+            filtered = [m for m in filtered if q_id in str(m.get("entity_id", "")).lower()]
+
+        if action_type and action_type.strip() and action_type.strip().lower() != "all":
+            filtered = [m for m in filtered if m.get("action_type") == action_type.strip()]
+
+        total = len(filtered)
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_records = filtered[start:end]
+
+        items = [
+            AuditLogItem(
+                id=m["id"],
+                user_id=m.get("user_id"),
+                user_name=m.get("user_name"),
+                action_type=m["action_type"],
+                entity_type=m["entity_type"],
+                entity_id=str(m["entity_id"]),
+                old_values=m.get("old_values"),
+                new_values=m.get("new_values"),
+                reason=m.get("reason"),
+                ip_address=m.get("ip_address"),
+                created_at=str(m.get("created_at")),
+            )
+            for m in page_records
+        ]
+
+        return AuditLogListResponse(
+            items=items,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=max(1, math.ceil(total / page_size)) if total > 0 else 1,
+        )
+
+
+@router.get("/entity/{entity_type}/{entity_id}", response_model=List[AuditLogItem])
+def get_entity_audit_logs(
+    entity_type: str,
+    entity_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """
+    Xem nhanh lịch sử thay đổi riêng của 1 mặt hàng hoặc 1 khách hàng.
+    Mọi nhân viên có quyền xem nghiệp vụ tương ứng (hoặc Admin/Manager) đều có thể xem lịch sử đối tượng này.
+    """
+    try:
+        records = (
+            db.query(AuditLogEntity)
+            .filter(
+                AuditLogEntity.entity_type == entity_type,
+                AuditLogEntity.entity_id == str(entity_id),
+            )
+            .order_by(desc(AuditLogEntity.created_at))
+            .limit(50)
+            .all()
+        )
+
+        return [
+            AuditLogItem(
+                id=r.id,
+                user_id=r.user_id,
+                user_name=r.user_name,
+                action_type=r.action_type,
+                entity_type=r.entity_type,
+                entity_id=r.entity_id,
+                old_values=r.old_values,
+                new_values=r.new_values,
+                reason=r.reason,
+                ip_address=r.ip_address,
+                created_at=_format_datetime(r.created_at),
+            )
+            for r in records
+        ]
+    except Exception as e:
+        print(f"Entity audit log DB error fallback: {e}")
+        matched = [
+            m for m in MEMORY_AUDIT_LOGS
+            if m.get("entity_type") == entity_type and str(m.get("entity_id")) == str(entity_id)
+        ]
+        return [
+            AuditLogItem(
+                id=m["id"],
+                user_id=m.get("user_id"),
+                user_name=m.get("user_name"),
+                action_type=m["action_type"],
+                entity_type=m["entity_type"],
+                entity_id=str(m["entity_id"]),
+                old_values=m.get("old_values"),
+                new_values=m.get("new_values"),
+                reason=m.get("reason"),
+                ip_address=m.get("ip_address"),
+                created_at=str(m.get("created_at")),
+            )
+            for m in matched[:50]
+        ]
+
+
+@router.delete("/{log_id}", status_code=status.HTTP_200_OK)
+def delete_audit_log(
+    log_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_roles([Role.SYSTEM_ADMIN.value])),
+):
+    """
+    Xóa 1 bản ghi nhật ký thao tác (Chỉ Admin).
+    """
+    # 1. Xóa trong database
+    deleted_from_db = False
+    try:
+        record = db.query(AuditLogEntity).filter(AuditLogEntity.id == log_id).first()
+        if record:
+            db.delete(record)
+            db.commit()
+            deleted_from_db = True
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting audit log from DB: {e}")
+
+    # 2. Xóa trong MEMORY_AUDIT_LOGS
+    global MEMORY_AUDIT_LOGS
+    initial_len = len(MEMORY_AUDIT_LOGS)
+    MEMORY_AUDIT_LOGS = [m for m in MEMORY_AUDIT_LOGS if m.get("id") != log_id]
+    deleted_from_mem = len(MEMORY_AUDIT_LOGS) < initial_len
+
+    if not deleted_from_db and not deleted_from_mem:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Không tìm thấy bản ghi nhật ký ID {log_id}",
+        )
+
+    return {"message": f"Đã xóa bản ghi nhật ký ID {log_id} thành công", "deleted_id": log_id}
+
+
+@router.delete("", status_code=status.HTTP_200_OK)
+def clear_all_audit_logs(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_roles([Role.SYSTEM_ADMIN.value])),
+):
+    """
+    Xóa toàn bộ bản ghi nhật ký thao tác (Chỉ Admin).
+    """
+    try:
+        db.query(AuditLogEntity).delete()
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Error clearing audit logs from DB: {e}")
+
+    global MEMORY_AUDIT_LOGS
+    MEMORY_AUDIT_LOGS.clear()
+
+    return {"message": "Đã dọn sạch toàn bộ nhật ký thao tác thành công"}
