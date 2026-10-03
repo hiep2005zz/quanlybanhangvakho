@@ -432,6 +432,10 @@ def update_user(
     if data.branch is not None:
         user.branch = data.branch.strip()
 
+    if data.password is not None and len(data.password.strip()) >= 3:
+        user.hashed_password = get_password_hash(data.password.strip())
+        user.token_version = getattr(user, "token_version", 1) + 1
+
     save_users_db()
 
     # Đồng bộ sang SQL Server Database nếu có
