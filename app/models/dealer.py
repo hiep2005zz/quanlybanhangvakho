@@ -15,6 +15,10 @@ class Dealer(BaseModel):
     address: Optional[str] = None
     assigned_sale_id: Optional[int] = None  # user id of the sales staff responsible
     credit_limit: float = 50000000.0        # Hạn mức công nợ mặc định (VNĐ)
+    status: str = "ACTIVE"                  # ACTIVE | LOCKED
+    lock_reason: Optional[str] = None
+    locked_at: Optional[str] = None
+    locked_by: Optional[str] = None
 
 
 # Initial seed data for dealers
@@ -85,6 +89,11 @@ def save_dealers_db():
                 db_dealer.email = d.email
                 db_dealer.address = d.address
                 db_dealer.assigned_sale_id = d.assigned_sale_id
+                if hasattr(db_dealer, "status"):
+                    db_dealer.status = getattr(d, "status", "ACTIVE")
+                    db_dealer.lock_reason = getattr(d, "lock_reason", None)
+                    db_dealer.locked_at = getattr(d, "locked_at", None)
+                    db_dealer.locked_by = getattr(d, "locked_by", None)
 
             db.commit()
         except Exception as sql_err:
@@ -121,6 +130,10 @@ def load_dealers_db():
                         email=entity.email,
                         address=entity.address,
                         assigned_sale_id=entity.assigned_sale_id,
+                        status=getattr(entity, "status", "ACTIVE") or "ACTIVE",
+                        lock_reason=getattr(entity, "lock_reason", None),
+                        locked_at=getattr(entity, "locked_at", None),
+                        locked_by=getattr(entity, "locked_by", None),
                     )
                     DEALERS_DB[entity.id] = d
                 loaded_from_sql = True
@@ -151,3 +164,23 @@ def get_dealers_by_sale_id(user_id: int) -> List[Dealer]:
     """Lấy danh sách đại lý do nhân viên phụ trách."""
     return [d for d in DEALERS_DB.values() if d.assigned_sale_id == user_id]
 
+def sync_dealer_for_user(user_id: int, full_name: str, email: Optional[str], phone: Optional[str], is_customer: bool):
+    """Đồng bộ tài khoản User với danh sách Dealer (nếu là customer)."""
+    if is_customer:
+        if user_id not in DEALERS_DB:
+            DEALERS_DB[user_id] = Dealer(
+                id=user_id,
+                code=f"DL{user_id:03d}",
+                name=full_name or "Đại lý mới",
+                email=email,
+                phone=phone
+            )
+        else:
+            dealer = DEALERS_DB[user_id]
+            dealer.name = full_name or dealer.name
+            if email: dealer.email = email
+            if phone: dealer.phone = phone
+        save_dealers_db()
+    else:
+        # Nếu không còn là customer nữa thì không cần thiết xóa, nhưng có thể khóa lại nếu muốn
+        pass

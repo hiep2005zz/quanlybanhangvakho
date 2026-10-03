@@ -33,6 +33,66 @@ def init_db():
                     conn.commit()
                 except Exception as ex:
                     print(f"SQLite migration notice (avatar_url): {ex}")
+
+            product_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(products)")).fetchall()]
+            if "base_unit" not in product_cols:
+                try:
+                    conn.execute(text("ALTER TABLE products ADD COLUMN base_unit TEXT DEFAULT 'Cái';"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (base_unit): {ex}")
+            if "units_json" not in product_cols:
+                try:
+                    conn.execute(text("ALTER TABLE products ADD COLUMN units_json TEXT;"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (units_json): {ex}")
+
+            dealer_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(dealers)")).fetchall()]
+            if "status" not in dealer_cols:
+                try:
+                    conn.execute(text("ALTER TABLE dealers ADD COLUMN status VARCHAR(20) DEFAULT 'ACTIVE';"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (dealers.status): {ex}")
+            if "lock_reason" not in dealer_cols:
+                try:
+                    conn.execute(text("ALTER TABLE dealers ADD COLUMN lock_reason TEXT;"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (dealers.lock_reason): {ex}")
+            if "locked_at" not in dealer_cols:
+                try:
+                    conn.execute(text("ALTER TABLE dealers ADD COLUMN locked_at DATETIME;"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (dealers.locked_at): {ex}")
+            if "locked_by" not in dealer_cols:
+                try:
+                    conn.execute(text("ALTER TABLE dealers ADD COLUMN locked_by VARCHAR(50);"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (dealers.locked_by): {ex}")
+
+            tx_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(inventory_transactions)")).fetchall()]
+            if "unit_name" not in tx_cols:
+                try:
+                    conn.execute(text("ALTER TABLE inventory_transactions ADD COLUMN unit_name TEXT DEFAULT 'Cái';"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (tx.unit_name): {ex}")
+            if "conversion_rate" not in tx_cols:
+                try:
+                    conn.execute(text("ALTER TABLE inventory_transactions ADD COLUMN conversion_rate REAL DEFAULT 1.0;"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (tx.conversion_rate): {ex}")
+            if "base_quantity" not in tx_cols:
+                try:
+                    conn.execute(text("ALTER TABLE inventory_transactions ADD COLUMN base_quantity INTEGER DEFAULT 0;"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (tx.base_quantity): {ex}")
         else:
             for sql_statement in [
                 "IF COL_LENGTH('users', 'avatar_url') IS NULL ALTER TABLE users ADD avatar_url NVARCHAR(500);",
