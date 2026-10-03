@@ -18,7 +18,7 @@
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 1,
-    "avatar_url": "/uploads/avatars/admin_38eea1babf92_square.png"
+    "avatar_url": "/uploads/avatars/admin_cfb4ddf283cd_square.png"
   },
   "sales_manager": {
     "id": 2,
@@ -67,7 +67,7 @@
     "username": "kho",
     "full_name": "Lê Thủ Kho",
     "email": "kho@congty.vn",
-    "phone": null,
+    "phone": "0987736345",
     "role": "warehouse",
     "roles": [
       "warehouse"
