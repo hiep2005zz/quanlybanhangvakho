@@ -60,11 +60,7 @@
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 2,
-<<<<<<< HEAD
-    "avatar_url": "/uploads/avatars/sales_f6b3fb3d83f1_square.png"
-=======
     "avatar_url": "/uploads/avatars/sales_606d497a01a5_square.png"
->>>>>>> test
   },
   "kho": {
     "id": 4,
@@ -236,7 +232,7 @@
     "avatar_url": null
   },
   "tranngochuy2509066": {
-    "id": 8,
+    "id": 12,
     "username": "tranngochuy2509066",
     "full_name": "huytran",
     "email": "tranngochuy2509066@gmail.com",
@@ -256,7 +252,7 @@
     "token_version": 1
   },
   "dun": {
-    "id": 9,
+    "id": 13,
     "username": "dun",
     "full_name": "ha thai duong",
     "email": "thaidun6626@gmail.com",
@@ -277,7 +273,7 @@
     "token_version": 2
   },
   "hieuhieu": {
-    "id": 10,
+    "id": 14,
     "username": "hieuhieu",
     "full_name": "Hieu nhan vien",
     "email": "tokudatnvn@gmail.com",
