@@ -71,7 +71,55 @@ def init_db():
     _ensure_dealer_credit_limit_column(engine)
     _ensure_legacy_columns(engine)
     print("Tables created successfully.")
+    # Tự động migrate thêm cột nếu bảng đã tồn tại từ trước
+    is_sqlite = engine.url.drivername.startswith("sqlite")
+    with engine.connect() as conn:
+        if is_sqlite:
+            # Kiểm tra và thêm cột cho SQLite
+            user_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(users)")).fetchall()]
+            if "avatar_url" not in user_cols:
+                try:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url TEXT;"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (avatar_url): {ex}")
 
+            dealer_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(dealers)")).fetchall()]
+            if "customer_group" not in dealer_cols:
+                try:
+                    conn.execute(text("ALTER TABLE dealers ADD COLUMN customer_group TEXT DEFAULT 'Đại lý cấp 1';"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (customer_group): {ex}")
+            if "status" not in dealer_cols:
+                try:
+                    conn.execute(text("ALTER TABLE dealers ADD COLUMN status TEXT DEFAULT 'Đang hoạt động';"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (status): {ex}")
+            if "region" not in dealer_cols:
+                try:
+                    conn.execute(text("ALTER TABLE dealers ADD COLUMN region TEXT;"))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"SQLite migration notice (region): {ex}")
+        else:
+            for sql_statement in [
+                "IF COL_LENGTH('users', 'avatar_url') IS NULL ALTER TABLE users ADD avatar_url NVARCHAR(500);",
+                "IF COL_LENGTH('products', 'base_unit') IS NULL ALTER TABLE products ADD base_unit NVARCHAR(50) DEFAULT N'Cái';",
+                "IF COL_LENGTH('products', 'units_json') IS NULL ALTER TABLE products ADD units_json NVARCHAR(MAX);",
+                "IF COL_LENGTH('inventory_transactions', 'unit_name') IS NULL ALTER TABLE inventory_transactions ADD unit_name NVARCHAR(50) DEFAULT N'Cái';",
+                "IF COL_LENGTH('inventory_transactions', 'conversion_rate') IS NULL ALTER TABLE inventory_transactions ADD conversion_rate FLOAT DEFAULT 1.0;",
+                "IF COL_LENGTH('inventory_transactions', 'base_quantity') IS NULL ALTER TABLE inventory_transactions ADD base_quantity FLOAT DEFAULT 0.0;",
+                "IF COL_LENGTH('dealers', 'customer_group') IS NULL ALTER TABLE dealers ADD customer_group NVARCHAR(100) DEFAULT N'Đại lý cấp 1';",
+                "IF COL_LENGTH('dealers', 'status') IS NULL ALTER TABLE dealers ADD status NVARCHAR(50) DEFAULT N'Đang hoạt động';",
+                "IF COL_LENGTH('dealers', 'region') IS NULL ALTER TABLE dealers ADD region NVARCHAR(100);",
+            ]:
+                try:
+                    conn.execute(text(sql_statement))
+                    conn.commit()
+                except Exception as ex:
+                    print(f"Migration notice: {ex}")
     db = SessionLocal()
     try:
         # 1. Seed Users nếu bảng đang trống
@@ -136,10 +184,10 @@ def init_db():
         if db.query(DealerEntity).count() == 0:
             print("Seeding initial dealers...")
             initial_dealers = [
-                DealerEntity(id=1, code="DL001", name="Đại Lý Phân Phối Miền Bắc - Sao Mai", phone="0912345678", email="saomai@daily.vn", address="120 Cầu Giấy, Hà Nội", assigned_sale_id=3),
-                DealerEntity(id=2, code="DL002", name="Đại Lý Thời Trang Tân Bình", phone="0987654321", email="tanbinh@daily.vn", address="45 Lý Thường Kiệt, TP. HCM", assigned_sale_id=3),
-                DealerEntity(id=3, code="DL003", name="Đại Lý Tổng Hợp Hải Phòng", phone="0934567890", email="haiphong@daily.vn", address="88 Lạch Tray, Hải Phòng", assigned_sale_id=3),
-                DealerEntity(id=4, code="DL004", name="Công Ty TNHH Bán Lẻ An Phát", phone="0945678901", email="anphat@daily.vn", address="66 Nguyễn Huệ, Đà Nẵng", assigned_sale_id=2),
+                DealerEntity(id=1, code="DL001", name="Đại Lý Phân Phối Miền Bắc - Sao Mai", phone="0912345678", email="saomai@daily.vn", address="120 Cầu Giấy, Hà Nội", region="Hà Nội", assigned_sale_id=3, customer_group="Đại lý cấp 1", status="Đang hoạt động"),
+                DealerEntity(id=2, code="DL002", name="Đại Lý Thời Trang Tân Bình", phone="0987654321", email="tanbinh@daily.vn", address="45 Lý Thường Kiệt, TP. HCM", region="TP. HCM", assigned_sale_id=3, customer_group="Đại lý cấp 2", status="Đang hoạt động"),
+                DealerEntity(id=3, code="DL003", name="Đại Lý Tổng Hợp Hải Phòng", phone="0934567890", email="haiphong@daily.vn", address="88 Lạch Tray, Hải Phòng", region="Hải Phòng", assigned_sale_id=3, customer_group="Khách sỉ", status="Đang hoạt động"),
+                DealerEntity(id=4, code="DL004", name="Công Ty TNHH Bán Lẻ An Phát", phone="0945678901", email="anphat@daily.vn", address="66 Nguyễn Huệ, Đà Nẵng", region="Đà Nẵng", assigned_sale_id=None, customer_group="Khách lẻ", status="Tạm ngừng"),
             ]
             db.add_all(initial_dealers)
             db.commit()

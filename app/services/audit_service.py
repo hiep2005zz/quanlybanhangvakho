@@ -70,6 +70,7 @@ def log_audit_event(
         "DEBT_LIMIT_CHANGE",
         "INVOICE_EDIT",
         "INVOICE_CANCEL",
+        "DEALER_STATUS_CHANGE",
     }
     if action_type not in ALLOWED_ACTION_TYPES:
         return None
