@@ -87,6 +87,7 @@ def _build_user_item(u: UserInDB) -> UserItemResponse:
         can_view_cost=can_view_cost,
         can_write_inventory=can_write_inventory,
         badge_color=role_info.get("badge_color", "#64748b"),
+        avatar_url=getattr(u, "avatar_url", None),
     )
 
 @router.get("", response_model=UserListResponse)

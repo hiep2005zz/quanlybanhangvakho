@@ -38,6 +38,7 @@ class UserEntity(Base):
     failed_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)
     token_version = Column(Integer, default=1)
+    avatar_url = Column(Unicode(500), nullable=True)
     created_at = Column(DateTime, default=get_utc_now)
 
     @property
@@ -82,9 +83,24 @@ class ProductEntity(Base):
     stock = Column(Integer, default=0)
     cost_price = Column(Float, default=0.0)
     sell_price = Column(Float, default=0.0)
+    base_unit = Column(Unicode(50), default="Cái")
+    units_json = Column(UnicodeText, nullable=True)  # JSON string lưu danh sách đơn vị quy đổi [{"unit_name": "Thùng", "conversion_rate": 24}]
     created_at = Column(DateTime, default=get_utc_now)
 
     category_rel = relationship("CategoryEntity", backref="products")
+
+    @property
+    def units(self) -> list[dict]:
+        if self.units_json:
+            try:
+                return json.loads(self.units_json)
+            except Exception:
+                pass
+        return []
+
+    @units.setter
+    def units(self, val: list[dict]):
+        self.units_json = json.dumps(val or [], ensure_ascii=False)
 
 
 class DealerEntity(Base):
@@ -112,6 +128,9 @@ class InventoryTransactionEntity(Base):
     quantity = Column(Integer, nullable=False)
     previous_stock = Column(Integer, nullable=False)
     new_stock = Column(Integer, nullable=False)
+    unit_name = Column(Unicode(50), nullable=True)
+    conversion_rate = Column(Float, default=1.0)
+    base_quantity = Column(Integer, nullable=True)
     performed_by = Column(Unicode(100), nullable=False)
     user_role = Column(String(50), nullable=False)
     reason = Column(UnicodeText, nullable=True)
