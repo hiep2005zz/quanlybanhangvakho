@@ -28,6 +28,8 @@ def test_migrates_existing_product_and_inventory_unit_columns():
     engine = create_engine("sqlite://")
     try:
         with engine.begin() as connection:
+            connection.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+            connection.execute(text("INSERT INTO users (id) VALUES (1)"))
             connection.execute(text("CREATE TABLE products (id INTEGER PRIMARY KEY)"))
             connection.execute(text("INSERT INTO products (id) VALUES (1)"))
             connection.execute(text(
@@ -40,6 +42,9 @@ def test_migrates_existing_product_and_inventory_unit_columns():
         _ensure_legacy_columns(engine)
         _ensure_legacy_columns(engine)
 
+        user_columns = {
+            column["name"] for column in inspect(engine).get_columns("users")
+        }
         product_columns = {
             column["name"] for column in inspect(engine).get_columns("products")
         }
@@ -47,6 +52,7 @@ def test_migrates_existing_product_and_inventory_unit_columns():
             column["name"]
             for column in inspect(engine).get_columns("inventory_transactions")
         }
+        assert "avatar_url" in user_columns
         assert {"base_unit", "units_json"} <= product_columns
         assert {"unit_name", "conversion_rate", "base_quantity"} <= inventory_columns
         with engine.connect() as connection:
