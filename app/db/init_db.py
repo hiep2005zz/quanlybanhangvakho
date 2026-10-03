@@ -31,27 +31,43 @@ def _ensure_dealer_credit_limit_column(bind=engine):
         )
 
 
+def _ensure_legacy_columns(bind=engine):
+    """Add columns introduced after existing SQLite or SQL Server databases were created."""
+    additions = {
+        "products": {
+            "base_unit": ("VARCHAR(50) DEFAULT 'Cái'", "NVARCHAR(50) DEFAULT N'Cái'"),
+            "units_json": ("TEXT", "NVARCHAR(MAX)"),
+        },
+        "inventory_transactions": {
+            "unit_name": ("VARCHAR(50) DEFAULT 'Cái'", "NVARCHAR(50) DEFAULT N'Cái'"),
+            "conversion_rate": ("FLOAT DEFAULT 1.0", "FLOAT DEFAULT 1.0"),
+            "base_quantity": ("FLOAT DEFAULT 0.0", "FLOAT DEFAULT 0.0"),
+        },
+    }
+    inspector = inspect(bind)
+    dialect_name = bind.dialect.name
+    for table_name, columns_to_add in additions.items():
+        if not inspector.has_table(table_name):
+            continue
+        existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+        for column_name, (sqlite_definition, sql_server_definition) in columns_to_add.items():
+            if column_name in existing_columns:
+                continue
+            definition = sqlite_definition if dialect_name == "sqlite" else sql_server_definition
+            add_column = "ADD COLUMN" if dialect_name == "sqlite" else "ADD"
+            with bind.begin() as connection:
+                connection.execute(
+                    text(f"ALTER TABLE {table_name} {add_column} {column_name} {definition}")
+                )
+
+
 def init_db():
     print(f"Initializing database tables using {engine.dialect.name}...")
     # Tạo các bảng nếu chưa có
     Base.metadata.create_all(bind=engine)
     _ensure_dealer_credit_limit_column(engine)
+    _ensure_legacy_columns(engine)
     print("Tables created successfully.")
-
-    # Tự động migrate thêm cột nếu bảng đã tồn tại từ trước
-    with engine.connect() as conn:
-        for sql_statement in [
-            "IF COL_LENGTH('products', 'base_unit') IS NULL ALTER TABLE products ADD base_unit NVARCHAR(50) DEFAULT N'Cái';",
-            "IF COL_LENGTH('products', 'units_json') IS NULL ALTER TABLE products ADD units_json NVARCHAR(MAX);",
-            "IF COL_LENGTH('inventory_transactions', 'unit_name') IS NULL ALTER TABLE inventory_transactions ADD unit_name NVARCHAR(50) DEFAULT N'Cái';",
-            "IF COL_LENGTH('inventory_transactions', 'conversion_rate') IS NULL ALTER TABLE inventory_transactions ADD conversion_rate FLOAT DEFAULT 1.0;",
-            "IF COL_LENGTH('inventory_transactions', 'base_quantity') IS NULL ALTER TABLE inventory_transactions ADD base_quantity FLOAT DEFAULT 0.0;",
-        ]:
-            try:
-                conn.execute(text(sql_statement))
-                conn.commit()
-            except Exception as ex:
-                print(f"Migration notice: {ex}")
 
     db = SessionLocal()
     try:

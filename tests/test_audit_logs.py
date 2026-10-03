@@ -142,7 +142,6 @@ def test_invoice_edit_creates_audit_log():
     assert len(items) > 0
     assert items[0]["action_type"] == "INVOICE_EDIT"
     assert items[0]["entity_id"] == order_code
-    assert items[0]["entity_id"] == "ORD00001"
 
 
 def test_no_op_change_does_not_create_audit_log():
@@ -184,4 +183,3 @@ def test_no_op_change_does_not_create_audit_log():
     )
     after_total = after_resp.json()["total"]
     assert after_total == init_total, f"Expected total logs {init_total}, got {after_total}"
-

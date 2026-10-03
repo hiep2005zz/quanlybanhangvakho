@@ -28,7 +28,7 @@ class OrderItemCreate(BaseModel):
     product_id: int
     quantity: int = Field(..., gt=0)
     price: float = Field(..., ge=0)
-
+    unit: Optional[str] = None
     unit_name: Optional[str] = None
     conversion_rate: Optional[float] = Field(None, gt=0)
 
@@ -144,6 +144,8 @@ def create_order(
     db: Session = Depends(get_db),
     current_user: UserResponse = Depends(require_permission(Permission.ORDER_WRITE.value))
 ):
+    global NEXT_ORDER_ID
+
     # 1. Tìm thông tin đại lý
     dealer = DEALERS_DB.get(data.dealer_id)
     if not dealer:
@@ -189,7 +191,7 @@ def create_order(
             base_unit = prod_entity.base_unit or "Cái"
             units_list = prod_entity.units or []
 
-        chosen_unit = item.unit_name or base_unit
+        chosen_unit = item.unit or item.unit_name or base_unit
         chosen_rate = item.conversion_rate
 
         if chosen_rate is None or chosen_rate <= 0:
@@ -213,6 +215,7 @@ def create_order(
             "product_name": raw_p.get("name") if raw_p else (prod_entity.name if prod_entity else f"SP #{item.product_id}"),
             "quantity": item.quantity,
             "price": item.price,
+            "unit": chosen_unit,
             "unit_name": chosen_unit,
             "conversion_rate": chosen_rate,
             "base_quantity": base_quantity,
@@ -221,6 +224,9 @@ def create_order(
     if db:
         db.commit()
 
+    subtotal_amount = total_amount
+    discount_amount = round(subtotal_amount * data.discount_percent / 100, 2)
+    total_amount = subtotal_amount - discount_amount
     order_id = NEXT_ORDER_ID
     NEXT_ORDER_ID += 1
 
@@ -244,7 +250,6 @@ def create_order(
         "discount_amount": discount_amount,
         "delivery_point": data.delivery_point,
         "desired_delivery_date": data.desired_delivery_date.isoformat() if data.desired_delivery_date else None,
-        "items": [item.model_dump() for item in data.items],
         "note": data.note,
     }
     ORDERS_DB[order_id] = order_record
