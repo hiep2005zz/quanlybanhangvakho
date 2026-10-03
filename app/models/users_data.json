@@ -9,7 +9,11 @@
     "roles": [
       "admin"
     ],
+<<<<<<< HEAD
     "hashed_password": "$2b$12$rKTb/5j6GAtVZhUR6t8.FOke4wkcOwZdVHO.55wCu.7ziWucKFS36",
+=======
+    "hashed_password": "$2b$12$f8HKIxvlK6QB1hjHySu/4ufBurTknpt.tl0EP379o4tDwO5nBvL7q",
+>>>>>>> test
     "branch": "Toàn quốc",
     "is_active": true,
     "status": "ACTIVE",
@@ -17,7 +21,8 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 1
+    "token_version": 1,
+    "avatar_url": "/uploads/avatars/admin_38eea1babf92_square.png"
   },
   "sales_manager": {
     "id": 2,
@@ -29,7 +34,11 @@
     "roles": [
       "sales_manager"
     ],
+<<<<<<< HEAD
     "hashed_password": "$2b$12$rKTb/5j6GAtVZhUR6t8.FOke4wkcOwZdVHO.55wCu.7ziWucKFS36",
+=======
+    "hashed_password": "$2b$12$f8HKIxvlK6QB1hjHySu/4ufBurTknpt.tl0EP379o4tDwO5nBvL7q",
+>>>>>>> test
     "branch": "Toàn quốc",
     "is_active": true,
     "status": "ACTIVE",
@@ -37,7 +46,8 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 1
+    "token_version": 1,
+    "avatar_url": null
   },
   "sales": {
     "id": 3,
@@ -49,7 +59,11 @@
     "roles": [
       "sales"
     ],
+<<<<<<< HEAD
     "hashed_password": "$2b$12$rKTb/5j6GAtVZhUR6t8.FOke4wkcOwZdVHO.55wCu.7ziWucKFS36",
+=======
+    "hashed_password": "$2b$12$f8HKIxvlK6QB1hjHySu/4ufBurTknpt.tl0EP379o4tDwO5nBvL7q",
+>>>>>>> test
     "branch": "Khu vực Miền Bắc",
     "is_active": true,
     "status": "ACTIVE",
@@ -57,7 +71,12 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
+<<<<<<< HEAD
     "token_version": 2
+=======
+    "token_version": 1,
+    "avatar_url": "/uploads/avatars/sales_f6b3fb3d83f1_square.png"
+>>>>>>> test
   },
   "kho": {
     "id": 4,
@@ -69,7 +88,11 @@
     "roles": [
       "warehouse"
     ],
+<<<<<<< HEAD
     "hashed_password": "$2b$12$rKTb/5j6GAtVZhUR6t8.FOke4wkcOwZdVHO.55wCu.7ziWucKFS36",
+=======
+    "hashed_password": "$2b$12$f8HKIxvlK6QB1hjHySu/4ufBurTknpt.tl0EP379o4tDwO5nBvL7q",
+>>>>>>> test
     "branch": "Kho Tổng Hà Nội",
     "is_active": true,
     "status": "ACTIVE",
@@ -77,7 +100,8 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 1
+    "token_version": 1,
+    "avatar_url": "/uploads/avatars/kho_cbb51c2f2b1c_square.png"
   },
   "warehouse_mgr": {
     "id": 5,
@@ -89,7 +113,11 @@
     "roles": [
       "warehouse_manager"
     ],
+<<<<<<< HEAD
     "hashed_password": "$2b$12$rKTb/5j6GAtVZhUR6t8.FOke4wkcOwZdVHO.55wCu.7ziWucKFS36",
+=======
+    "hashed_password": "$2b$12$f8HKIxvlK6QB1hjHySu/4ufBurTknpt.tl0EP379o4tDwO5nBvL7q",
+>>>>>>> test
     "branch": "Kho Tổng Hà Nội",
     "is_active": true,
     "status": "ACTIVE",
@@ -97,7 +125,8 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 1
+    "token_version": 1,
+    "avatar_url": null
   },
   "ketoan": {
     "id": 6,
@@ -109,7 +138,11 @@
     "roles": [
       "accountant"
     ],
+<<<<<<< HEAD
     "hashed_password": "$2b$12$rKTb/5j6GAtVZhUR6t8.FOke4wkcOwZdVHO.55wCu.7ziWucKFS36",
+=======
+    "hashed_password": "$2b$12$f8HKIxvlK6QB1hjHySu/4ufBurTknpt.tl0EP379o4tDwO5nBvL7q",
+>>>>>>> test
     "branch": "Trụ sở chính",
     "is_active": true,
     "status": "ACTIVE",
@@ -117,7 +150,8 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
-    "token_version": 1
+    "token_version": 1,
+    "avatar_url": null
   },
   "muahang": {
     "id": 7,
@@ -129,7 +163,11 @@
     "roles": [
       "purchasing"
     ],
+<<<<<<< HEAD
     "hashed_password": "$2b$12$rKTb/5j6GAtVZhUR6t8.FOke4wkcOwZdVHO.55wCu.7ziWucKFS36",
+=======
+    "hashed_password": "$2b$12$f8HKIxvlK6QB1hjHySu/4ufBurTknpt.tl0EP379o4tDwO5nBvL7q",
+>>>>>>> test
     "branch": "Trụ sở chính",
     "is_active": true,
     "status": "ACTIVE",
@@ -137,6 +175,7 @@
     "locked_at": null,
     "failed_attempts": 0,
     "locked_until": null,
+<<<<<<< HEAD
     "token_version": 1
   },
   "tranngochuy2509066": {
@@ -199,5 +238,9 @@
     "failed_attempts": 0,
     "locked_until": null,
     "token_version": 2
+=======
+    "token_version": 1,
+    "avatar_url": null
+>>>>>>> test
   }
 }
