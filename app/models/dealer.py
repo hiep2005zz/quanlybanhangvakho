@@ -85,6 +85,7 @@ def save_dealers_db():
                 db_dealer.email = d.email
                 db_dealer.address = d.address
                 db_dealer.assigned_sale_id = d.assigned_sale_id
+                db_dealer.credit_limit = d.credit_limit
 
             db.commit()
         except Exception as sql_err:
@@ -121,6 +122,7 @@ def load_dealers_db():
                         email=entity.email,
                         address=entity.address,
                         assigned_sale_id=entity.assigned_sale_id,
+                        credit_limit=entity.credit_limit,
                     )
                     DEALERS_DB[entity.id] = d
                 loaded_from_sql = True

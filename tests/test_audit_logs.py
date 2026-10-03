@@ -6,6 +6,9 @@ Ghi và xem nhật ký thao tác trên tồn kho, giá, hạn mức công nợ v
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
+from app.api.v1.endpoints.products import RAW_PRODUCTS
+from app.models.dealer import DEALERS_DB
+from app.api.v1.endpoints.orders import ORDERS_DB
 
 client = TestClient(app)
 
@@ -159,21 +162,25 @@ def test_no_op_change_does_not_create_audit_log():
     client.put(
         "/api/v1/products/2/price",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={"sell_price": 395000.0, "cost_price": 165000.0, "reason": "Không thay đổi giá"}
+        json={"sell_price": next(p for p in RAW_PRODUCTS if p["id"] == 2)["sell_price"], "cost_price": next(p for p in RAW_PRODUCTS if p["id"] == 2)["cost_price"], "reason": "Không thay đổi giá"}
     )
 
     # 2. Update hạn mức công nợ bằng chính hạn mức hiện tại
     client.put(
         "/api/v1/orders/dealers/1/debt-limit",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={"credit_limit": 100000000.0, "reason": "Giữ nguyên hạn mức"}
+        json={"credit_limit": DEALERS_DB[1].credit_limit, "reason": "Giữ nguyên hạn mức"}
     )
 
     # 3. Update trạng thái hóa đơn đúng bằng trạng thái hiện tại (CANCELLED)
+    order = next(
+        (order for order in ORDERS_DB.values() if order["order_code"] == "ORD00001"),
+        {"status": "CANCELLED", "note": None},
+    )
     client.put(
         "/api/v1/orders/ORD00001",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={"status": "CANCELLED", "note": "Hủy theo yêu cầu khách hàng", "reason": "Giữ nguyên trạng thái"}
+        json={"status": order["status"], "note": order.get("note"), "reason": "Giữ nguyên trạng thái"}
     )
 
     # Kiểm tra tổng số log không tăng lên
@@ -183,10 +190,6 @@ def test_no_op_change_does_not_create_audit_log():
     )
     after_total = after_resp.json()["total"]
     assert after_total == init_total, f"Expected total logs {init_total}, got {after_total}"
-<<<<<<< HEAD
-=======
-
-
 def test_sales_manager_can_view_product_price_history():
     """
     Tiêu chí nghiệp vụ:
@@ -270,6 +273,3 @@ def test_audit_logs_immutable_cannot_delete():
         headers={"Authorization": f"Bearer {sales_mgr_token}"}
     )
     assert del_single_sm.status_code == 405
-
-
->>>>>>> test

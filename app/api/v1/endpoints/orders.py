@@ -502,13 +502,21 @@ def edit_or_cancel_invoice(
 
     old_val = {"status": target["status"], "note": target.get("note")}
     new_val = {}
+    new_status = data.status.upper() if data.status else target["status"]
+    new_note = data.note if data.note is not None else target.get("note")
+    if new_status != target["status"]:
+        new_val["status"] = new_status
+    if new_note != target.get("note"):
+        new_val["note"] = new_note
 
-    if data.status:
-        target["status"] = data.status.upper()
-        new_val["status"] = target["status"]
-    if data.note is not None:
-        target["note"] = data.note
-        new_val["note"] = data.note
+    if not new_val:
+        return {
+            "status": "success",
+            "message": "Đơn hàng không thay đổi.",
+            "order": target,
+        }
+
+    target.update(new_val)
 
     log_audit_event(
         db=db,
@@ -549,6 +557,13 @@ def update_customer_debt_limit(
         )
 
     old_limit = getattr(dealer, "credit_limit", 50000000.0)
+    if old_limit == data.credit_limit:
+        return {
+            "status": "success",
+            "message": "Hạn mức công nợ không thay đổi.",
+            "dealer": dealer,
+        }
+
     dealer.credit_limit = data.credit_limit
     save_dealers_db()
 
