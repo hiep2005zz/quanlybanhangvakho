@@ -6,6 +6,7 @@ Nếu tài khoản nhân viên đang ở trạng thái LOCKED, từ chối tạo
 "Đại lý này thuộc nhân viên đã bị khóa tài khoản, vui lòng bàn giao trước khi lên đơn".
 """
 import json
+from uuid import uuid4
 from typing import List, Optional
 from datetime import date, datetime, timezone
 from pydantic import BaseModel, Field
@@ -31,6 +32,8 @@ class OrderItemCreate(BaseModel):
     unit: Optional[str] = None
     unit_name: Optional[str] = None
     conversion_rate: Optional[float] = Field(None, gt=0)
+
+SALES_ORDER_UNITS = {"Cái", "Hộp", "Thùng", "Bộ", "Đôi"}
 
 class OrderCreate(BaseModel):
     dealer_id: int
@@ -308,7 +311,15 @@ def create_sales_entry_order(
         )
 
     product_by_id = {product["id"]: product for product in RAW_PRODUCTS}
-    priced_items: list[OrderItemCreate] = []
+    from app.models.entities import ProductEntity
+
+    priced_items: list[dict] = []
+    products_by_id = {
+        product.id: product
+        for product in db.query(ProductEntity).filter(
+            ProductEntity.id.in_([item.product_id for item in data.items])
+        ).all()
+    }
     for item in data.items:
         product = product_by_id.get(item.product_id)
         if not product:
@@ -316,23 +327,49 @@ def create_sales_entry_order(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy sản phẩm có ID {item.product_id}.",
             )
-        priced_items.append(item.model_copy(update={"price": product["sell_price"]}))
+        entity = products_by_id.get(item.product_id)
+        base_unit = (entity.base_unit if entity and entity.base_unit else product.get("base_unit")) or "Cái"
+        configured_units = entity.units if entity and entity.units else product.get("units", [])
+        unit_rates = {unit: 1.0 for unit in SALES_ORDER_UNITS}
+        unit_rates[base_unit] = 1.0
+        for configured_unit in configured_units:
+            unit_name = configured_unit.get("unit_name")
+            conversion_rate = configured_unit.get("conversion_rate")
+            if unit_name and isinstance(conversion_rate, (int, float)) and conversion_rate > 0:
+                unit_rates[unit_name] = float(conversion_rate)
 
-    verified_data = data.model_copy(update={
-        "delivery_point": data.delivery_point.strip(),
-        "items": priced_items,
-    })
-    subtotal_amount = sum(item.quantity * item.price for item in priced_items)
+        selected_unit = item.unit or item.unit_name or base_unit
+        expected_rate = unit_rates.get(selected_unit)
+        if expected_rate is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Đơn vị tính '{selected_unit}' không hợp lệ cho sản phẩm {product['code']}.",
+            )
+        if item.conversion_rate is not None and item.conversion_rate != expected_rate:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Hệ số quy đổi của đơn vị '{selected_unit}' không hợp lệ.",
+            )
+
+        priced_items.append({
+            "product_id": product["id"],
+            "product_code": product["code"],
+            "product_name": product["name"],
+            "quantity": item.quantity,
+            "price": product["sell_price"],
+            "unit": selected_unit,
+            "unit_name": selected_unit,
+            "conversion_rate": expected_rate,
+            "base_quantity": int(round(item.quantity * expected_rate)),
+        })
+
+    delivery_point = data.delivery_point.strip()
+    subtotal_amount = sum(item["quantity"] * item["price"] for item in priced_items)
     discount_amount = round(subtotal_amount * data.discount_percent / 100, 2)
     total_amount = subtotal_amount - discount_amount
-    order_id = _allocate_order_id(db)
-    order_code = f"ORD{order_id:05d}"
     created_at = datetime.now(timezone.utc)
-    items = [item.model_dump() for item in verified_data.items]
-
     db_order = OrderEntity(
-        id=order_id,
-        order_code=order_code,
+        order_code=f"PENDING-{uuid4().hex}",
         dealer_id=dealer.id,
         dealer_name=dealer.name,
         created_by=current_user.username,
@@ -340,22 +377,32 @@ def create_sales_entry_order(
         assigned_sale_name=assigned_user.full_name if assigned_user else None,
         total_amount=total_amount,
         status="CONFIRMED",
-        note=verified_data.note,
+        note=data.note,
         items_json=json.dumps({
-            "items": items,
-            "delivery_point": verified_data.delivery_point,
-            "desired_delivery_date": verified_data.desired_delivery_date.isoformat(),
+            "items": priced_items,
+            "delivery_point": delivery_point,
+            "desired_delivery_date": data.desired_delivery_date.isoformat(),
             "subtotal_amount": subtotal_amount,
-            "discount_percent": verified_data.discount_percent,
+            "discount_percent": data.discount_percent,
             "discount_amount": discount_amount,
         }, ensure_ascii=False),
         created_at=created_at,
     )
     db.add(db_order)
+    db.flush()
+
+    order_code = f"ORD{db_order.id:05d}"
+    code_exists = (
+        order_code in (order.get("order_code") for order in ORDERS_DB.values())
+        or db.query(OrderEntity.id).filter(OrderEntity.order_code == order_code).first() is not None
+    )
+    if code_exists:
+        order_code = f"{order_code}-{uuid4().hex[:8]}"
+    db_order.order_code = order_code
     db.commit()
 
     order_record = {
-        "id": order_id,
+        "id": db_order.id,
         "order_code": order_code,
         "dealer_id": dealer.id,
         "dealer_name": dealer.name,
@@ -366,13 +413,13 @@ def create_sales_entry_order(
         "status": "CONFIRMED",
         "created_at": created_at.isoformat(),
         "subtotal_amount": subtotal_amount,
-        "discount_percent": verified_data.discount_percent,
+        "discount_percent": data.discount_percent,
         "discount_amount": discount_amount,
-        "delivery_point": verified_data.delivery_point,
-        "desired_delivery_date": verified_data.desired_delivery_date.isoformat(),
-        "items": items,
+        "delivery_point": delivery_point,
+        "desired_delivery_date": data.desired_delivery_date.isoformat(),
+        "note": data.note,
+        "items": priced_items,
     }
-    ORDERS_DB[order_id] = order_record
     return SalesOrderResponse(**order_record)
 
 @router.get("/{order_code}", response_model=SalesOrderResponse)
@@ -494,11 +541,21 @@ def edit_or_cancel_invoice(
             target = o
             break
 
+    persisted_order = None
     if not target:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Không tìm thấy hóa đơn/đơn hàng có mã {order_code}."
-        )
+        persisted_order = db.query(OrderEntity).filter(
+            func.upper(OrderEntity.order_code) == order_code.upper()
+        ).first()
+        if persisted_order is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy hóa đơn/đơn hàng có mã {order_code}."
+            )
+        target = {
+            "order_code": persisted_order.order_code,
+            "status": persisted_order.status,
+            "note": persisted_order.note,
+        }
 
     old_val = {"status": target["status"], "note": target.get("note")}
     new_val = {}
@@ -517,6 +574,10 @@ def edit_or_cancel_invoice(
         }
 
     target.update(new_val)
+    if persisted_order is not None:
+        persisted_order.status = new_status
+        persisted_order.note = new_note
+        db.commit()
 
     log_audit_event(
         db=db,
