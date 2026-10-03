@@ -10,6 +10,8 @@ from app.schemas.product import (
     ProductListResponse,
     ProductFinancialSummary,
     PriceUpdateRequest,
+    UnitUpdateRequest,
+    UnitConversionItem,
     ProductCreateRequest,
     ProductUpdateRequest,
 )
@@ -17,19 +19,88 @@ from app.services.audit_service import log_audit_event
 
 router = APIRouter()
 
-# Mock Products database
+# Mock Products database with base_unit and units
 RAW_PRODUCTS = [
-    {"id": 1, "code": "SP001", "name": "Áo thun Polo Nam Cao Cấp", "category": "Thời trang", "stock": 120, "cost_price": 85000.0, "sell_price": 199000.0},
-    {"id": 2, "code": "SP002", "name": "Quần Jeans Slimfit Co Giãn", "category": "Thời trang", "stock": 45, "cost_price": 160000.0, "sell_price": 380000.0},
-    {"id": 3, "code": "SP003", "name": "Áo khoác Bomber Chống Nước", "category": "Thời trang", "stock": 30, "cost_price": 220000.0, "sell_price": 490000.0},
-    {"id": 4, "code": "SP004", "name": "Giày Sneaker Thể Thao", "category": "Giày dép", "stock": 65, "cost_price": 310000.0, "sell_price": 650000.0},
-    {"id": 5, "code": "SP005", "name": "Thắt lưng da bò nguyên tấm", "category": "Phụ kiện", "stock": 80, "cost_price": 95000.0, "sell_price": 250000.0},
+    {
+        "id": 1,
+        "code": "SP001",
+        "name": "Áo thun Polo Nam Cao Cấp",
+        "category": "Thời trang",
+        "stock": 120,
+        "cost_price": 85000.0,
+        "sell_price": 199000.0,
+        "base_unit": "Cái",
+        "units": [
+            {"unit_name": "Lốc", "conversion_rate": 6.0},
+            {"unit_name": "Thùng", "conversion_rate": 24.0},
+        ],
+    },
+    {
+        "id": 2,
+        "code": "SP002",
+        "name": "Quần Jeans Slimfit Co Giãn",
+        "category": "Thời trang",
+        "stock": 45,
+        "cost_price": 160000.0,
+        "sell_price": 380000.0,
+        "base_unit": "Chiếc",
+        "units": [
+            {"unit_name": "Kiện", "conversion_rate": 10.0},
+        ],
+    },
+    {
+        "id": 3,
+        "code": "SP003",
+        "name": "Áo khoác Bomber Chống Nước",
+        "category": "Thời trang",
+        "stock": 30,
+        "cost_price": 220000.0,
+        "sell_price": 490000.0,
+        "base_unit": "Chiếc",
+        "units": [],
+    },
+    {
+        "id": 4,
+        "code": "SP004",
+        "name": "Giày Sneaker Thể Thao",
+        "category": "Giày dép",
+        "stock": 65,
+        "cost_price": 310000.0,
+        "sell_price": 650000.0,
+        "base_unit": "Đôi",
+        "units": [
+            {"unit_name": "Thùng", "conversion_rate": 12.0},
+        ],
+    },
+    {
+        "id": 5,
+        "code": "SP005",
+        "name": "Thắt lưng da bò nguyên tấm",
+        "category": "Phụ kiện",
+        "stock": 80,
+        "cost_price": 95000.0,
+        "sell_price": 250000.0,
+        "base_unit": "Chiếc",
+        "units": [
+            {"unit_name": "Hộp", "conversion_rate": 5.0},
+        ],
+    },
 ]
+
+
+def _find_product_in_raw(product_id: int):
+    for p in RAW_PRODUCTS:
+        if p["id"] == product_id:
+            return p
+    return None
 
 
 
 @router.get("", response_model=ProductListResponse)
-def get_products(current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_READ.value))):
+def get_products(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_READ.value))
+):
     """
     Lấy danh sách sản phẩm.
     ÁP DỤNG AC 2 (Zero-Trust) & AC 3 (Bảo vệ dữ liệu nhạy cảm Giá vốn & Biên lợi nhuận):
@@ -38,14 +109,25 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
       CHỈ ĐƯỢC PHÉP TRẢ VỀ khi người dùng có quyền 'cost:read' (Vai trò: Quản lý kinh doanh hoặc Quản trị hệ thống).
     - Đối với Thủ kho, Nhân viên kinh doanh, Kế toán...: Server BÓC TÁCH & GỠ BỎ HOÀN TOÀN các trường này (None).
     """
+    from app.models.entities import ProductEntity
+
     can_view_cost = current_user.can_view_cost or (Permission.COST_READ.value in current_user.permissions)
     
+    # Đồng bộ từ DB nếu có
+    db_products = db.query(ProductEntity).all()
+    db_prod_map = {p.id: p for p in db_products}
+
     sanitized_items: list[ProductItem] = []
     total_stock = 0
     total_sell_val = 0.0
     total_cost_val = 0.0
 
     for p in RAW_PRODUCTS:
+        db_p = db_prod_map.get(p["id"])
+        base_unit = db_p.base_unit if (db_p and db_p.base_unit) else p.get("base_unit", "Cái")
+        units_raw = db_p.units if (db_p and db_p.units) else p.get("units", [])
+        units_converted = [UnitConversionItem(unit_name=u["unit_name"], conversion_rate=float(u["conversion_rate"])) for u in units_raw]
+
         stock = p["stock"]
         sell_price = p["sell_price"]
         cost_price = p["cost_price"]
@@ -70,6 +152,8 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
                 category_id=p.get("category_id"),
                 stock=stock,
                 sell_price=sell_price,
+                base_unit=base_unit,
+                units=units_converted,
                 cost_price=cost_price,
                 profit_margin=margin,
                 profit_per_unit=profit_unit,
@@ -88,6 +172,8 @@ def get_products(current_user: UserResponse = Depends(require_permission(Permiss
                 category_id=p.get("category_id"),
                 stock=stock,
                 sell_price=sell_price,
+                base_unit=base_unit,
+                units=units_converted,
                 cost_price=None,
                 profit_margin=None,
                 profit_per_unit=None,
@@ -534,4 +620,175 @@ def delete_product(
     )
 
     return {"status": "success", "message": f"Đã xóa sản phẩm {target['code']} thành công"}
+
+
+@router.put("/{product_id}/units")
+@router.patch("/{product_id}/units")
+def update_product_units(
+    product_id: int,
+    data: UnitUpdateRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_roles([Role.SYSTEM_ADMIN.value, Role.WAREHOUSE_MANAGER.value]))
+):
+    """
+    Tiêu chí 1: Khai báo đa đơn vị tính:
+    - Mỗi SKU có 1 Đơn vị tính cơ sở (Base unit, ví dụ: Lon, Cái) và có thể khai báo thêm nhiều Đơn vị quy đổi kèm hệ số quy đổi về đơn vị cơ sở (ví dụ: Lốc = 6, Thùng = 24).
+    - Hệ số quy đổi bắt buộc > 0.
+    - Lưu vào DB và đồng bộ in-memory RAW_PRODUCTS.
+    """
+    from app.models.entities import ProductEntity
+
+    # Validate hệ số quy đổi bắt buộc > 0
+    if data.units is not None:
+        for u in data.units:
+            if u.conversion_rate <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Hệ số quy đổi của đơn vị '{u.unit_name}' phải lớn hơn 0 (conversion_rate > 0)"
+                )
+
+    raw_p = _find_product_in_raw(product_id)
+    db_product = db.query(ProductEntity).filter(ProductEntity.id == product_id).first()
+
+    if not raw_p and not db_product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy sản phẩm")
+
+    old_base_unit = raw_p.get("base_unit", "Cái") if raw_p else (db_product.base_unit or "Cái")
+    old_units = raw_p.get("units", []) if raw_p else (db_product.units or [])
+
+    new_base_unit = data.base_unit.strip() if data.base_unit and data.base_unit.strip() else old_base_unit
+    new_units = [u.dict() for u in data.units] if data.units is not None else old_units
+
+    # Cập nhật DB
+    if db_product:
+        db_product.base_unit = new_base_unit
+        db_product.units = new_units
+        db.commit()
+
+    # Cập nhật in-memory
+    if raw_p:
+        raw_p["base_unit"] = new_base_unit
+        raw_p["units"] = new_units
+
+    # Audit log
+    code_val = raw_p.get("code") if raw_p else db_product.code
+    log_audit_event(
+        db=db,
+        user=current_user,
+        action_type="UNIT_CONVERSION_CHANGE",
+        entity_type="Product",
+        entity_id=code_val,
+        old_val={"base_unit": old_base_unit, "units": old_units},
+        new_val={"base_unit": new_base_unit, "units": new_units},
+        reason="Cập nhật đơn vị tính và hệ số quy đổi",
+        request=request,
+    )
+
+    return {
+        "status": "success",
+        "message": f"Cập nhật đơn vị quy đổi thành công cho sản phẩm {code_val}",
+        "product": {
+            "id": product_id,
+            "code": code_val,
+            "name": raw_p.get("name") if raw_p else db_product.name,
+            "base_unit": new_base_unit,
+            "units": new_units
+        }
+    }
+
+# ==============================================================================
+# HÀNG LOẠT SẢN PHẨM TỪ EXCEL (Bulk Import / Preview / Upsert)
+# ==============================================================================
+from fastapi import UploadFile, File
+from fastapi.responses import Response
+from app.schemas.product_import import (
+    ProductBulkPreviewResponse,
+    ProductBulkConfirmRequest,
+    ProductBulkConfirmResponse,
+)
+from app.services.product_import_service import ProductBulkImportService
+
+@router.get("/import-template")
+def download_product_import_template(
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Endpoint 1: GET /api/v1/products/import-template
+    Tải tệp Excel mẫu chuẩn (.xlsx) chứa đầy đủ các cột: SKU, Tên sản phẩm, ĐVT, Giá bán, Danh mục...
+    """
+    content = ProductBulkImportService.generate_template()
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=Mau_Nhap_Danh_Muc_San_Pham.xlsx"}
+    )
+
+@router.post("/bulk-preview", response_model=ProductBulkPreviewResponse)
+def bulk_preview_products(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Endpoint 2: POST /api/v1/products/bulk-preview
+    Nhận UploadFile Excel, validate từng dòng dữ liệu, so khớp SKU trong DB:
+    - Báo lỗi chi tiết theo từng dòng (thiếu dữ liệu bắt buộc, sai định dạng số/chuỗi, đơn vị không hợp lệ).
+    - Đánh dấu trạng thái: "NEW" (Tạo mới), "UPDATE" (Cập nhật), "ERROR" (Lỗi).
+    """
+    if not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Định dạng tệp không được hỗ trợ. Vui lòng tải lên tệp Excel (.xlsx hoặc .xls)."
+        )
+
+    try:
+        content = file.file.read()
+        return ProductBulkImportService.parse_and_validate(content, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Lỗi khi đọc file Excel: {str(e)}"
+        )
+
+@router.post("/bulk-confirm", response_model=ProductBulkConfirmResponse)
+def bulk_confirm_products(
+    request: ProductBulkConfirmRequest,
+    req: Request,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(require_permission(Permission.PRODUCT_WRITE.value))
+):
+    """
+    Endpoint 3: POST /api/v1/products/bulk-confirm
+    Lưu / cập nhật dữ liệu vào CSDL theo transaction, hỗ trợ tệp lên đến 5.000 dòng.
+    Ghi vết vào Audit Log và đồng bộ in-memory store.
+    """
+    try:
+        result = ProductBulkImportService.execute_upsert(request, db)
+
+        # Ghi log kiểm toán nếu có thao tác thành công
+        if result.total_processed > 0:
+            log_audit_event(
+                db=db,
+                user=current_user,
+                action_type="PRODUCT_BULK_IMPORT",
+                entity_type="Product",
+                entity_id=f"BULK_{result.total_processed}_ITEMS",
+                old_val=None,
+                new_val={
+                    "total_processed": result.total_processed,
+                    "created_count": result.created_count,
+                    "updated_count": result.updated_count,
+                    "failed_count": result.failed_count,
+                },
+                reason=f"Nhập hàng loạt sản phẩm từ Excel ({result.created_count} tạo mới, {result.updated_count} cập nhật)",
+                request=req,
+            )
+
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
 
